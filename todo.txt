@@ -1,0 +1,134 @@
+// TODO
+
+
+Check NotificationCenter / Alarms
+=> change input 1 to alarm and input 2 to general current feedback
+
+add ydab button support
+
+add tolerance settings change support
+
+Check MQTT
+Create settings UI
+Create MainScreen UI
+Create Alarm control UI
+Package
+
+
+
+
+nmea interface for plotter feedback
+
+# defines alert text
+send 126985 Set Alert Text payload
+{
+    "pgn": 126985,
+    "Alert ID": "{{topic}}",
+    "Alert Type": "{{type}}",
+    "Alert Category": "Technical",
+    "Alert System": 5,
+    "Alert Sub-System": 0,
+    "Data Source Network ID NAME": "{{topic}}",
+    "Data Source Instance": 0,
+    "Data Source Index-Source": 0,
+    "Alert Occurrence Number": 0,
+    "Language ID": 0,
+    "Alert Text Description": "{{message}}"
+}
+
+# defines alert status
+send 126983 Alert payload
+{
+  "pgn": 126983,
+  "Alert ID": "{{id}}",
+  "Alert Type": "{{type}}",
+  "Alert State": "{{state}}",
+  "Alert Category": "Technical",
+  "Alert System": 5,
+  "Alert Sub-System": 0,
+  "Data Source Network ID NAME": "{{id}}",
+  "Data Source Instance": 0,
+  "Data Source Index-Source": 0,
+  "Alert Occurrence Number": 0,
+  "Temporary Silence Status": 0,
+  "Acknowledge Status": 0,
+  "Escalation Status": 0,
+  "Temporary Silence Support": 0,
+  "Acknowledge Support": 1,
+  "Escalation Support": 0,
+  "Trigger Condition": 2,
+  "Threshold Status": 1,
+  "Alert Priority": 0
+}
+
+Filter 126984 Alert Response, set msg.id to response.Alert ID, set state to normal and type to response.Alert Type
+and send 126983 Alert payload to mute
+
+
+
+
+
+nmea messages for button feedback. Big mess ahead
+
+126208 NMEA Command
+{
+  "prio":3,
+  "dst":{{flow.dst}},
+  "pgn":126208,
+  "fields":{
+    "Function Code":"Command",
+    "PGN":126998,
+    "Number of Parameters":1,
+    "list":[{"Parameter":2,"Value":"{{payload}}"}]
+  },
+  "description":"NMEA - Command group function"
+}
+
+
+
+
+
+
+
+docker run --platform linux/amd64 --name cerbo -p 80:80 -p 1883:1883 -p 3000:3000 -p 502:502 -p 8000:8000 -p 9001:9001  -i victronenergy/venus-docker bash -i 
+./start_services.sh
+./simulate.sh BCT
+
+
+
+com.victronenergy.settings
+//Saved state
+/Settings/AnchorAlarm/Position/Latitude
+/Settings/AnchorAlarm/Position/Longitude
+/Settings/AnchorAlarm/Radius
+
+// Windlass UP
+/Settings/AnchorAlarm/Triggers/Disable/DigitalInput
+/Settings/AnchorAlarm/Triggers/Disable/DigitalInputDuration
+
+// Windlass DOWN
+/Settings/AnchorAlarm/Triggers/Enable/DigitalInput
+/Settings/AnchorAlarm/Triggers/Enable/DigitalInputDuration
+
+// Chain OUT
+/Settings/AnchorAlarm/Triggers/Enable/DigitalInput
+/Settings/AnchorAlarm/Triggers/Enable/DigitalInputDuration
+
+
+
+
+com.victronenergy.anchoralarm
+/AnchorAlarm/State                  // READONLY
+/AnchorAlarm/CurrentRadius          // READONLY
+/AnchorAlarm/RadiusLeft             // READONLY
+/AnchorAlarm/AdditionalDescription
+
+
+/AnchorAlarm/Triggers/Disable
+/AnchorAlarm/Triggers/Enable
+/AnchorAlarm/Triggers/SetRadius
+
+/AnchorAlarm/Alarm/Type             // Warn | Alarm
+/AnchorAlarm/Alarm/Description    
+/AnchorAlarm/Alarm/Aknowledged
+

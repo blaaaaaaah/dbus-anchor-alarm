@@ -1,0 +1,412 @@
+import sys
+import os
+
+sys.path.insert(1, os.path.join(sys.path[0], '..'))
+sys.path.insert(1, os.path.join(os.path.dirname(__file__), '../ext/velib_python/test'))
+
+from anchor_alarm_model import AnchorAlarmState
+
+import unittest
+from unittest.mock import ANY
+from unittest.mock import MagicMock
+from unittest.mock import Mock
+from unittest.mock import patch
+
+sys.modules['dbus'] = Mock()
+
+
+sys.path.insert(1, os.path.join(sys.path[0], '../connectors'))
+
+from dbus_connector import DBusConnector
+
+from mock_dbus_monitor import MockDbusMonitor
+from mock_dbus_service import MockDbusService
+from mock_settings_device import MockSettingsDevice
+
+from glib_timer_mock import GLibTimerMock
+          
+
+
+class MockDBusConnector(DBusConnector):
+    def _create_dbus_monitor(self, *args, **kwargs):
+        return MockDbusMonitor(*args, **kwargs)
+    
+    def _create_dbus_service(self, *args, **kwargs):
+        return MockDbusService(*args, **kwargs)
+
+    def mock_monitor(self):
+        return self._alarm_monitor
+    
+    def mock_service(self):
+        return self._dbus_service
+    
+
+
+timer_provider = GLibTimerMock()
+
+class TestDBusConnector(unittest.TestCase):
+
+    def setUp(self):
+        self.maxDiff = None
+
+        
+
+
+
+    def test_settings_created_and_update_callback(self):
+    
+        connector = MockDBusConnector(lambda: timer_provider, lambda settings, cb: MockSettingsDevice(settings, cb))
+
+        self.assertEqual(connector._anchor_down_digital_input, 'com.victronenergy.digitalinput.input01')
+
+        connector._settings['AnchorDownDigitalInputNumber'] = 3
+        self.assertEqual(connector._anchor_down_digital_input, 'com.victronenergy.digitalinput.input03')
+
+
+    def test_service_available(self):
+        controller = MagicMock()
+        controller.trigger_anchor_down  = MagicMock()
+        controller.trigger_anchor_up    = MagicMock()
+        controller.trigger_chain_out    = MagicMock()
+        controller.trigger_mute_alarm   = MagicMock()
+
+        connector = MockDBusConnector(lambda: timer_provider, lambda settings, cb: MockSettingsDevice(settings, cb))
+        connector.set_controller(controller)
+        monitor = connector.mock_monitor()
+        monitor.add_service('com.victronenergy.digitalinput.input01',
+			values={
+				'/ProductName': "qwe",
+				'/CustomName': "qwe",
+				'/Alarm': False,
+                '/DeviceInstance': 0
+			})
+
+        service = connector.mock_service()
+        self.assertEqual(service['/State'], 'DISABLED')
+        self.assertEqual(service['/Message'], '')
+        self.assertEqual(service['/Level'], '')
+        self.assertEqual(service['/Muted'], False)
+        self.assertEqual(service['/Params'], '')
+
+
+        # AnchorAlarmState = namedtuple('AnchorAlarmState', ['state', 'message', 'level', 'muted', 'params'])
+        state = AnchorAlarmState('IN_RADIUS', 'boat in radius', 'info', False, {'drop_point': {'latitude': 10, 'longitude':11}, 'radius': 12})
+        connector.on_state_changed(state)
+
+        self.assertEqual(service['/State'], state.state)
+        self.assertEqual(service['/Message'], state.message)
+        self.assertEqual(service['/Level'], state.level)
+        self.assertEqual(service['/Muted'], state.muted)
+        self.assertEqual(service['/Params'], state.params)
+
+        self.assertEqual(monitor.get_value('com.victronenergy.digitalinput.input01', '/CustomName'), state.message)
+        self.assertEqual(monitor.get_value('com.victronenergy.digitalinput.input01', '/ProductName'), state.message)
+        self.assertEqual(monitor.get_value('com.victronenergy.digitalinput.input01', '/Alarm'), False)
+
+        self.assertEqual(connector._settings['Latitude'],  state.params['drop_point']['latitude'])
+        self.assertEqual(connector._settings['Longitude'], state.params['drop_point']['longitude'])
+        self.assertEqual(connector._settings['Radius'],    state.params['radius'])
+
+
+        state2 = AnchorAlarmState('IN_RADIUS', 'boat in radius 2', 'info', False, {'drop_point': {'latitude': 110, 'longitude':111}, 'radius': 112})
+        connector.update_state(state2)
+
+        self.assertEqual(service['/State'], state2.state)
+        self.assertEqual(service['/Message'], state2.message)
+        self.assertEqual(service['/Level'], state2.level)
+        self.assertEqual(service['/Muted'], state2.muted)
+        self.assertEqual(service['/Params'], state2.params)
+
+        self.assertEqual(connector._settings['Latitude'],  state.params['drop_point']['latitude'])
+        self.assertEqual(connector._settings['Longitude'], state.params['drop_point']['longitude'])
+        self.assertEqual(connector._settings['Radius'],    state.params['radius'])
+
+        # make sure alarm feedback didnt change. TODO XXX maybe change that ?
+        self.assertEqual(monitor.get_value('com.victronenergy.digitalinput.input01', '/CustomName'), state.message)
+        self.assertEqual(monitor.get_value('com.victronenergy.digitalinput.input01', '/ProductName'), state.message)
+        self.assertEqual(monitor.get_value('com.victronenergy.digitalinput.input01', '/Alarm'), False)
+
+
+
+        state3 = AnchorAlarmState('ALARM_DRAGGING', 'boat outside radius', 'emergency', False, {'drop_point': {'latitude': 10, 'longitude':11}, 'radius': 12})
+        connector.on_state_changed(state3)
+
+        self.assertEqual(service['/State'], state3.state)
+        self.assertEqual(service['/Message'], state3.message)
+        self.assertEqual(service['/Level'], state3.level)
+        self.assertEqual(service['/Muted'], state3.muted)
+        self.assertEqual(service['/Params'], state3.params)
+
+        self.assertEqual(connector._settings['Latitude'],  state.params['drop_point']['latitude'])
+        self.assertEqual(connector._settings['Longitude'], state.params['drop_point']['longitude'])
+        self.assertEqual(connector._settings['Radius'],    state.params['radius'])
+
+        self.assertEqual(monitor.get_value('com.victronenergy.digitalinput.input01', '/CustomName'), state3.message)
+        self.assertEqual(monitor.get_value('com.victronenergy.digitalinput.input01', '/ProductName'), state3.message)
+        self.assertEqual(monitor.get_value('com.victronenergy.digitalinput.input01', '/Alarm'), True)
+
+        monitor.set_value('com.victronenergy.digitalinput.input01', '/Alarm', 0)
+        self.assertEqual(monitor.get_value('com.victronenergy.digitalinput.input01', '/Alarm'), False)
+        
+        controller.trigger_mute_alarm.assert_called_once()
+
+
+    def test_reset_state(self):
+        pass
+
+
+
+    #@patch.object(GLibMock, 'source_remove')
+    def test_anchor_down(self):
+        controller = MagicMock()
+        controller.trigger_anchor_down  = MagicMock()
+        controller.trigger_anchor_up    = MagicMock()
+        controller.trigger_chain_out    = MagicMock()
+        controller.trigger_mute_alarm   = MagicMock()
+
+        connector = MockDBusConnector(lambda: timer_provider, lambda settings, cb: MockSettingsDevice(settings, cb))
+        connector.set_controller(controller)
+
+        monitor = connector.mock_monitor()
+        monitor.add_service('com.victronenergy.digitalinput.input01',
+			values={
+				'/ProductName': "qwe",
+				'/CustomName': "qwe",
+				'/Alarm': False,
+                '/State': 1,
+                '/DeviceInstance': 0
+			})
+        
+        monitor.add_service('com.victronenergy.digitalinput.input02',
+			values={
+				'/ProductName': "qwe",
+				'/CustomName': "qwe",
+				'/Alarm': False,
+                '/State': 1,
+                '/DeviceInstance': 1
+			})
+
+        service = connector.mock_service()
+        
+        ON_STATE = 1        # TODO XXX check values
+        OFF_STATE = 0
+        
+        def _check_all_not_called():
+            controller.trigger_anchor_down.assert_not_called()
+            controller.trigger_anchor_up.assert_not_called()
+            controller.trigger_anchor_chain_out.assert_not_called()
+            controller.trigger_mute_alarm.assert_not_called()
+
+        def _4ticks():
+            timer_provider.tick()
+            timer_provider.tick()
+            timer_provider.tick()
+            timer_provider.tick()
+
+        # couple of ticks, expect nothing
+        _4ticks()
+        _check_all_not_called()
+        
+
+        def check_sequence(path, called_check):
+
+            # send state off, expect nothing
+            monitor.set_value(path, '/State', OFF_STATE)
+            _check_all_not_called()
+            _4ticks()
+            _check_all_not_called()
+
+
+
+            # send state on, off, expect nothing, timer cleared
+            monitor.set_value(path, '/State', ON_STATE)
+            _check_all_not_called()
+            timer_provider.tick()
+            _check_all_not_called()
+
+
+            monitor.set_value(path, '/State', OFF_STATE)
+            #mock_source_remove.assert_called_once()
+            #mock_source_remove.reset_mock()
+            _check_all_not_called()
+            _4ticks()
+            _check_all_not_called()
+
+
+            # send state on, wait for trigger, off. Expect controller update, timer cleared
+            monitor.set_value(path, '/State', ON_STATE)
+
+            timer_provider.tick()
+            _check_all_not_called()  
+
+            timer_provider.tick()
+            _check_all_not_called()
+
+            called_check()
+
+            _check_all_not_called()
+            _4ticks()
+            _check_all_not_called()
+
+            # TODO XXX : assert timer cleared
+
+
+            # send state on, off. expect nothing
+            monitor.set_value(path, '/State', ON_STATE)
+            monitor.set_value(path, '/State', OFF_STATE)
+
+            _check_all_not_called()
+            _4ticks()
+            _check_all_not_called()
+
+            # TODO XXX : assert timer cleared
+
+
+
+            # send state on, off, on, off. expect nothing
+            # send state on, wait for trigger, off. Expect controller update, timer cleared
+            monitor.set_value(path, '/State', ON_STATE)
+            timer_provider.tick()
+            _check_all_not_called()  
+
+            monitor.set_value(path, '/State', OFF_STATE)
+            timer_provider.tick()
+            _check_all_not_called()  
+
+            monitor.set_value(path, '/State', ON_STATE)
+            timer_provider.tick()
+            _check_all_not_called()  
+
+            monitor.set_value(path, '/State', OFF_STATE)
+            timer_provider.tick()
+            _check_all_not_called()  
+
+            _4ticks()
+            _check_all_not_called()
+
+
+
+            monitor.set_value(path, '/State', ON_STATE)
+
+            timer_provider.tick()
+            _check_all_not_called()  
+
+            timer_provider.tick()
+            _check_all_not_called()
+
+            called_check()
+
+            _check_all_not_called()
+            _4ticks()
+            _check_all_not_called()
+
+            # send state on, off, on, wait for trigger, off. Expect controller update, timer cleared
+
+
+        def _check_input_01():
+            timer_provider.tick()
+            controller.trigger_anchor_down.assert_called()
+            controller.trigger_anchor_down.reset_mock()
+
+        check_sequence('com.victronenergy.digitalinput.input01', _check_input_01)
+
+        def _check_input_02():
+            timer_provider.tick()
+            controller.trigger_anchor_up.assert_called()
+            controller.trigger_anchor_up.reset_mock()
+
+        check_sequence('com.victronenergy.digitalinput.input02', _check_input_02)
+        
+
+        # TODO XXX : check mute Alarm
+        state3 = AnchorAlarmState('ALARM_DRAGGING', 'boat outside radius', 'emergency', False, {'drop_point': {'latitude': 10, 'longitude':11}, 'radius': 12})
+        connector.on_state_changed(state3)
+
+        self.assertEqual(service['/State'], state3.state)
+        self.assertEqual(service['/Message'], state3.message)
+        self.assertEqual(service['/Level'], state3.level)
+        self.assertEqual(service['/Muted'], state3.muted)
+        self.assertEqual(service['/Params'], state3.params)
+
+
+        state4 = AnchorAlarmState('ALARM_DRAGGING_MUTED', 'boat outside radius', 'emergency', True, {'drop_point': {'latitude': 10, 'longitude':11}, 'radius': 12})
+        connector.on_state_changed(state4)
+
+        self.assertEqual(service['/State'], state4.state)
+        self.assertEqual(service['/Message'], state4.message)
+        self.assertEqual(service['/Level'], state4.level)
+        self.assertEqual(service['/Muted'], state4.muted)
+        self.assertEqual(service['/Params'], state4.params)
+
+
+
+
+    def test_mingled_up_down_out_calls(self):
+        # TODO XXX : should not happen in a normal setup but check anchor_up ON_STATE while anchod_down ON_STATE
+        pass
+
+
+    def test_dbus_triggers(self):
+        # set 1 in Triggers/AnchorDown, make sure it's called, etc
+
+        controller = MagicMock()
+        controller.trigger_anchor_down  = MagicMock()
+        controller.trigger_anchor_up    = MagicMock()
+        controller.trigger_chain_out    = MagicMock()
+        controller.trigger_mute_alarm   = MagicMock()
+
+        connector = MockDBusConnector(lambda: timer_provider, lambda settings, cb: MockSettingsDevice(settings, cb))
+        connector.set_controller(controller)
+
+        monitor = connector.mock_monitor()
+        monitor.add_service('com.victronenergy.digitalinput.input01',
+			values={
+				'/ProductName': "qwe",
+				'/CustomName': "qwe",
+				'/Alarm': False,
+                '/State': 1,
+                '/DeviceInstance': 0
+			})
+
+        service = connector.mock_service()
+
+        def _check_all_not_called():
+            controller.trigger_anchor_down.assert_not_called()
+            controller.trigger_anchor_up.assert_not_called()
+            controller.trigger_anchor_chain_out.assert_not_called()
+            controller.trigger_mute_alarm.assert_not_called()
+
+        _check_all_not_called()
+
+        service.set_value('/Triggers/AnchorDown', '1')
+        controller.trigger_anchor_down.assert_called_once()
+        controller.trigger_anchor_down.reset_mock()
+        _check_all_not_called()
+
+        # check calling twice in a row
+        service.set_value('/Triggers/AnchorDown', '1')
+        controller.trigger_anchor_down.assert_called_once()
+        controller.trigger_anchor_down.reset_mock()
+        _check_all_not_called()
+
+
+        service.set_value('/Triggers/AnchorUp', '1')
+        controller.trigger_anchor_up.assert_called_once()
+        controller.trigger_anchor_up.reset_mock()
+        _check_all_not_called()
+
+
+        service.set_value('/Triggers/ChainOut', '1')
+        controller.trigger_chain_out.assert_called_once()
+        controller.trigger_chain_out.reset_mock()
+        _check_all_not_called()
+
+
+        service.set_value('/Triggers/MuteAlarm', '1')
+        controller.trigger_mute_alarm.assert_called_once()
+        controller.trigger_mute_alarm.reset_mock()
+        _check_all_not_called()
+
+
+if __name__ == '__main__':
+    unittest.main()

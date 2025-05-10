@@ -1,0 +1,172 @@
+import sys
+import os
+sys.path.insert(1, os.path.join(sys.path[0], '..'))
+
+from abstract_connector import AbstractConnector
+from anchor_alarm_model import AnchorAlarmState
+
+
+class NMEAAlertConnector(AbstractConnector):
+    def __init__(self, timer_provider, settings_provider, nmea_bridge):
+        super().__init__(timer_provider, settings_provider)
+
+        # TODO XXX : move to settings
+        self._auto_aknowledge_interval = 3
+        
+        # TODO XXX : move to settings ?
+        self._ALERT_ID = "54321"
+        self._NETWORK_ID = "54321"
+
+        # "Emergency Alarm" | "Alarm" | "Warning" | "Caution"
+        self._types_states = [
+            {"type": "Caution",           "state": "Normal"},
+            {"type": "Warning",           "state": "Normal"},
+            {"type": "Alarm",             "state": "Normal"},
+            {"type": "Emergency Alarm",   "state": "Normal"}
+        ]
+        self._timer_ids = {
+            'Caution': None,
+            'Warning': None,
+            'Alarm':   None,
+            'Emergency Alarm': None
+        }
+
+        self._bridge = nmea_bridge
+        self._bridge.add_pgn_handler(126984, self._on_nmea_message)
+
+
+    def _on_nmea_message(self, nmea_message):
+        """Called when a new NMEA message arrives."""
+        self._log(f"Received NMEA message: {nmea_message}")
+
+        if nmea_message['pgn'] == 126984 and nmea_message["Data Source Network ID NAME"] == self._NETWORK_ID and nmea_message['Alert ID'] == self._ALERT_ID:
+            # set back state for type to Normal
+            t = next(item for item in self._types_states if item["type"] == nmea_message['Alert Type'])
+            t['state'] = 'Normal'
+
+            # TODO XXX : multiple devices on nmea bus will send this message as broadcast, make sure to not call mute multiple times ?
+            if self.controller is not None and nmea_message['Alert Type'] == "Emergency Alarm":
+                self.controller.trigger_mute_alarm()
+
+
+    def _log(self, msg):
+        print(msg)
+
+    # called when a state changes
+    def on_state_changed(self, current_state:AnchorAlarmState):
+        """Called by controller when state changed"""
+        self._log("On state changed "+ current_state.state)
+
+        #"Alert Type"" = "Emergency Alarm" | "Alarm" | "Warning" | "Caution"
+        type = self._type_for_alarm_state(current_state)
+
+
+        # new type, we want to clear old messages
+        if current_state.muted:
+            self._clear_alerts_except(None) # clear all 
+        else:
+            self._clear_alerts_except(type)
+
+
+        # if we're in a muted state, Active state has been cancelled by _clear_alerts()
+        if not current_state.muted:
+            self._send_alert_payload(type, "Active")
+
+            #auto aknowledge only Caution type
+            if type == "Caution":
+                self._add_timer('Caution', lambda: self._send_alert_payload("Caution", "Normal"), self._auto_aknowledge_interval*1000)
+
+
+
+        # update values on NMEA BUS
+        # TODO XXX : should this be called BEFORE or AFTER the _send_alert_payload ?
+        self.update_state(current_state)
+
+
+    # called every second to update state
+    def update_state(self, current_state:AnchorAlarmState):
+        """Called by controller every second with updated state"""
+       
+        type = self._type_for_alarm_state(current_state)
+        self._send_alert_text_message(type, current_state.message)
+
+
+    def _type_for_alarm_state(self, current_state):
+        # level = info | warning | error | emergency
+        mapping = {
+            "emergency": "Emergency Alarm",
+            "error": "Alarm",
+            "warning": "Warning",
+            "info": "Caution"
+        }
+
+        return mapping.get(current_state.level, "Caution")
+
+    def _clear_alerts_except(self, type):
+        for t in self._types_states:            
+            if t['state'] == "Active" and t['type'] != type:
+                if self._timer_ids[t['type']] is not None:
+                    self._remove_timer(t['type'])   # clear auto acknowledge.  
+
+                self._send_alert_payload(t['type'], "Normal")
+                              
+
+    def _send_alert_payload(self, type, state):
+        # update type's state
+        t = next(item for item in self._types_states if item["type"] == type)
+        t['state'] = state
+
+        nmea_message = {
+            "pgn": 126983,
+            "Alert ID": self._ALERT_ID,
+            "Alert Type": type,
+            "Alert State": state,
+            "Alert Category": "Technical",
+            "Alert System": 5,
+            "Alert Sub-System": 0,
+            "Data Source Network ID NAME": self._NETWORK_ID,
+            "Data Source Instance": 0,
+            "Data Source Index-Source": 0,
+            "Alert Occurrence Number": 0,
+            "Temporary Silence Status": 0,
+            "Acknowledge Status": 0,
+            "Escalation Status": 0,
+            "Temporary Silence Support": 0,
+            "Acknowledge Support": 1,
+            "Escalation Support": 0,
+            "Trigger Condition": 2,
+            "Threshold Status": 1,
+            "Alert Priority": 0
+        }
+
+        self._bridge.send_nmea(nmea_message)
+
+    def _send_alert_text_message(self, type, message):
+        nmea_message = {
+            "pgn": 126985,
+            "Alert ID": self._ALERT_ID,
+            "Alert Type": type,
+            "Alert Category": "Technical",
+            "Alert System": 5,
+            "Alert Sub-System": 0,
+            "Data Source Network ID NAME": self._NETWORK_ID,
+            "Data Source Instance": 0,
+            "Data Source Index-Source": 0,
+            "Alert Occurrence Number": 0,
+            "Language ID": 0,
+            "Alert Text Description": message
+        }
+
+        self._bridge.send_nmea(nmea_message)
+
+
+    def _timer_provider(self):
+        from gi.repository import GLib
+        return GLib
+
+
+
+
+
+
+
