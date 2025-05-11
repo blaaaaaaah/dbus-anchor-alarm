@@ -1,3 +1,11 @@
+import sys
+import os
+
+# bundle our dependencies
+sys.path.insert(1, os.path.join(os.path.dirname(__file__), 'ext'))
+
+
+
 from transitions import Machine
 import logging
 from collections import namedtuple
