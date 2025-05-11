@@ -3,6 +3,9 @@ import uuid
 from subprocess import Popen, PIPE
 from gi.repository import GLib
 
+from utils import exit_on_error
+
+
 class NMEABridge:
 
     def __init__(self, js_gateway_path="nmea_bridge.js", max_restart_attempts=5):
@@ -19,7 +22,7 @@ class NMEABridge:
         self._handlers = {}
 
         self._start_nodejs_process()
-        GLib.timeout_add_seconds(1, self._check_process_status)
+        GLib.timeout_add_seconds(1, exit_on_error, self._check_process_status)
 
 
     def _log(self,msg):

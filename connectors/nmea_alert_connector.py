@@ -74,7 +74,7 @@ class NMEAAlertConnector(AbstractConnector):
 
             #auto aknowledge only Caution type
             if type == "Caution":
-                self._add_timer('Caution', lambda: self._send_alert_payload("Caution", "Normal"), self._auto_aknowledge_interval*1000)
+                self._add_timer('Caution', lambda: self._send_alert_payload("Caution", "Normal"), self._settings['AutoAcknowledgeInterval']*1000)
 
 
 

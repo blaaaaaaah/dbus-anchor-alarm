@@ -93,8 +93,10 @@ if __name__ == "__main__":
     # Have a mainloop, so we can send/receive asynchronous calls to and from dbus
     DBusGMainLoop(set_as_default=True)
     provider = GPSProvider()
+
+    from ve_utils import exit_on_error
    
-    GLib.timeout_add(1000, log_gps_position, provider)
+    GLib.timeout_add(1000, exit_on_error, log_gps_position, provider)
 #    GLib.timeout_add(2000, log_gps_position, provider)
 #    GLib.timeout_add(3000, log_gps_position, provider)
 

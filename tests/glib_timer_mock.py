@@ -3,17 +3,17 @@ class GLibTimerMock():
         self.timers = []
         self.nextId = 0
 
-    def timeout_add_once(self, cb, delay):
-        return self._add_timeout(cb, delay, True)
+    def timeout_add_once(self, delay, *args, **kwargs):
+        return self._add_timeout(delay, True, *args, **kwargs)
     
-    def timeout_add(self, cb, delay):
-        return self._add_timeout(cb, delay, False)
+    def timeout_add(self, delay, *args, **kwargs):
+        return self._add_timeout(delay, False, *args, **kwargs)
     
-    def _add_timeout(self, cb, delay, once):
+    def _add_timeout(self, delay, once, cb, *args, **kwargs):
         self.nextId+=1
         ctx = {
             'id' : self.nextId,
-            'cb': cb,
+            'cb': lambda: cb(*args, **kwargs),
             'delay': delay,
             'count':0,
             'cancelled': False,

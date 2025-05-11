@@ -2,9 +2,11 @@ import sys
 import os
 
 sys.path.insert(1, os.path.join(sys.path[0], '..'))
+from utils import exit_on_error
 
 from anchor_alarm_model import AnchorAlarmState
 from anchor_alarm_controller import AnchorAlarmController
+
 
 class AbstractConnector:
     def __init__(self, timer_provider, settings_provider):
@@ -36,7 +38,7 @@ class AbstractConnector:
 
     def _add_timer(self, timer_name, cb, duration):
         self._remove_timer(timer_name)
-        self._timer_ids[timer_name] = self._timer_provider().timeout_add_once(lambda:self._trigger_and_remove_timer(timer_name, cb), duration)
+        self._timer_ids[timer_name] = self._timer_provider().timeout_add_once(duration, exit_on_error, self._trigger_and_remove_timer, timer_name, cb)
 
 
     def _remove_timer(self, timer_name):

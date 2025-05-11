@@ -1,6 +1,11 @@
 from anchor_alarm_model import AnchorAlarmConfiguration
 from anchor_alarm_model import AnchorAlarmModel
 
+import sys
+import os
+sys.path.insert(1, os.path.join(sys.path[0], '..'))
+from utils import exit_on_error
+
 from collections import namedtuple
 GPSPosition = namedtuple('GPSPosition', ['latitude', 'longitude'])
 
@@ -14,7 +19,7 @@ class AnchorAlarmController(object):
 
         self._connectors = []
 
-        timer_provider.timeout_add(self._on_timer_tick, 1000)
+        timer_provider.timeout_add(1000, exit_on_error, self._on_timer_tick)
     
     def reset_state(self, drop_point, radius):
         self._anchor_alarm.reset_state(drop_point, radius)
