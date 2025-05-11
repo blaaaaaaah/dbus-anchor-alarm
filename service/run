@@ -1,0 +1,4 @@
+#!/bin/sh
+echo "*** starting dbus-anchor-alarm ***"
+exec 2>&1
+exec /data/dbus-anchor-alarm/anchor_alarm_service.py
