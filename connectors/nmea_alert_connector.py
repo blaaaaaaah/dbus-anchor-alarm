@@ -9,10 +9,9 @@ from anchor_alarm_model import AnchorAlarmState
 class NMEAAlertConnector(AbstractConnector):
     def __init__(self, timer_provider, settings_provider, nmea_bridge):
         super().__init__(timer_provider, settings_provider)
-
-        # TODO XXX : move to settings
-        self._auto_aknowledge_interval = 3
         
+        self._init_settings()
+
         # TODO XXX : move to settings ?
         self._ALERT_ID = "54321"
         self._NETWORK_ID = "54321"
@@ -33,6 +32,16 @@ class NMEAAlertConnector(AbstractConnector):
 
         self._bridge = nmea_bridge
         self._bridge.add_pgn_handler(126984, self._on_nmea_message)
+
+
+    def _init_settings(self):
+        # create the setting that are needed
+        settingsList = {
+            "AutoAcknowledgeInterval":     ["/Settings/AnchorAlarm/NMEA/AutoAcknowledgeInterval", 15, 1, 90]
+        }
+
+        # we don't care about getting notified if settings are updated
+        self._settings = self._settings_provider(settingsList, None)
 
 
     def _on_nmea_message(self, nmea_message):

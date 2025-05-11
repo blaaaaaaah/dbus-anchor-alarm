@@ -13,6 +13,7 @@ from unittest.mock import Mock
 from unittest.mock import patch
 from unittest.mock import call
 
+from mock_settings_device import MockSettingsDevice
 from glib_timer_mock import GLibTimerMock
 
 sys.path.insert(1, os.path.join(sys.path[0], '../connectors'))
@@ -47,7 +48,8 @@ class TestNMEAAlertConnector(unittest.TestCase):
         mock_bridge.send_nmea = MagicMock()
 
 
-        connector = MockNMEAAlertConnector(lambda: timer_provider, None,  mock_bridge)
+        connector = MockNMEAAlertConnector(lambda: timer_provider, MockSettingsDevice,  mock_bridge)
+        connector._settings['AutoAcknowledgeInterval'] = 3
 
         controller = MagicMock()
         controller.trigger_mute_alarm   = MagicMock()
@@ -437,8 +439,9 @@ class TestNMEAAlertConnector(unittest.TestCase):
         mock_bridge.add_pgn_handler = MagicMock(side_effect=_set_handler)
         mock_bridge.send_nmea = MagicMock()
 
-        connector = MockNMEAAlertConnector(lambda: timer_provider, None, mock_bridge)
-
+        connector = MockNMEAAlertConnector(lambda: timer_provider, MockSettingsDevice, mock_bridge)
+        connector._settings['AutoAcknowledgeInterval'] = 3
+        
         controller = MagicMock()
         controller.trigger_mute_alarm   = MagicMock()
         connector.set_controller(controller)
