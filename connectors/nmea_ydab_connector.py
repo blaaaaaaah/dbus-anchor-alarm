@@ -210,6 +210,7 @@ class NMEAYDABConnector(AbstractConnector):
 
 
     def _on_config_command_acknowledged(self, nmea_message):
+        # {'canId': 435164739, 'prio': 6, 'src': 67, 'dst': 255, 'pgn': 126998, 'timestamp': '2025-05-13T20:44:33.321Z', 'input': [], 'fields': {'Installation Description #2': 'YD:LED 21 DONE', 'Manufacturer Information': 'Yacht Devices Ltd., www.yachtd.com'}, 'description': 'Configuration Information'}
         if "src" in nmea_message and nmea_message["src"] == self._settings['NMEAAddress'] \
             and 'fields' in  nmea_message and "Installation Description #2" in nmea_message['fields']:
             acknowledged_command = nmea_message['fields']["Installation Description #2"].removesuffix(" DONE")
@@ -233,7 +234,8 @@ class NMEAYDABConnector(AbstractConnector):
 
     def _send_config_finished_feedback(self):
         # send sound
-        pass
+        self._send_config_command("YD:PLAY 6")
+        self._add_timer('config_command_timeout', lambda: self._send_config_command("YD:PLAY 0"), 1000)
 
 
 

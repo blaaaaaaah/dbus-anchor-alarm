@@ -403,6 +403,15 @@ class TestNMEAAlertConnector(unittest.TestCase):
                 self.assertTrue(connector._settings['StartConfiguration'])
                 self.assertEqual(len(connector._queued_config_commands), len(expected_commands)-1-i)
 
+
+        calls.append(call(get_config_call("YD:PLAY 6")))
+        mock_bridge.send_nmea.assert_has_calls(calls)
+
+        timer_provider.tick()
+        
+        calls.append(call(get_config_call("YD:PLAY 0")))
+        mock_bridge.send_nmea.assert_has_calls(calls)
+
         self.assertFalse(connector._settings['StartConfiguration'])
         self.assertIsNone(connector._queued_config_commands)
 
