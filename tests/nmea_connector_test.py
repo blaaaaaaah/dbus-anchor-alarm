@@ -23,12 +23,6 @@ from nmea_alert_connector import NMEAAlertConnector
 timer_provider = GLibTimerMock()
 
 
-class MockNMEAAlertConnector(NMEAAlertConnector):    
-
-    def mock_bridge(self):
-        return self._bridge
-
-
 
 
 
@@ -48,7 +42,7 @@ class TestNMEAAlertConnector(unittest.TestCase):
         mock_bridge.send_nmea = MagicMock()
 
 
-        connector = MockNMEAAlertConnector(lambda: timer_provider, MockSettingsDevice,  mock_bridge)
+        connector = NMEAAlertConnector(lambda: timer_provider, MockSettingsDevice,  mock_bridge)
         connector._settings['AutoAcknowledgeInterval'] = 3
 
         controller = MagicMock()
@@ -439,9 +433,9 @@ class TestNMEAAlertConnector(unittest.TestCase):
         mock_bridge.add_pgn_handler = MagicMock(side_effect=_set_handler)
         mock_bridge.send_nmea = MagicMock()
 
-        connector = MockNMEAAlertConnector(lambda: timer_provider, MockSettingsDevice, mock_bridge)
+        connector = NMEAAlertConnector(lambda: timer_provider, MockSettingsDevice, mock_bridge)
         connector._settings['AutoAcknowledgeInterval'] = 3
-        
+
         controller = MagicMock()
         controller.trigger_mute_alarm   = MagicMock()
         connector.set_controller(controller)

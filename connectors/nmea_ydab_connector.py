@@ -6,35 +6,48 @@ sys.path.insert(1, os.path.join(sys.path[0], '..'))
 from abstract_connector import AbstractConnector
 from anchor_alarm_model import AnchorAlarmState
 
-YDABConfig = namedtuple('YDABConfig', ['nmea_address', 'alarm_sound_id', 'ds_bank', 'alarm_channel', 'alarm_muted_channel', 'set_radius_channel'], [67, 15, 0, 11, 12, 10])
 
 class NMEAYDABConnector(AbstractConnector):
-    def __init__(self, timer_provider, nmea_bridge, ydab_nmea_address = 67):
-        super().__init__(timer_provider)
-
-
-        # TODO XXX : make that configurable from settings and handle update
-        self._ydab_nmea_address = ydab_nmea_address
-        self._alarm_sound_id = 15
-        self._ds_bank = 0
-        self._ds_channels = {
-            'ALARM': 10,
-            'ALARM_MUTED': 11,
-            'SET_RADIUS': 12,
-        }
+    def __init__(self, timer_provider, settings_provider, nmea_bridge):
+        super().__init__(timer_provider, settings_provider)
 
         self._timer_ids = {
             'config_command_timeout': None
         }
 
+        self._init_settings()
+
         self._bridge = nmea_bridge
         self._bridge.add_pgn_handler(126998, self._on_config_command_acknowledged)
         self._bridge.add_pgn_handler(127502, self._on_ds_change)
 
-        # TODO XXX : create dbus_settings for that
-        # TODO XXX : init config each time ?
-        # TODO XXX : upon reset state, we could send conflicting/out of sequence messages where init config is sent and state reset
-        #self._send_init_config()
+    
+    
+    def _init_settings(self):
+        # create the setting that are needed
+        settingsList = {
+            "NMEAAddress":          ["/Settings/AnchorAlarm/NMEA/YDAB/NMEAAddress", 67, 0, 254],
+            "AlarmSoundID":         ["/Settings/AnchorAlarm/NMEA/YDAB/AlarmSoundID", 15, 1, 28],
+            "AlarmVolume":          ["/Settings/AnchorAlarm/NMEA/YDAB/AlarmVolume", 100, 0, 100],
+            "DSBank":               ["/Settings/AnchorAlarm/NMEA/YDAB/DSBank", 222, 0, 252],
+            "DSDropPointSetChannel":["/Settings/AnchorAlarm/NMEA/YDAB/DSDropPointSetChannel", 10, 0, 16],
+            "DSAlarmChannel":       ["/Settings/AnchorAlarm/NMEA/YDAB/DSAlarmChannel", 11, 0, 16],
+            "DSAlarmMutedChannel":  ["/Settings/AnchorAlarm/NMEA/YDAB/DSAlarmMutedChannel", 12, 0, 16],
+            "StartConfiguration":   ["/Settings/AnchorAlarm/NMEA/YDAB/StartConfiguration", False],
+        }
+
+        self._settings = self._settings_provider(settingsList, self._on_setting_changed)
+
+    def _on_setting_changed(self, key, old_value, new_value):
+        if key == "StartConfiguration":
+            if new_value is False and self._queued_config_commands is not None and len(self._queued_config_commands) > 0:
+                # we're sending commands, refuse the change
+                self._settings['StartConfiguration'] = True # TODO XXX is this re-entrant ?
+
+            if new_value is True: 
+                self._send_init_config()    # TODO XXX : handle error ?
+
+
 
 
 
@@ -42,19 +55,24 @@ class NMEAYDABConnector(AbstractConnector):
         """Called when a new NMEA message arrives."""
         #self._log(f"Received NMEA message: {nmea_message}")
 
-        if nmea_message["src"] == self._ydab_nmea_address and nmea_message["fields"] is not None and nmea_message["fields"]["instance"] == self._ds_bank:
+        if self.controller is None:
+            return  # no controller yet, should never happend
+
+        if nmea_message["src"] == self._settings['NMEAAddress'] \
+            and "fields" in nmea_message and "Instance" in nmea_message["fields"] \
+            and nmea_message['fields']["Instance"] == self._settings['DSBank']:
             # {"canId":233967171,"prio":3,"src":67,"dst":255,"pgn":127502,"timestamp":"2025-05-08T04:42:33.723Z","input":["2025-05-08T04:42:33.723Z,3,127502,67,255,8,00,ff,ff,3f,ff,ff,ff,ff"],"fields":{"Instance":0,"Switch12":"Off"},"description":"Switch Bank Control"}
 
             alarm_ds_channel = self._switch_name_for('ALARM')
-            if nmea_message['fields'] and nmea_message['fields'][alarm_ds_channel] is not None and nmea_message['fields'][alarm_ds_channel] == 'Off':
+            if alarm_ds_channel in nmea_message['fields'] and nmea_message['fields'][alarm_ds_channel] == 'Off':
                 self.controller.trigger_mute_alarm()
 
             alarm_muted_ds_channel = self._switch_name_for('ALARM_MUTED')
-            if nmea_message['fields'] and nmea_message['fields'][alarm_muted_ds_channel] is not None and nmea_message['fields'][alarm_muted_ds_channel] == 'Off':
+            if alarm_muted_ds_channel in nmea_message['fields'] and nmea_message['fields'][alarm_muted_ds_channel] == 'Off':
                 self.controller.trigger_chain_out()
 
-            set_radius_ds_channel = self._switch_name_for('SET_RADIUS')
-            if nmea_message['fields'] and nmea_message['fields'][set_radius_ds_channel] is not None and nmea_message['fields'][set_radius_ds_channel] == 'Off':
+            set_radius_ds_channel = self._switch_name_for('DROP_POINT_SET')
+            if set_radius_ds_channel in nmea_message['fields'] and nmea_message['fields'][set_radius_ds_channel] == 'Off':
                 self.controller.trigger_chain_out()
         
 
@@ -75,7 +93,7 @@ class NMEAYDABConnector(AbstractConnector):
 
         elif current_state.state == "DROP_POINT_SET":
             # DROP_POINT_SET, flashing led, no sound, activable
-            self._send_ds_command_for_state('SET_RADIUS') # activate link 12
+            self._send_ds_command_for_state('DROP_POINT_SET') # activate link 10
 
         
         elif current_state.state == "IN_RADIUS":
@@ -86,12 +104,12 @@ class NMEAYDABConnector(AbstractConnector):
         
         elif current_state.state == "ALARM_DRAGGING" or current_state.state == "ALARM_NO_GPS":
             # ALARM (no gps our outside radius), blinking led, sound, cancellable
-            self._send_ds_command_for_state('ALARM') # activate link 10
+            self._send_ds_command_for_state('ALARM') # activate link 11
 
         
         elif current_state.state == "ALARM_DRAGGING_MUTED" or current_state.state == "ALARM_NO__MUTED":
             # ALARM_MUTED, blinking led, no sound, cancellable
-            self._send_ds_command_for_state('ALARM_MUTED') # activate link 11
+            self._send_ds_command_for_state('ALARM_MUTED') # activate link 12
 
 
 
@@ -107,7 +125,7 @@ class NMEAYDABConnector(AbstractConnector):
     def _send_config_command(self, command):
         nmea_message = {
             "prio":3,
-            "dst":self._ydab_nmea_address,
+            "dst":self._settings['NMEAAddress'],
             "pgn":126208,
             "fields":{
                 "Function Code":"Command",
@@ -127,8 +145,8 @@ class NMEAYDABConnector(AbstractConnector):
         nmea_message = {
             "pgn":127502,
             "fields": {
-                "Instance":0,
-                self._switch_name_for("SET_RADIUS"):"Off",
+                "Instance": self._settings['DSBank'],
+                self._switch_name_for("DROP_POINT_SET"):"Off",
                 self._switch_name_for("ALARM"):"Off",
                 self._switch_name_for("ALARM_MUTED"):"Off",
             },
@@ -141,65 +159,81 @@ class NMEAYDABConnector(AbstractConnector):
         self._bridge.send_nmea(nmea_message)
 
     def _switch_name_for(self, state):
-        return "Switch"+ self._ds_channels[state]
+        mapping = {
+            "DROP_POINT_SET":   "DSDropPointSetChannel",
+            "ALARM":            "DSAlarmChannel",
+            "ALARM_MUTED":      "DSAlarmMutedChannel",
+        }
+        channel = self._settings[mapping[state]]
+        return "Switch"+ str(channel)
 
 
     def _send_init_config(self):
         config_commands = [
-            "YD_RESET",
+            "YD:RESET",
             "YD:MODE DS",           # Set mode to DigitalSwitching
-            # TODO XXX : is this one really needed ?
-            #"YD:PGN 127501 500",    # Set transmission interval for PGN 127501 (Binary Status Report) 
 
             # Disable button press channel activation
             "YD:CHANNEL 0",
+            "YD:VOLUME "+ str(self._settings['AlarmVolume']),
+
+            # Anchor Alarm DROP_POINT_SET, flashing led and no sound
+            "YD:LINK "+ str(self._settings['DSDropPointSetChannel']) +" SOUND 0",
+            "YD:LINK "+ str(self._settings['DSDropPointSetChannel']) +" LED 22",
 
             # Anchor Alarm ON, Rapid blink and sound
-            "YD:LINK "+ self._ds_channels['ALARM'] +" SOUND "+ self._alarm_sound_id,
-            "YD:LINK "+ self._ds_channels['ALARM'] +" LED 10",
+            "YD:LINK "+ str(self._settings['DSAlarmChannel'] )+" SOUND "+ str(self._settings['AlarmSoundID']),
+            "YD:LINK "+ str(self._settings['DSAlarmChannel']) +" LED 10",
 
             # Anchor Alarm MUTED, Rapid blink and no sound
-            "YD:LINK "+ self._ds_channels['ALARM_MUTED'] +" SOUND 0",
-            "YD:LINK "+ self._ds_channels['ALARM_MUTED'] +" LED 10",
-
-            # Anchor Alarm SET_RADIUS, flashing led and no sound
-            "YD:LINK "+ self._ds_channels['SET_RADIUS'] +" SOUND 0",
-            "YD:LINK "+ self._ds_channels['SET_RADIUS'] +" LED 22",
+            "YD:LINK "+ str(self._settings['DSAlarmMutedChannel']) +" SOUND 0",
+            "YD:LINK "+ str(self._settings['DSAlarmMutedChannel']) +" LED 10",
         ]
 
         self._queued_config_commands = config_commands
+        self._send_next_config_command()
         
 
     def _send_next_config_command(self):
         if self._queued_config_commands is None:
             return
         
-        self._add_timer('config_command_timeout', self._on_config_command_timeout, 1000)
-
-        next_command = self._queued_config_commands[0]  
-        self._send_config_command(next_command)
+        if len(self._queued_config_commands) == 0:
+            # last one, clear everything
+            self._queued_config_commands = None
+            self._settings['StartConfiguration'] = False
+            self._send_config_finished_feedback()
+        else:
+            self._add_timer('config_command_timeout', self._on_config_command_timeout, 2000)
+            next_command = self._queued_config_commands[0]  
+            self._send_config_command(next_command)
 
 
     def _on_config_command_acknowledged(self, nmea_message):
-        if nmea_message["src"] == self._ydab_nmea_address and nmea_message['fields'] is not None and nmea_message['fields']["Installation Description #2"] is not None:
-            acknowledged_command = nmea_message["Installation Description #2"].removesuffix(" DONE")
-            current_command = self._queued_config_commands[0]
+        if "src" in nmea_message and nmea_message["src"] == self._settings['NMEAAddress'] \
+            and 'fields' in  nmea_message and "Installation Description #2" in nmea_message['fields']:
+            acknowledged_command = nmea_message['fields']["Installation Description #2"].removesuffix(" DONE")
 
-            if current_command == acknowledged_command:
+            if self._queued_config_commands is not None and self._queued_config_commands[0] == acknowledged_command:
                 self._queued_config_commands.pop(0)
                 self._remove_timer('config_command_timeout')
                 self._send_next_config_command()                    
             else:
                 self._queued_config_commands = None
+                self._settings['StartConfiguration'] = False
+
                 # TODO XXX : yield error in whatever way
 
         
     def _on_config_command_timeout(self):
         # we couldn't get an ack, maybe the YDAB NMEA address is wrong ?
         self._queued_config_commands = None
+        self._settings['StartConfiguration'] = False
         # TODO XXX : yield error in whatever way
 
-
+    def _send_config_finished_feedback(self):
+        # send sound
+        pass
 
 
 
