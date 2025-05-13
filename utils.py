@@ -1,3 +1,5 @@
+from traceback import print_exc
+from os import _exit as os_exit
 
 # copy/paste from velib_utils. Not using velib_utils because of dependencies on dbus when testing locally
 
