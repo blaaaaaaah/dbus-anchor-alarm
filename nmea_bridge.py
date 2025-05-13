@@ -201,7 +201,7 @@ if __name__ == '__main__':
 
     
 
-    print("NMEA Bridge test program. Enter show:text to send Alert PGN.\nhide to hide message .\n kill to kill the underlying nodeJS program\nexit to exit\n")
+    print("NMEA Bridge test program. Enter show:text to send Alert PGN.\nhide to hide message.\nyd:command to send YDAB command\nds:BankInstance,BankChannel,On|Off to send a DigitalSwitching command\nkill to kill the underlying nodeJS program\nexit to exit\n")
 
     def process_std_in(source, condition):
         mapping = {
@@ -316,6 +316,40 @@ if __name__ == '__main__':
                     "description":"Switch Bank Control"
                 })
 
+            elif command == "yd":
+                    bridge.send_nmea({
+                        "prio":3,
+                        "dst": 67,
+                        "pgn":126208,
+                        "fields":{
+                            "Function Code":"Command",
+                            "PGN":126998,
+                            "Number of Parameters":1,
+                            "list":[{
+                                "Parameter":2,
+                                "Value": "yd:"+text}]
+                        },
+                        "description":"NMEA - Command group function"
+                    })
+            
+            elif command == "ds":
+                if len(text) == 0:
+                    print("No arguments for ds: command")
+                    return True
+                
+                parts = text.split(":")
+                if len(parts) != 3:
+                    print("Wrong arguments count ds: command")
+                    return True
+                
+                bridge.send_nmea({
+                    "pgn":127502,
+                    "fields": {
+                        "Instance": parts[0],
+                        "Switch"+ parts[1]:parts[2]
+                    },
+                    "description":"Switch Bank Control"
+                })
 
             elif command == "kill":
                 bridge._nodejs_process.terminate()
