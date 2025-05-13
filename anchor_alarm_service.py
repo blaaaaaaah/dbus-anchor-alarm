@@ -42,9 +42,6 @@ class DbusAnchorAlarmService(object):
 
 
     def _initStateMachine(self):
-        # TODO XXX : make sure dbus_settings is populated already ?
-
-
         bus = dbus.SessionBus() if 'DBUS_SESSION_BUS_ADDRESS' in os.environ else dbus.SystemBus()
 
         self._alarm_controller = AnchorAlarmController(lambda: GLib, lambda settings, cb: SettingsDevice(bus, settings, cb), self._gps_provider)
