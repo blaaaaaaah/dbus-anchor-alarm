@@ -12,15 +12,37 @@ GPSPosition = namedtuple('GPSPosition', ['latitude', 'longitude'])
 
 class AnchorAlarmController(object):
 
-    def __init__(self, conf:AnchorAlarmConfiguration, timer_provider, gps_provider):
-        # TODO XXX : change to use settings directly ?
-        self._anchor_alarm = AnchorAlarmModel(self._on_state_changed, conf)
+    def __init__(self, timer_provider, settings_provider, gps_provider):
+        self._settings_provider = settings_provider
+
+        self._init_settings()
+
+        self._anchor_alarm = AnchorAlarmModel(self._on_state_changed, self._conf_from_settings())
         self.gps_provider = gps_provider
 
         self._connectors = []
 
-        timer_provider.timeout_add(1000, exit_on_error, self._on_timer_tick)
+        timer_provider().timeout_add(1000, exit_on_error, self._on_timer_tick)
     
+    def _init_settings(self):
+        # create the setting that are needed
+        settingsList = {
+            # configuration
+            "Tolerance":            ["/Settings/Services/Anchoralarm/Configuration/RadiusTolerance", 15, 0, 512],
+            "NoGPSCountThreshold":  ["/Settings/Services/Anchoralarm/Configuration/NoGPSCountThreshold", 30, 0, 300],
+            "MuteDuration":         ["/Settings/Services/Anchoralarm/Configuration/MuteDuration", 30, 0, 300],   
+        }
+
+        self._settings = self._settings_provider(settingsList, self._on_setting_changed)
+
+    def _conf_from_settings(self):
+        return AnchorAlarmConfiguration(self._settings["Tolerance"], self._settings["NoGPSCountThreshold"], self._settings["MuteDuration"])
+
+
+    def _on_setting_changed(self, key, old_value, new_value):
+        self._anchor_alarm.on_conf_updated(self._conf_from_settings())
+
+
     def reset_state(self, drop_point, radius):
         self._anchor_alarm.reset_state(drop_point, radius)
 

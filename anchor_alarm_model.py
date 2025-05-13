@@ -67,6 +67,9 @@ class AnchorAlarmModel(object):
             { 'trigger': 'on_set_radius',       'source': 'ALARM_DRAGGING',         'dest': 'IN_RADIUS', 'after': 'on_after_set_radius' },
             { 'trigger': 'on_set_radius',       'source': 'ALARM_DRAGGING_MUTED',   'dest': 'IN_RADIUS', 'after': 'on_after_set_radius' },
 
+            { 'trigger': 'on_tolerance_updated','source': 'ALARM_DRAGGING',         'dest': 'IN_RADIUS' },
+            { 'trigger': 'on_tolerance_updated','source': 'ALARM_DRAGGING_MUTED',   'dest': 'IN_RADIUS' },
+
             { 'trigger': 'on_reset_state',      'source': 'DISABLED',               'dest': 'IN_RADIUS' },
 
             { 'trigger': 'on_anchor_up',        'source': '*',                      'dest': 'DISABLED' },
@@ -79,6 +82,20 @@ class AnchorAlarmModel(object):
                                             initial='DISABLED', 
                                             after_state_change=self._after_state_change, 
                                             ignore_invalid_triggers=True)
+
+
+    def on_conf_udpated(self, conf):
+        tolerance_updated = self._radius_tolerance != conf.tolerance
+
+        self._radius_tolerance = conf.tolerance
+        self._no_gps_count_threshold = conf.no_gps_count_threshold
+        self._mute_duration = conf.mute_duration
+
+        if tolerance_updated:
+            # we're back in radius with new tolerance
+            if self.state in ['ALARM_DRAGGING', 'ALARM_DRAGGING_MUTED'] and self._current_radius < self._radius + self._radius_tolerance:
+                self._out_of_radius_count = 0
+                self.on_tolerance_updated()
 
 
     def anchor_down(self, gps_position):

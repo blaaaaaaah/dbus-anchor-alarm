@@ -746,5 +746,76 @@ class TestAnchorAlarmModel(unittest.TestCase):
         self.assertState(anchor_alarm, 'IN_RADIUS', AnchorAlarmState('IN_RADIUS', ANY, "info", False, {"state": 'IN_RADIUS', "radius_tolerance": self.tolerance, "drop_point": self.gps_position_anchor_down, "radius": 21, "no_gps_count": 0, "out_of_radius_count": 0, "alarm_muted_count": 0, "current_radius": 21}))
 
 
+
+
+    def test_config_updated(self):
+        anchor_alarm =  AnchorAlarmModel(self._update_last_state, AnchorAlarmConfiguration(3, 3, 5)) 
+        anchor_alarm.on_conf_udpated(AnchorAlarmConfiguration(5, 3, 5))
+        self.assertEqual(5, anchor_alarm._radius_tolerance)
+        self.assertEqual(3, anchor_alarm._no_gps_count_threshold)
+        self.assertEqual(5, anchor_alarm._mute_duration)
+
+    def test_tolerance_increased(self):
+        # test that when anchor is dragging or muted and tolerance is increased enough, it goes back to IN_RADIUS state
+        self.out_of_radius_count         = 0
+        anchor_alarm =  AnchorAlarmModel(self._update_last_state, AnchorAlarmConfiguration(self.tolerance, 3, 5))
+        
+        self.assertState(anchor_alarm, None, AnchorAlarmState('DISABLED', ANY, "info", False, {"state": 'DISABLED', "radius_tolerance": self.tolerance, "drop_point": None, "radius": None, "no_gps_count": 0, "out_of_radius_count": 0, "alarm_muted_count": 0, "current_radius": None}))
+        self._out_of_sequence_calls(anchor_alarm)
+
+        # anchor down
+        anchor_alarm.anchor_down(self.gps_position_anchor_down)
+        self.assertState(anchor_alarm, 'DROP_POINT_SET', AnchorAlarmState('DROP_POINT_SET', ANY, "info", False, {"state": 'DROP_POINT_SET', "radius_tolerance": self.tolerance, "drop_point": self.gps_position_anchor_down, "radius": None, "no_gps_count": 0, "out_of_radius_count": 0, "alarm_muted_count": 0, "current_radius": None}))
+        self._out_of_sequence_calls(anchor_alarm)
+
+
+        # let chain out
+        anchor_alarm.chain_out(self.gps_position_21m)
+        self.assertState(anchor_alarm, 'IN_RADIUS', AnchorAlarmState('IN_RADIUS', ANY, "info", False, {"state": 'IN_RADIUS', "radius_tolerance": self.tolerance, "drop_point": self.gps_position_anchor_down, "radius": 21, "no_gps_count": 0, "out_of_radius_count": 0, "alarm_muted_count": 0, "current_radius": 21}))
+        self._out_of_sequence_calls(anchor_alarm)
+        
+        # tick out radius, check state change event
+        anchor_alarm.on_timer_tick(self.gps_position_64m)
+        self.assertState(anchor_alarm, 'ALARM_DRAGGING', AnchorAlarmState('ALARM_DRAGGING', ANY, "emergency", False, {"state": 'ALARM_DRAGGING', "radius_tolerance": self.tolerance, "drop_point": self.gps_position_anchor_down, "radius": 21, "no_gps_count": 0, "out_of_radius_count": self.next_out_of_radius_count(), "alarm_muted_count": 0, "current_radius": 64}))
+        self._out_of_sequence_calls(anchor_alarm)
+
+        anchor_alarm.on_conf_udpated(AnchorAlarmConfiguration(20, 3, 5))
+
+        # tick out radius, check state change event
+        anchor_alarm.on_timer_tick(self.gps_position_64m)
+        self.assertState(anchor_alarm, None, AnchorAlarmState('ALARM_DRAGGING', ANY, "emergency", False, {"state": 'ALARM_DRAGGING', "radius_tolerance": self.tolerance, "drop_point": self.gps_position_anchor_down, "radius": 21, "no_gps_count": 0, "out_of_radius_count": self.next_out_of_radius_count(), "alarm_muted_count": 0, "current_radius": 64}))
+        self._out_of_sequence_calls(anchor_alarm)
+
+        
+        anchor_alarm.on_conf_udpated(AnchorAlarmConfiguration(50, 3, 5))
+        self.assertState(anchor_alarm, 'IN_RADIUS', AnchorAlarmState('IN_RADIUS', ANY, "info", False, {"state": 'IN_RADIUS', "radius_tolerance": 50, "drop_point": self.gps_position_anchor_down, "radius": 21, "no_gps_count": 0, "out_of_radius_count": 0, "alarm_muted_count": 0, "current_radius": 64}))
+        self._out_of_sequence_calls(anchor_alarm)
+
+
+        anchor_alarm.on_conf_udpated(AnchorAlarmConfiguration(20, 3, 5))
+        self.out_of_radius_count         = 0
+
+        # tick out radius, check state change event
+        anchor_alarm.on_timer_tick(self.gps_position_64m)
+        self.assertState(anchor_alarm, 'ALARM_DRAGGING', AnchorAlarmState('ALARM_DRAGGING', ANY, "emergency", False, {"state": 'ALARM_DRAGGING', "radius_tolerance": self.tolerance, "drop_point": self.gps_position_anchor_down, "radius": 21, "no_gps_count": 0, "out_of_radius_count": self.next_out_of_radius_count(), "alarm_muted_count": 0, "current_radius": 64}))
+        self._out_of_sequence_calls(anchor_alarm)
+
+
+
+
+
+
+
+        # test that when mute_duration is decreased in MUTE state, state goes back to alarm
+
+        # test that when mute_duration is increased in MUTE, state stays in muted
+
+
+        # test that when no_gps_count_threshold is decreased in no_gps condition but not yet in state ALARM_NO_GPS
+
+        # test that when no_gps_count_threshold is increased, state goes to alarm
+
+
+
 if __name__ == '__main__':
     unittest.main()
