@@ -84,7 +84,7 @@ class AnchorAlarmModel(object):
                                             ignore_invalid_triggers=True)
 
 
-    def on_conf_udpated(self, conf):
+    def on_conf_updated(self, conf):
         tolerance_updated = self._radius_tolerance != conf.tolerance
 
         self._radius_tolerance = conf.tolerance

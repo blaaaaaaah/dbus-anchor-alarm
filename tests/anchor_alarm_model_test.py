@@ -750,7 +750,7 @@ class TestAnchorAlarmModel(unittest.TestCase):
 
     def test_config_updated(self):
         anchor_alarm =  AnchorAlarmModel(self._update_last_state, AnchorAlarmConfiguration(3, 3, 5)) 
-        anchor_alarm.on_conf_udpated(AnchorAlarmConfiguration(5, 3, 5))
+        anchor_alarm.on_conf_updated(AnchorAlarmConfiguration(5, 3, 5))
         self.assertEqual(5, anchor_alarm._radius_tolerance)
         self.assertEqual(3, anchor_alarm._no_gps_count_threshold)
         self.assertEqual(5, anchor_alarm._mute_duration)
@@ -779,7 +779,7 @@ class TestAnchorAlarmModel(unittest.TestCase):
         self.assertState(anchor_alarm, 'ALARM_DRAGGING', AnchorAlarmState('ALARM_DRAGGING', ANY, "emergency", False, {"state": 'ALARM_DRAGGING', "radius_tolerance": self.tolerance, "drop_point": self.gps_position_anchor_down, "radius": 21, "no_gps_count": 0, "out_of_radius_count": self.next_out_of_radius_count(), "alarm_muted_count": 0, "current_radius": 64}))
         self._out_of_sequence_calls(anchor_alarm)
 
-        anchor_alarm.on_conf_udpated(AnchorAlarmConfiguration(20, 3, 5))
+        anchor_alarm.on_conf_updated(AnchorAlarmConfiguration(20, 3, 5))
 
         # tick out radius, check state change event
         anchor_alarm.on_timer_tick(self.gps_position_64m)
@@ -787,12 +787,12 @@ class TestAnchorAlarmModel(unittest.TestCase):
         self._out_of_sequence_calls(anchor_alarm)
 
         
-        anchor_alarm.on_conf_udpated(AnchorAlarmConfiguration(50, 3, 5))
+        anchor_alarm.on_conf_updated(AnchorAlarmConfiguration(50, 3, 5))
         self.assertState(anchor_alarm, 'IN_RADIUS', AnchorAlarmState('IN_RADIUS', ANY, "info", False, {"state": 'IN_RADIUS', "radius_tolerance": 50, "drop_point": self.gps_position_anchor_down, "radius": 21, "no_gps_count": 0, "out_of_radius_count": 0, "alarm_muted_count": 0, "current_radius": 64}))
         self._out_of_sequence_calls(anchor_alarm)
 
 
-        anchor_alarm.on_conf_udpated(AnchorAlarmConfiguration(20, 3, 5))
+        anchor_alarm.on_conf_updated(AnchorAlarmConfiguration(20, 3, 5))
         self.out_of_radius_count         = 0
 
         # tick out radius, check state change event
