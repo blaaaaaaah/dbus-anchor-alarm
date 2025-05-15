@@ -184,3 +184,63 @@ class NMEAAlertConnector(AbstractConnector):
 
 
 
+if __name__ == '__main__':
+
+    from nmea_bridge import NMEABridge
+    from utils import handle_stdin
+    from gi.repository import GLib
+    import dbus
+    sys.path.insert(1, os.path.join(os.path.dirname(__file__), '../ext/velib_python'))
+
+    from settingsdevice import SettingsDevice
+    from unittest.mock import MagicMock
+    from collections import namedtuple
+    from dbus.mainloop.glib import DBusGMainLoop
+
+
+    # TODO XXX : move that import somewhere
+    GPSPosition = namedtuple('GPSPosition', ['latitude', 'longitude'])
+
+    YDAB_ADDRESS = 67
+    bridge = NMEABridge('../nmea_bridge.js')
+    DBusGMainLoop(set_as_default=True)
+
+    bus = dbus.SessionBus() if 'DBUS_SESSION_BUS_ADDRESS' in os.environ else dbus.SystemBus()
+    nmea_alert_connector = NMEAAlertConnector(lambda: GLib, lambda settings, cb: SettingsDevice(bus, settings, cb), bridge)
+
+    controller = MagicMock()
+    controller.trigger_mute_alarm   = MagicMock(side_effect=lambda: print("trigger mute alarm"))
+    nmea_alert_connector.set_controller(controller)
+
+    print("NMEA Alert connector test program. Type : \ndisabled\ndrop\nin_radius\nin_radius2\nin_radius3\ndragging\nmuted\nexit to exit\nWhen the alert message sent by dragging is acknoweledge, trigger_mute_alarm should show in screen")
+
+    def handle_command(command, text):
+
+        # AnchorAlarmState = namedtuple('AnchorAlarmState', ['state', 'message', 'level', 'muted', 'params'])
+        state_drop_point_set = AnchorAlarmState('DROP_POINT_SET', 'Drop point set, please do blablala', 'info', False, {'drop_point': GPSPosition(10, 11)})
+        state_in_radius = AnchorAlarmState('IN_RADIUS', 'boat in radius', 'info', False, {'drop_point': GPSPosition(10, 11), 'radius': 12})
+        state_in_radius2 = AnchorAlarmState('IN_RADIUS', 'boat in radius 2', 'info', False, {'drop_point': GPSPosition(10, 11), 'radius': 12})
+        state_in_radius3 = AnchorAlarmState('IN_RADIUS', 'boat in radius 3', 'info', False, {'drop_point': GPSPosition(10, 11), 'radius': 12})
+        state_dragging = AnchorAlarmState('ANCHOR_DRAGGING', 'Anchor dragging !', 'emergency', False, {'drop_point': GPSPosition(10, 11), 'radius': 12})
+        state_dragging_muted = AnchorAlarmState('ANCHOR_DRAGGING_MUTED', 'Anchor dragging ! (muted)', 'emergency', True, {'drop_point': GPSPosition(10, 11), 'radius': 12})
+        state_disabled = AnchorAlarmState('DISABLED', 'Anchor alarm disabled', 'info', False, {})
+
+        if command == "disabled":
+            nmea_alert_connector.on_state_changed(state_disabled)
+        elif command == "drop":
+            nmea_alert_connector.on_state_changed(state_drop_point_set)
+        elif command == "in_radius":
+            nmea_alert_connector.on_state_changed(state_in_radius)
+        elif command == "in_radius2":
+            nmea_alert_connector.update_state(state_in_radius2)
+        elif command == "in_radius3":
+            nmea_alert_connector.update_state(state_in_radius3)
+        elif command == "dragging":
+            nmea_alert_connector.on_state_changed(state_dragging)
+        elif command == "muted":
+            nmea_alert_connector.on_state_changed(state_dragging_muted)
+        else:
+            print("Unknown command "+ command)
+
+
+    handle_stdin(handle_command)
