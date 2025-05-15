@@ -16,6 +16,10 @@ from unittest.mock import call
 from mock_settings_device import MockSettingsDevice
 from glib_timer_mock import GLibTimerMock
 
+# TODO XXX : move that import somewhere
+from collections import namedtuple
+GPSPosition = namedtuple('GPSPosition', ['latitude', 'longitude'])
+
 sys.path.insert(1, os.path.join(sys.path[0], '../connectors'))
 
 from nmea_alert_connector import NMEAAlertConnector
@@ -50,12 +54,12 @@ class TestNMEAAlertConnector(unittest.TestCase):
         connector.set_controller(controller)
 
         # AnchorAlarmState = namedtuple('AnchorAlarmState', ['state', 'message', 'level', 'muted', 'params'])
-        state_drop_point_set = AnchorAlarmState('DROP_POINT_SET', 'Drop point set, please do blablala', 'info', False, {'drop_point': {'latitude': 10, 'longitude':11}})
-        state_in_radius = AnchorAlarmState('IN_RADIUS', 'boat in radius', 'info', False, {'drop_point': {'latitude': 10, 'longitude':11}, 'radius': 12})
-        state_in_radius2 = AnchorAlarmState('IN_RADIUS', 'boat in radius 2', 'info', False, {'drop_point': {'latitude': 10, 'longitude':11}, 'radius': 12})
-        state_in_radius3 = AnchorAlarmState('IN_RADIUS', 'boat in radius 3', 'info', False, {'drop_point': {'latitude': 10, 'longitude':11}, 'radius': 12})
-        state_dragging = AnchorAlarmState('ANCHOR_DRAGGING', 'Anchor dragging !', 'emergency', False, {'drop_point': {'latitude': 10, 'longitude':11}, 'radius': 12})
-        state_dragging_muted = AnchorAlarmState('ANCHOR_DRAGGING_MUTED', 'Anchor dragging ! (muted)', 'emergency', True, {'drop_point': {'latitude': 10, 'longitude':11}, 'radius': 12})
+        state_drop_point_set = AnchorAlarmState('DROP_POINT_SET', 'Drop point set, please do blablala', 'info', False, {'drop_point': GPSPosition(10, 11)})
+        state_in_radius = AnchorAlarmState('IN_RADIUS', 'boat in radius', 'info', False, {'drop_point': GPSPosition(10, 11), 'radius': 12})
+        state_in_radius2 = AnchorAlarmState('IN_RADIUS', 'boat in radius 2', 'info', False, {'drop_point': GPSPosition(10, 11), 'radius': 12})
+        state_in_radius3 = AnchorAlarmState('IN_RADIUS', 'boat in radius 3', 'info', False, {'drop_point': GPSPosition(10, 11), 'radius': 12})
+        state_dragging = AnchorAlarmState('ANCHOR_DRAGGING', 'Anchor dragging !', 'emergency', False, {'drop_point': GPSPosition(10, 11), 'radius': 12})
+        state_dragging_muted = AnchorAlarmState('ANCHOR_DRAGGING_MUTED', 'Anchor dragging ! (muted)', 'emergency', True, {'drop_point': GPSPosition(10, 11), 'radius': 12})
         state_disabled = AnchorAlarmState('DISABLED', 'Anchor alarm disabled', 'info', False, {})
 
         
