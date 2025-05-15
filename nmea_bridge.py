@@ -3,7 +3,8 @@ import uuid
 from subprocess import Popen, PIPE
 from gi.repository import GLib
 
-from utils import exit_on_error
+
+from utils import exit_on_error, handle_stdin
 
 
 class NMEABridge:
@@ -14,6 +15,7 @@ class NMEABridge:
 
         self._nodejs_process = None
         self._watch_id = None
+        self._err_id = None
         self._restart_attempts = 0
 
         self._ready = False
@@ -26,8 +28,8 @@ class NMEABridge:
 
 
     def _log(self,msg):
-        if __name__ == '__main__':
-            print(msg)
+        #if __name__ == '__main__':
+        print(msg)
 
     def send_nmea(self, nmea_message):
         """Sends an NMEA message to the Node.js process."""
@@ -72,6 +74,9 @@ class NMEABridge:
             if self._watch_id is not None:
                 GLib.source_remove(self._watch_id)
 
+            if self._err_id is not None:
+                GLib.source_remove(self._err_id)
+
             self._nodejs_process = Popen(
                 ['node', self._js_gateway_path],
                 stdin=PIPE, stdout=PIPE, stderr=PIPE, text=True
@@ -80,6 +85,7 @@ class NMEABridge:
 #            GLib.io_add_watch(self._nodejs_process.stdout, GLib.IO_HUP, self._check_process_status) # TODO XXX : doens't work
             
             self._watch_id = GLib.io_add_watch(self._nodejs_process.stdout, GLib.IO_IN, self._on_stdout_data)
+            self._err_id = GLib.io_add_watch(self._nodejs_process.stderr, GLib.IO_IN, self._on_stderr_data)
 
             self._log("Node.js process started, waiting for ready")
             self._send_filters()            
@@ -104,7 +110,17 @@ class NMEABridge:
             return True
         
         return False
+    
+    def _on_stderr_data(self, source, condition):
+        """Handles stderr data from the Node.js process."""
+        if condition == GLib.IO_IN:
+            line = source.readline().strip()
+            if line:
+                print("STDERR " + line)
 
+            return True
+        
+        return False
 
     def _check_process_status(self, source=None, condition=None):
         """Checks if the Node.js process is still running and restarts if it crashes."""
@@ -117,7 +133,9 @@ class NMEABridge:
             else:
                 self._log("Max restart attempts reached. Exiting.")
                 self._stop_nodejs_process()
-            return False
+                from os import _exit as os_exit
+                os_exit(1)
+                return False
 
         return True
 
@@ -179,15 +197,7 @@ class NMEABridge:
 
 
 if __name__ == '__main__':
-    import sys
-    import os
-    import signal 
-    sys.path.insert(1, os.path.join('/opt/victronenergy/dbus-systemcalc-py', 'ext', 'velib_python'))
-
     YDAB_ADDRESS = 67
-
-    loop = GLib.MainLoop()
-
     bridge = NMEABridge()
 
     # alert ack pgn
@@ -203,97 +213,111 @@ if __name__ == '__main__':
 
     print("NMEA Bridge test program. Enter show:text to send Alert PGN.\nhide to hide message.\nyd:command to send YDAB command\nds:BankInstance,BankChannel,On|Off to send a DigitalSwitching command\nkill to kill the underlying nodeJS program\nexit to exit\n")
 
-    def process_std_in(source, condition):
+    def handle_command(command, text):
         mapping = {
             'caution': "Caution",
             'warning': "Warning",
             'alarm': 'Alarm',
             'emergency': 'Emergency Alarm'
         }
-        
-        if condition == GLib.IO_IN:
-            line = source.readline().strip()    
-            line = line.strip()
-            if not line:
-                return 
 
-            if ":" in line:
-                command, text = line.split(":", 1)
-            else:
-                command, text = line, None
+        if command in ['show', 'caution', 'warning', 'alarm', 'emergency']:
+            type = 'Caution' if command == "show" else mapping[command]
+            bridge.send_nmea({
+                "pgn": 126983,
+                "Alert ID": 123,
+                "Alert Type": type,
+                "Alert State": "Active",
+                "Alert Category": "Technical",
+                "Alert System": 5,
+                "Alert Sub-System": 0,
+                "Data Source Network ID NAME": 123,
+                "Data Source Instance": 0,
+                "Data Source Index-Source": 0,
+                "Alert Occurrence Number": 0,
+                "Temporary Silence Status": 0,
+                "Acknowledge Status": 0,
+                "Escalation Status": 0,
+                "Temporary Silence Support": 0,
+                "Acknowledge Support": 1,
+                "Escalation Support": 0,
+                "Trigger Condition": 2,
+                "Threshold Status": 1,
+                "Alert Priority": 0
+            })
 
-
-            if command in ['show', 'caution', 'warning', 'alarm', 'emergency']:
-                type = 'Caution' if command == "show" else mapping[command]
-                bridge.send_nmea({
-                    "pgn": 126983,
-                    "Alert ID": 123,
-                    "Alert Type": type,
-                    "Alert State": "Active",
-                    "Alert Category": "Technical",
-                    "Alert System": 5,
-                    "Alert Sub-System": 0,
-                    "Data Source Network ID NAME": 123,
-                    "Data Source Instance": 0,
-                    "Data Source Index-Source": 0,
-                    "Alert Occurrence Number": 0,
-                    "Temporary Silence Status": 0,
-                    "Acknowledge Status": 0,
-                    "Escalation Status": 0,
-                    "Temporary Silence Support": 0,
-                    "Acknowledge Support": 1,
-                    "Escalation Support": 0,
-                    "Trigger Condition": 2,
-                    "Threshold Status": 1,
-                    "Alert Priority": 0
-                })
-
-                bridge.send_nmea({
-                    "pgn": 126985,
-                    "Alert ID": 123,
-                    "Alert Type": type,
-                    "Alert Category": "Technical",
-                    "Alert System": 5,
-                    "Alert Sub-System": 0,
-                    "Data Source Network ID NAME": 123,
-                    "Data Source Instance": 0,
-                    "Data Source Index-Source": 0,
-                    "Alert Occurrence Number": 0,
-                    "Language ID": 0,
-                    "Alert Text Description": text
-                })
+            bridge.send_nmea({
+                "pgn": 126985,
+                "Alert ID": 123,
+                "Alert Type": type,
+                "Alert Category": "Technical",
+                "Alert System": 5,
+                "Alert Sub-System": 0,
+                "Data Source Network ID NAME": 123,
+                "Data Source Instance": 0,
+                "Data Source Index-Source": 0,
+                "Alert Occurrence Number": 0,
+                "Language ID": 0,
+                "Alert Text Description": text
+            })
 
 
-            elif command == "hide":
+        elif command == "hide":
 
-                type = 'Caution' if text is None else mapping[text]
-                bridge.send_nmea({
-                    "pgn": 126983,
-                    "Alert ID": 123,
-                    "Alert Type": type,
-                    "Alert State": "Normal",
-                    "Alert Category": "Technical",
-                    "Alert System": 5,
-                    "Alert Sub-System": 0,
-                    "Data Source Network ID NAME": 123,
-                    "Data Source Instance": 0,
-                    "Data Source Index-Source": 0,
-                    "Alert Occurrence Number": 0,
-                    "Temporary Silence Status": 0,
-                    "Acknowledge Status": 0,
-                    "Escalation Status": 0,
-                    "Temporary Silence Support": 0,
-                    "Acknowledge Support": 1,
-                    "Escalation Support": 0,
-                    "Trigger Condition": 2,
-                    "Threshold Status": 1,
-                    "Alert Priority": 0
-                })
+            type = 'Caution' if text is None else mapping[text]
+            bridge.send_nmea({
+                "pgn": 126983,
+                "Alert ID": 123,
+                "Alert Type": type,
+                "Alert State": "Normal",
+                "Alert Category": "Technical",
+                "Alert System": 5,
+                "Alert Sub-System": 0,
+                "Data Source Network ID NAME": 123,
+                "Data Source Instance": 0,
+                "Data Source Index-Source": 0,
+                "Alert Occurrence Number": 0,
+                "Temporary Silence Status": 0,
+                "Acknowledge Status": 0,
+                "Escalation Status": 0,
+                "Temporary Silence Support": 0,
+                "Acknowledge Support": 1,
+                "Escalation Support": 0,
+                "Trigger Condition": 2,
+                "Threshold Status": 1,
+                "Alert Priority": 0
+            })
 
-            elif command == "yd":
+        elif command == "yd":
+            bridge.send_nmea({
+                "prio":3,
+                "dst":YDAB_ADDRESS,
+                "pgn":126208,
+                "fields":{
+                    "Function Code":"Command",
+                    "PGN":126998,
+                    "Number of Parameters":1,
+                    "list":[{
+                        "Parameter":2,
+                        "Value": "YD:"+text}]
+                },
+                "description":"NMEA - Command group function"
+            })
+
+        elif command == "ds":
+            bridge.send_nmea({
+                "pgn":127502,
+                "fields": {
+                    "Instance":0,
+                    "Switch"+text:"On",
+                },
+                "description":"Switch Bank Control"
+            })
+
+        elif command == "yd":
                 bridge.send_nmea({
                     "prio":3,
-                    "dst":YDAB_ADDRESS,
+                    "dst": 67,
                     "pgn":126208,
                     "fields":{
                         "Function Code":"Command",
@@ -301,72 +325,35 @@ if __name__ == '__main__':
                         "Number of Parameters":1,
                         "list":[{
                             "Parameter":2,
-                            "Value": "YD:"+text}]
+                            "Value": "yd:"+text}]
                     },
                     "description":"NMEA - Command group function"
                 })
-
-            elif command == "ds":
-                bridge.send_nmea({
-                    "pgn":127502,
-                    "fields": {
-                        "Instance":0,
-                        "Switch"+text:"On",
-                    },
-                    "description":"Switch Bank Control"
-                })
-
-            elif command == "yd":
-                    bridge.send_nmea({
-                        "prio":3,
-                        "dst": 67,
-                        "pgn":126208,
-                        "fields":{
-                            "Function Code":"Command",
-                            "PGN":126998,
-                            "Number of Parameters":1,
-                            "list":[{
-                                "Parameter":2,
-                                "Value": "yd:"+text}]
-                        },
-                        "description":"NMEA - Command group function"
-                    })
+        
+        elif command == "ds":
+            if len(text) == 0:
+                print("No arguments for ds: command")
+                return True
             
-            elif command == "ds":
-                if len(text) == 0:
-                    print("No arguments for ds: command")
-                    return True
-                
-                parts = text.split(":")
-                if len(parts) != 3:
-                    print("Wrong arguments count ds: command")
-                    return True
-                
-                bridge.send_nmea({
-                    "pgn":127502,
-                    "fields": {
-                        "Instance": parts[0],
-                        "Switch"+ parts[1]:parts[2]
-                    },
-                    "description":"Switch Bank Control"
-                })
+            parts = text.split(":")
+            if len(parts) != 3:
+                print("Wrong arguments count ds: command")
+                return True
+            
+            bridge.send_nmea({
+                "pgn":127502,
+                "fields": {
+                    "Instance": parts[0],
+                    "Switch"+ parts[1]:parts[2]
+                },
+                "description":"Switch Bank Control"
+            })
 
-            elif command == "kill":
-                bridge._nodejs_process.terminate()
+        elif command == "kill":
+            bridge._nodejs_process.terminate()
 
-            elif command == "exit":
-                loop.quit()
+        else:
+            print("Unknown command "+ command)
 
-            else:
-                print("Unknown command "+ command)
 
-        return True
-
-    signal.signal(signal.SIGINT, lambda source,cond: loop.quit())
-
-    GLib.io_add_watch(sys.stdin, GLib.IO_IN, process_std_in)
-
-    try:
-        loop.run()
-    except KeyboardInterrupt:
-        pass
+    handle_stdin(handle_command)

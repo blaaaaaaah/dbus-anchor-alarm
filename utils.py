@@ -21,3 +21,43 @@ def exit_on_error(func, *args, **kwargs):
 		# sys.exit() is not used, since that throws an exception, which does not lead to a program
 		# halt when used in a dbus callback, see connection.py in the Python/Dbus libraries, line 230.
 		os_exit(1)
+
+
+
+
+
+def handle_stdin(command_callback):
+    import sys
+    import os
+    import signal 
+    from gi.repository import GLib
+    
+    loop = GLib.MainLoop()
+
+    def process_std_in(source, condition):
+        if condition == GLib.IO_IN:
+            line = source.readline().strip()    
+            line = line.strip()
+            if not line:
+                return 
+
+            if ":" in line:
+                command, text = line.split(":", 1)
+            else:
+                command, text = line, None
+
+            if command == "exit":
+                loop.quit()
+            else:
+                command_callback(command, text)
+
+        return True
+
+    signal.signal(signal.SIGINT, lambda source,cond: loop.quit())
+
+    GLib.io_add_watch(sys.stdin, GLib.IO_IN, process_std_in)
+
+    try:
+        loop.run()
+    except KeyboardInterrupt:
+        pass
