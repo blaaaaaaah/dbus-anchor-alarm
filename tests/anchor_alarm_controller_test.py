@@ -37,11 +37,11 @@ class TestAnchorAlarmController(unittest.TestCase):
 
         controller = AnchorAlarmController(lambda: timer_provider, MockSettingsDevice, gps_provider)
         model_mock =  MagicMock()
-        model_mock.on_conf_updated = MagicMock()
+        model_mock.update_configuration = MagicMock()
         controller._anchor_alarm = model_mock
 
         controller._settings['Tolerance'] = 99
-        model_mock.on_conf_updated.assert_called()
+        model_mock.update_configuration.assert_called()
 
 
     def test_exceptions_catched(self):
@@ -69,6 +69,103 @@ class TestAnchorAlarmController(unittest.TestCase):
 
         gps_provider.get_gps_position = MagicMock(return_value="qwe")
         self.assertIsInstance(controller.trigger_chain_out(), TypeError)
+
+    def test_save_state(self):
+        gps_provider = MagicMock()
+        gps_provider.get_gps_position = MagicMock(return_value=None)
+
+        controller = AnchorAlarmController(lambda: timer_provider, MockSettingsDevice, gps_provider)
+        self.assertEqual(controller._settings['Latitude'],  0)
+        self.assertEqual(controller._settings['Longitude'], 0)
+        self.assertEqual(controller._settings['Radius'],    0)
+        self.assertEqual(controller._settings['Active'],    0)
+
+        state_drop_point_set = AnchorAlarmState('DROP_POINT_SET', 'Drop point set, please do blablala', 'info', False, {'drop_point': GPSPosition(10, 11)})
+        controller._on_state_changed(state_drop_point_set)
+        self.assertEqual(controller._settings['Latitude'],  0)
+        self.assertEqual(controller._settings['Longitude'], 0)
+        self.assertEqual(controller._settings['Radius'],    0)
+        self.assertEqual(controller._settings['Active'],    0)
+
+        state_in_radius = AnchorAlarmState('IN_RADIUS', 'boat in radius', 'info', False, {'drop_point': GPSPosition(10, 11), 'radius': 12})
+        controller._on_state_changed(state_in_radius)
+        self.assertEqual(controller._settings['Latitude'],  state_in_radius.params['drop_point'].latitude)
+        self.assertEqual(controller._settings['Longitude'], state_in_radius.params['drop_point'].longitude)
+        self.assertEqual(controller._settings['Radius'],    state_in_radius.params['radius'])
+        self.assertEqual(controller._settings['Active'],    1)
+
+        state_dragging = AnchorAlarmState('ANCHOR_DRAGGING', 'Anchor dragging !', 'emergency', False, {'drop_point': GPSPosition(23, 23), 'radius': 23})
+        # should keep in_radius values
+        controller._on_state_changed(state_dragging)
+        self.assertEqual(controller._settings['Latitude'],  state_in_radius.params['drop_point'].latitude)
+        self.assertEqual(controller._settings['Longitude'], state_in_radius.params['drop_point'].longitude)
+        self.assertEqual(controller._settings['Radius'],    state_in_radius.params['radius'])
+        self.assertEqual(controller._settings['Active'],    1)
+
+        # TODO XXX : test that if we call set_radius after dragging the radius is updated
+        state_disabled = AnchorAlarmState('DISABLED', 'Anchor alarm disabled', 'info', False, {})
+        controller._on_state_changed(state_disabled)
+        self.assertEqual(controller._settings['Latitude'],  state_in_radius.params['drop_point'].latitude)
+        self.assertEqual(controller._settings['Longitude'], state_in_radius.params['drop_point'].longitude)
+        self.assertEqual(controller._settings['Radius'],    state_in_radius.params['radius'])
+        self.assertEqual(controller._settings['Active'],    0)
+
+
+    def test_reset_state(self):
+        gps_provider = MagicMock()
+        gps_provider.get_gps_position = MagicMock(return_value=None)
+ 
+        def _create_settings_inactive(settingsList, onSettingsChanged):
+            settings = MockSettingsDevice(settingsList, onSettingsChanged)
+            settings['Latitude'] = 10
+            settings['Longitude'] = 11
+            settings['Radius'] = 20
+            settings['Active'] = 0
+            return settings
+
+        controller = AnchorAlarmController(lambda: timer_provider, _create_settings_inactive, gps_provider)
+        self.assertEqual(controller._settings['Latitude'],  10)
+        self.assertEqual(controller._settings['Longitude'], 11)
+        self.assertEqual(controller._settings['Radius'],    20)
+        self.assertEqual(controller._settings['Active'],    0)
+
+        connector = MagicMock()
+        connector.on_state_change =  MagicMock(return_value=None)
+        connector.update_state =  MagicMock(return_value=None)
+
+        mock_state_disabled = AnchorAlarmState('DISABLED', ANY, ANY, ANY, ANY)
+
+        controller.register_connector(connector)
+        connector.update_state.assert_called_with(mock_state_disabled)
+
+
+
+
+
+
+        def _create_settings_active(settingsList, onSettingsChanged):
+            settings = MockSettingsDevice(settingsList, onSettingsChanged)
+            settings['Latitude'] = 10
+            settings['Longitude'] = 11
+            settings['Radius'] = 20
+            settings['Active'] = 1
+            return settings
+
+        controller = AnchorAlarmController(lambda: timer_provider, _create_settings_active, gps_provider)
+        self.assertEqual(controller._settings['Latitude'],  10)
+        self.assertEqual(controller._settings['Longitude'], 11)
+        self.assertEqual(controller._settings['Radius'],    20)
+        self.assertEqual(controller._settings['Active'],    1)
+
+        connector = MagicMock()
+        connector.on_state_change =  MagicMock(return_value=None)
+        connector.update_state =  MagicMock(return_value=None)
+
+        mock_state_in_radius = AnchorAlarmState('IN_RADIUS', ANY, ANY, ANY, ANY)
+
+        controller.register_connector(connector)
+        connector.update_state.assert_called_with(mock_state_in_radius)
+
 
 
     def test_connector_mock(self):

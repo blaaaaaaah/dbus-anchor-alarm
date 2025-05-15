@@ -15,32 +15,47 @@ class AnchorAlarmController(object):
     def __init__(self, timer_provider, settings_provider, gps_provider):
         self._settings_provider = settings_provider
 
-        self._init_settings()
 
         self._anchor_alarm = AnchorAlarmModel(self._on_state_changed)
         self.gps_provider = gps_provider
 
         self._connectors = []
 
+        self._init_settings()
+
         timer_provider().timeout_add(1000, exit_on_error, self._on_timer_tick)
+
+        # if the Active flag was set, reset_state
+        if self._settings["Active"] == 1:
+            drop_point = GPSPosition(self._settings["Latitude"], self._settings["Longitude"])
+            self.reset_state(drop_point, self._settings["Radius"])
     
     def _init_settings(self):
         # create the setting that are needed
         settingsList = {
             # configuration
-            "Tolerance":            ["/Settings/Services/Anchoralarm/Configuration/RadiusTolerance", 15, 0, 512],
-            "NoGPSCountThreshold":  ["/Settings/Services/Anchoralarm/Configuration/NoGPSCountThreshold", 30, 0, 300],
-            "MuteDuration":         ["/Settings/Services/Anchoralarm/Configuration/MuteDuration", 30, 0, 300],   
+            "Tolerance":            ["/Settings/Anchoralarm/Configuration/RadiusTolerance", 15, 0, 512],
+            "NoGPSCountThreshold":  ["/Settings/Anchoralarm/Configuration/NoGPSCountThreshold", 30, 0, 300],
+            "MuteDuration":         ["/Settings/Anchoralarm/Configuration/MuteDuration", 30, 0, 300], 
+
+            "Latitude":             ["/Settings/AnchorAlarm/Last/Position/Latitude", 0.0, -90.0, 90],
+            "Longitude":            ["/Settings/AnchorAlarm/Last/Position/Longitude", 0.0, -180.0, 180],
+            "Radius":               ["/Settings/AnchorAlarm/Last/Radius", 0, 0, 256],
+
+            "Active":               ["/Settings/AnchorAlarm/Last/Active", 0, 0, 1],  
         }
 
         self._settings = self._settings_provider(settingsList, self._on_setting_changed)
-
-    def _conf_from_settings(self):
-        return AnchorAlarmConfiguration(self._settings["Tolerance"], self._settings["NoGPSCountThreshold"], self._settings["MuteDuration"])
+        self._on_setting_changed(None, None, None)  # dummy values to trigger anchor_alarm.update_configuration
 
 
     def _on_setting_changed(self, key, old_value, new_value):
-        self._anchor_alarm.on_conf_updated(self._conf_from_settings())
+        if not hasattr(self, '_settings'):
+            return  # not yet instanciated
+        
+        conf = AnchorAlarmConfiguration(self._settings["Tolerance"], self._settings["NoGPSCountThreshold"], self._settings["MuteDuration"])
+        self._anchor_alarm.update_configuration(conf)
+        
 
 
     def reset_state(self, drop_point, radius):
@@ -86,6 +101,14 @@ class AnchorAlarmController(object):
     # called by anchor_alarm when its state changes
     def _on_state_changed(self, current_state):
         # notify connectors
+        if current_state.state == "IN_RADIUS" and 'drop_point' in current_state.params and 'radius' in current_state.params:
+            self._settings['Latitude']   = current_state.params['drop_point'].latitude
+            self._settings['Longitude']  = current_state.params['drop_point'].longitude
+            self._settings['Radius']     = current_state.params['radius']
+            self._settings["Active"]     = 1
+        elif current_state.state == "DISABLED":
+            self._settings["Active"]     = 0
+
         for connector in self._connectors:
             try:
                 connector.on_state_changed(current_state)

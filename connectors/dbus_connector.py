@@ -38,12 +38,7 @@ class DBusConnector(AbstractConnector):
     def _init_settings(self):
         # create the setting that are needed
         settingsList = {
-            # last state 
-            "Latitude":             ["/Settings/AnchorAlarm/Last/Position/Latitude", None, 0.0, 128],
-            "Longitude":            ["/Settings/AnchorAlarm/Last/Position/Longitude", None, 0.0, 128],
-            "Radius":               ["/Settings/AnchorAlarm/Last/Radius", 0, 0, 256],
-
-            
+            # last state   
             "AnchorDownDigitalInputNumber":     ["/Settings/AnchorAlarm/Triggers/AnchorDown/DigitalInputNumber", 1, 0, 4],
             "AnchorDownDigitalInputDuration":   ["/Settings/AnchorAlarm/Triggers/AnchorDown/DigitalInputDuration", 3, 0, 30],
 
@@ -53,8 +48,7 @@ class DBusConnector(AbstractConnector):
             "AnchorUpDigitalInputNumber":       ["/Settings/AnchorAlarm/Triggers/AnchorUp/DigitalInputNumber", 2, 0, 4],
             "AnchorUpDigitalInputDuration":     ["/Settings/AnchorAlarm/Triggers/AnchorUp/DigitalInputDuration", 3, 0, 30], 
 
-            "FeedbackDigitaInputNumber"  :      ["/Settings/AnchorAlarm/Triggers/Enable/DigitalInput", 1, 0, 4],    
-            
+            "FeedbackDigitaInputNumber"  :      ["/Settings/AnchorAlarm/Triggers/Enable/DigitalInput", 1, 0, 4],
         }
 
         self._settings = self._settings_provider(settingsList, self._on_setting_changed)
@@ -99,33 +93,14 @@ class DBusConnector(AbstractConnector):
     def _create_dbus_service(self, *args, **kwargs):
         from vedbus import VeDbusService
         return VeDbusService(*args, **kwargs)
-    
 
 
-    def set_controller(self, controller:AnchorAlarmController):
-        """Controller has :
-            - trigger_anchor_down
-            - trigger_chain_out
-            - trigger_anchor_up
-            - trigger mute_alarm
-        """
-        super().set_controller(controller)
-
-        if self._settings["Latitude"] and self._settings["Longitude"] and self._settings["Radius"]:
-            # TODO XXX : check if lat/lont are valid ?
-            drop_point = GPSPosition(self._settings["Latitude"], self._settings["Longitude"])
-            self._controller.reset_state(drop_point, self._settings["Radius"])
-
-    
 
     def on_state_changed(self, current_state:AnchorAlarmState):
         """Called by controller when state changed"""
         print("On state changed "+ current_state.state)
 
-        if current_state.state == "IN_RADIUS":
-            self._settings['Latitude']   = current_state.params['drop_point']['latitude']
-            self._settings['Longitude']  = current_state.params['drop_point']['longitude']
-            self._settings['Radius']     = current_state.params['radius']
+        
 
         # update values on DBUS
         self.update_state(current_state)
@@ -236,4 +211,38 @@ class DBusConnector(AbstractConnector):
 
 
 
-    
+
+if __name__ == "__main__":
+
+    import logging
+    import sys
+    import os
+    sys.path.insert(1, os.path.join('/opt/victronenergy/dbus-systemcalc-py', 'ext', 'velib_python'))
+
+    from gi.repository import GLib
+    from dbusmonitor import DbusMonitor
+    from dbus.mainloop.glib import DBusGMainLoop
+    import dbus
+    from settingsdevice import SettingsDevice
+    from unittest.mock import MagicMock
+
+    logging.basicConfig(level=logging.DEBUG)
+    # Have a mainloop, so we can send/receive asynchronous calls to and from dbus
+    DBusGMainLoop(set_as_default=True)
+
+    from ve_utils import exit_on_error
+   
+    bus = dbus.SessionBus() if 'DBUS_SESSION_BUS_ADDRESS' in os.environ else dbus.SystemBus()
+    dbus_connector = DBusConnector(lambda: GLib, lambda settings, cb: SettingsDevice(bus, settings, cb))
+
+    controller = MagicMock()
+    controller.trigger_anchor_down  = MagicMock(side_effect=print)
+    controller.trigger_anchor_up    = MagicMock(side_effect=print)
+    controller.trigger_chain_out    = MagicMock(side_effect=print)
+    controller.trigger_mute_alarm   = MagicMock(side_effect=print)
+    dbus_connector.set_controller(controller)
+
+	# Start and run the mainloop
+    #logger.info("Starting mainloop, responding only on events")
+    mainloop = GLib.MainLoop()
+    mainloop.run()
