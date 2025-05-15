@@ -143,10 +143,10 @@ class AnchorAlarmModel(object):
     def on_timer_tick(self, gps_position):
         """Called every second when watching with GPS position.
         If no GPS position given for #no_gps_count_thresold#, will go in ALARM_NO_GPS state
-        If GPS position is outside safe radius, will go in ALARM_ANCHOR_DRAGGING state"""   
+        If GPS position is outside safe radius, will go in ALARM_DRAGGING state"""   
 
 
-        # make sure this code is only run in IN_RADIUS, ALARM_ANCHOR_DRAGGING or ALARM_NO_GPS
+        # make sure this code is only run in IN_RADIUS, ALARM_DRAGGING or ALARM_NO_GPS
         if self.state not in ['IN_RADIUS', 'ALARM_DRAGGING', 'ALARM_NO_GPS', 'ALARM_DRAGGING_MUTED', 'ALARM_NO_GPS_MUTED']:
             return
 
@@ -184,7 +184,7 @@ class AnchorAlarmModel(object):
                 # outside radius
                 self._out_of_radius_count += 1
 
-                if should_transition:   # do not go back yet to ALARM_ANCHOR_DRAGGING if muted
+                if should_transition:   # do not go back yet to ALARM_DRAGGING if muted
                     self.on_anchor_dragging()   
 
             else:
@@ -318,7 +318,7 @@ class AnchorAlarmModel(object):
         self._current_radius = self._radius
         self._out_of_radius_count = 0
 
-    def on_enter_ALARM_ANCHOR_DRAGGING(self):
+    def on_enter_ALARM_DRAGGING(self):
         self._alarm_muted_count = 0
 
     def on_enter_ALARM_NO_GPS(self):

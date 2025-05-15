@@ -58,8 +58,8 @@ class TestNMEAAlertConnector(unittest.TestCase):
         state_in_radius = AnchorAlarmState('IN_RADIUS', 'boat in radius', 'info', False, {'drop_point': GPSPosition(10, 11), 'radius': 12})
         state_in_radius2 = AnchorAlarmState('IN_RADIUS', 'boat in radius 2', 'info', False, {'drop_point': GPSPosition(10, 11), 'radius': 12})
         state_in_radius3 = AnchorAlarmState('IN_RADIUS', 'boat in radius 3', 'info', False, {'drop_point': GPSPosition(10, 11), 'radius': 12})
-        state_dragging = AnchorAlarmState('ANCHOR_DRAGGING', 'Anchor dragging !', 'emergency', False, {'drop_point': GPSPosition(10, 11), 'radius': 12})
-        state_dragging_muted = AnchorAlarmState('ANCHOR_DRAGGING_MUTED', 'Anchor dragging ! (muted)', 'emergency', True, {'drop_point': GPSPosition(10, 11), 'radius': 12})
+        state_dragging = AnchorAlarmState('ALARM_DRAGGING', 'Anchor dragging !', 'emergency', False, {'drop_point': GPSPosition(10, 11), 'radius': 12})
+        state_dragging_muted = AnchorAlarmState('ALARM_DRAGGING_MUTED', 'Anchor dragging ! (muted)', 'emergency', True, {'drop_point': GPSPosition(10, 11), 'radius': 12})
         state_disabled = AnchorAlarmState('DISABLED', 'Anchor alarm disabled', 'info', False, {})
 
         

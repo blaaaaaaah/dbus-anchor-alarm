@@ -94,7 +94,7 @@ class TestAnchorAlarmController(unittest.TestCase):
         self.assertEqual(controller._settings['Radius'],    state_in_radius.params['radius'])
         self.assertEqual(controller._settings['Active'],    1)
 
-        state_dragging = AnchorAlarmState('ANCHOR_DRAGGING', 'Anchor dragging !', 'emergency', False, {'drop_point': GPSPosition(23, 23), 'radius': 23})
+        state_dragging = AnchorAlarmState('ALARM_DRAGGING', 'Anchor dragging !', 'emergency', False, {'drop_point': GPSPosition(23, 23), 'radius': 23})
         # should keep in_radius values
         controller._on_state_changed(state_dragging)
         self.assertEqual(controller._settings['Latitude'],  state_in_radius.params['drop_point'].latitude)
