@@ -8,14 +8,8 @@ from anchor_alarm_controller import AnchorAlarmController
 from anchor_alarm_controller import GPSPosition
 from anchor_alarm_model import AnchorAlarmState
 
-
 # our own packages
-# use an established Victron service to maintain compatiblity
-#sys.path.insert(1, os.path.join('/opt/victronenergy/dbus-systemcalc-py', 'ext', 'velib_python'))
 sys.path.insert(1, os.path.join(os.path.dirname(__file__), '../ext/velib_python'))
-
-
-
 
 
 class DBusConnector(AbstractConnector):
@@ -65,13 +59,14 @@ class DBusConnector(AbstractConnector):
         self._alarm_monitor = self._create_dbus_monitor(monitorlist, self._on_digitalinput_service_changed, deviceAddedCallback=None, deviceRemovedCallback=None)
 
     def _create_dbus_monitor(self, *args, **kwargs):
-        from vedbus import DBusMonitor
-        return DBusMonitor(*args, **kwargs)
+        from dbusmonitor import DbusMonitor
+        return DbusMonitor(*args, **kwargs)
 
 
 
     def _init_dbus_service(self):
-        self._dbus_service = self._create_dbus_service("com.victronenergy.anchoralarm")
+        self._dbus_service = self._create_dbus_service("com.victronenergy.anchoralarm", register=False)
+
         self._dbus_service.add_mandatory_paths(__file__, '0.1', None, 0, 0, 'AnchorAlarm', 0, 0, 1)
 
         # publish data on the service for other people to consume (MTTQ, ..)
@@ -100,7 +95,6 @@ class DBusConnector(AbstractConnector):
         """Called by controller when state changed"""
         print("On state changed "+ current_state.state)
 
-        
 
         # update values on DBUS
         self.update_state(current_state)
@@ -217,10 +211,8 @@ if __name__ == "__main__":
     import logging
     import sys
     import os
-    sys.path.insert(1, os.path.join('/opt/victronenergy/dbus-systemcalc-py', 'ext', 'velib_python'))
 
     from gi.repository import GLib
-    from dbusmonitor import DbusMonitor
     from dbus.mainloop.glib import DBusGMainLoop
     import dbus
     from settingsdevice import SettingsDevice
