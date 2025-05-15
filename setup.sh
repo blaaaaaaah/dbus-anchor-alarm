@@ -1,5 +1,8 @@
 #!/bin/bash
 
+#TODO : do simlink for node_modules ?
+# ln -s /usr/lib/node_modules/signalk-server/node_modules/ /data/dbus-anchor-alarm/node_modules
+
 #unpack this diretory into /data/dbus-anchor-alarm
 # once only setup
 chmod 1755 /data/dbus-anchor-alarm

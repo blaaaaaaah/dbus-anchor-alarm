@@ -1,5 +1,8 @@
 // TODO
 
+https://github.com/victronenergy/venus/wiki/howto-add-a-driver-to-Venus
+
+scp -r * root@victron.matsu:~/dbus-anchor-alarm
 
 Check NotificationCenter / Alarms
 => change input 1 to alarm and input 2 to general current feedback

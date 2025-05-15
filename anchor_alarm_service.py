@@ -12,7 +12,6 @@ import sys
 import os
 
 from anchor_alarm_controller import AnchorAlarmController
-from anchor_alarm_model import AnchorAlarmConfiguration
 from nmea_bridge import NMEABridge
 
 # our own packages
@@ -47,12 +46,10 @@ class DbusAnchorAlarmService(object):
         self._alarm_controller = AnchorAlarmController(lambda: GLib, lambda settings, cb: SettingsDevice(bus, settings, cb), self._gps_provider)
 
         dbus_connector = DBusConnector(lambda: GLib, lambda settings, cb: SettingsDevice(bus, settings, cb))
-
         nmea_alert_connector = NMEAAlertConnector(lambda: GLib, lambda settings, cb: SettingsDevice(bus, settings, cb), self.nmea_bridge)
-
         nmea_ydab_connector = NMEAYDABConnector(lambda: GLib, lambda settings, cb: SettingsDevice(bus, settings, cb), self.nmea_bridge)
 
-        # TODO XXX move registration of connectors elsewhere ? how to configure them ?
+        # TODO XXX move registration of connectors elsewhere ? 
         self._alarm_controller.register_connector(dbus_connector)
         self._alarm_controller.register_connector(nmea_alert_connector)
         self._alarm_controller.register_connector(nmea_ydab_connector)
