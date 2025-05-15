@@ -17,7 +17,7 @@ class AnchorAlarmController(object):
 
         self._init_settings()
 
-        self._anchor_alarm = AnchorAlarmModel(self._on_state_changed, self._conf_from_settings())
+        self._anchor_alarm = AnchorAlarmModel(self._on_state_changed)
         self.gps_provider = gps_provider
 
         self._connectors = []

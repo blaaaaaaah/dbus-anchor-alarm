@@ -23,13 +23,14 @@ AnchorAlarmState = namedtuple('AnchorAlarmState', ['state', 'message', 'level', 
 
 
 class AnchorAlarmModel(object):
-    def __init__(self, on_state_change_fn, conf:AnchorAlarmConfiguration):
+    def __init__(self, on_state_change_fn):
 
         self._on_state_change_fn = on_state_change_fn
 
-        self._radius_tolerance = conf.tolerance
-        self._no_gps_count_threshold = conf.no_gps_count_threshold
-        self._mute_duration = conf.mute_duration
+        # if you need that changed, call on_conf_updated
+        self._radius_tolerance = 15
+        self._no_gps_count_threshold = 30
+        self._mute_duration = 30
 
         self._drop_point = None
         self._radius = None
@@ -84,7 +85,7 @@ class AnchorAlarmModel(object):
                                             ignore_invalid_triggers=True)
 
 
-    def on_conf_updated(self, conf):
+    def update_configuration(self, conf):
         tolerance_updated = self._radius_tolerance != conf.tolerance
 
         self._radius_tolerance = conf.tolerance

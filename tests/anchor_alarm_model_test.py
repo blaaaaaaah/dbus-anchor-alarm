@@ -405,7 +405,8 @@ class TestAnchorAlarmModel(unittest.TestCase):
     def test_complete_cycle(self):
 
         self.out_of_radius_count         = 0
-        anchor_alarm =  AnchorAlarmModel(self._update_last_state, AnchorAlarmConfiguration(self.tolerance, 3, 5))
+        anchor_alarm =  AnchorAlarmModel(self._update_last_state)
+        anchor_alarm.update_configuration(AnchorAlarmConfiguration(self.tolerance, 3, 5))
         
         self.assertState(anchor_alarm, None, AnchorAlarmState('DISABLED', ANY, "info", False, {"state": 'DISABLED', "radius_tolerance": self.tolerance, "drop_point": None, "radius": None, "no_gps_count": 0, "out_of_radius_count": 0, "alarm_muted_count": 0, "current_radius": None}))
         self._out_of_sequence_calls(anchor_alarm)
@@ -475,7 +476,8 @@ class TestAnchorAlarmModel(unittest.TestCase):
     def test_anchor_up_from_disabled(self):
         # from DISABLED
         self.out_of_radius_count         = 0
-        anchor_alarm =  AnchorAlarmModel(self._update_last_state, AnchorAlarmConfiguration(self.tolerance, 3, 5))
+        anchor_alarm =  AnchorAlarmModel(self._update_last_state)
+        anchor_alarm.update_configuration(AnchorAlarmConfiguration(self.tolerance, 3, 5))
         
         self.assertState(anchor_alarm, None, AnchorAlarmState('DISABLED', ANY, "info", False, {"state": 'DISABLED', "radius_tolerance": self.tolerance, "drop_point": None, "radius": None, "no_gps_count": 0, "out_of_radius_count": 0, "alarm_muted_count": 0, "current_radius": None}))
         self._out_of_sequence_calls(anchor_alarm)
@@ -489,7 +491,8 @@ class TestAnchorAlarmModel(unittest.TestCase):
     def test_anchor_up_from_drop_point_set(self):
         # from DROP_POINT_SET
         self.out_of_radius_count         = 0
-        anchor_alarm =  AnchorAlarmModel(self._update_last_state, AnchorAlarmConfiguration(self.tolerance, 3, 5))
+        anchor_alarm =  AnchorAlarmModel(self._update_last_state)
+        anchor_alarm.update_configuration(AnchorAlarmConfiguration(self.tolerance, 3, 5))
         
         self.assertState(anchor_alarm, None, AnchorAlarmState('DISABLED', ANY, "info", False, {"state": 'DISABLED', "radius_tolerance": self.tolerance, "drop_point": None, "radius": None, "no_gps_count": 0, "out_of_radius_count": 0, "alarm_muted_count": 0, "current_radius": None}))
         self._out_of_sequence_calls(anchor_alarm)
@@ -505,7 +508,8 @@ class TestAnchorAlarmModel(unittest.TestCase):
 
     def test_anchor_up_from_with_radius_set(self):
         self.out_of_radius_count         = 0
-        anchor_alarm =  AnchorAlarmModel(self._update_last_state, AnchorAlarmConfiguration(self.tolerance, 3, 5))
+        anchor_alarm =  AnchorAlarmModel(self._update_last_state)
+        anchor_alarm.update_configuration(AnchorAlarmConfiguration(self.tolerance, 3, 5))
         
         self.assertState(anchor_alarm, None, AnchorAlarmState('DISABLED', ANY, "info", False, {"state": 'DISABLED', "radius_tolerance": self.tolerance, "drop_point": None, "radius": None, "no_gps_count": 0, "out_of_radius_count": 0, "alarm_muted_count": 0, "current_radius": None}))
         self._out_of_sequence_calls(anchor_alarm)
@@ -526,7 +530,8 @@ class TestAnchorAlarmModel(unittest.TestCase):
     def test_anchor_up_after_a_few_ticks(self):
         # anchor_up after a few ticks
         self.out_of_radius_count         = 0
-        anchor_alarm =  AnchorAlarmModel(self._update_last_state, AnchorAlarmConfiguration(self.tolerance, 3, 5))
+        anchor_alarm =  AnchorAlarmModel(self._update_last_state)
+        anchor_alarm.update_configuration(AnchorAlarmConfiguration(self.tolerance, 3, 5))
         
         self.assertState(anchor_alarm, None, AnchorAlarmState('DISABLED', ANY, "info", False, {"state": 'DISABLED', "radius_tolerance": self.tolerance, "drop_point": None, "radius": None, "no_gps_count": 0, "out_of_radius_count": 0, "alarm_muted_count": 0, "current_radius": None}))
         self._out_of_sequence_calls(anchor_alarm)
@@ -553,7 +558,8 @@ class TestAnchorAlarmModel(unittest.TestCase):
 
     def test_anchor_up_alarm_no_gps(self):
         self.out_of_radius_count         = 0
-        anchor_alarm =  AnchorAlarmModel(self._update_last_state, AnchorAlarmConfiguration(self.tolerance, 3, 5))
+        anchor_alarm =  AnchorAlarmModel(self._update_last_state)
+        anchor_alarm.update_configuration(AnchorAlarmConfiguration(self.tolerance, 3, 5))
         
         self.assertState(anchor_alarm, None, AnchorAlarmState('DISABLED', ANY, "info", False, {"state": 'DISABLED', "radius_tolerance": self.tolerance, "drop_point": None, "radius": None, "no_gps_count": 0, "out_of_radius_count": 0, "alarm_muted_count": 0, "current_radius": None}))
         self._out_of_sequence_calls(anchor_alarm)
@@ -583,7 +589,8 @@ class TestAnchorAlarmModel(unittest.TestCase):
 
     def test_anchor_up_alarm_no_gps_muted(self):
         self.out_of_radius_count         = 0
-        anchor_alarm =  AnchorAlarmModel(self._update_last_state, AnchorAlarmConfiguration(self.tolerance, 3, 5))
+        anchor_alarm =  AnchorAlarmModel(self._update_last_state)
+        anchor_alarm.update_configuration(AnchorAlarmConfiguration(self.tolerance, 3, 5))
         
         self.assertState(anchor_alarm, None, AnchorAlarmState('DISABLED', ANY, "info", False, {"state": 'DISABLED', "radius_tolerance": self.tolerance, "drop_point": None, "radius": None, "no_gps_count": 0, "out_of_radius_count": 0, "alarm_muted_count": 0, "current_radius": None}))
         self._out_of_sequence_calls(anchor_alarm)
@@ -620,7 +627,8 @@ class TestAnchorAlarmModel(unittest.TestCase):
 
     def test_anchor_up_alarm_dragging(self):
         self.out_of_radius_count         = 0
-        anchor_alarm =  AnchorAlarmModel(self._update_last_state, AnchorAlarmConfiguration(self.tolerance, 3, 5))
+        anchor_alarm =  AnchorAlarmModel(self._update_last_state)
+        anchor_alarm.update_configuration(AnchorAlarmConfiguration(self.tolerance, 3, 5))
         
         self.assertState(anchor_alarm, None, AnchorAlarmState('DISABLED', ANY, "info", False, {"state": 'DISABLED', "radius_tolerance": self.tolerance, "drop_point": None, "radius": None, "no_gps_count": 0, "out_of_radius_count": 0, "alarm_muted_count": 0, "current_radius": None}))
         self._out_of_sequence_calls(anchor_alarm)
@@ -650,7 +658,8 @@ class TestAnchorAlarmModel(unittest.TestCase):
     
     def test_anchor_up_alarm_dragging_muted(self):
         self.out_of_radius_count         = 0
-        anchor_alarm =  AnchorAlarmModel(self._update_last_state, AnchorAlarmConfiguration(self.tolerance, 3, 5))
+        anchor_alarm =  AnchorAlarmModel(self._update_last_state)
+        anchor_alarm.update_configuration(AnchorAlarmConfiguration(self.tolerance, 3, 5))
         
         self.assertState(anchor_alarm, None, AnchorAlarmState('DISABLED', ANY, "info", False, {"state": 'DISABLED', "radius_tolerance": self.tolerance, "drop_point": None, "radius": None, "no_gps_count": 0, "out_of_radius_count": 0, "alarm_muted_count": 0, "current_radius": None}))
         self._out_of_sequence_calls(anchor_alarm)
@@ -684,7 +693,8 @@ class TestAnchorAlarmModel(unittest.TestCase):
     def test_params_exceptions(self):
         self.out_of_radius_count         = 0
 
-        anchor_alarm =  AnchorAlarmModel(self._update_last_state, AnchorAlarmConfiguration(self.tolerance, 3, 5)) 
+        anchor_alarm =  AnchorAlarmModel(self._update_last_state)
+        anchor_alarm.update_configuration(AnchorAlarmConfiguration(self.tolerance, 3, 5)) 
         self.assertState(anchor_alarm, None, AnchorAlarmState('DISABLED', ANY, "info", False, {"state": 'DISABLED', "radius_tolerance": self.tolerance, "drop_point": None, "radius": None, "no_gps_count": 0, "out_of_radius_count": 0, "alarm_muted_count": 0, "current_radius": None}))
 
         # anchor down
@@ -727,7 +737,8 @@ class TestAnchorAlarmModel(unittest.TestCase):
     def test_reset_state(self):
         self.out_of_radius_count         = 0
 
-        anchor_alarm =  AnchorAlarmModel(self._update_last_state, AnchorAlarmConfiguration(self.tolerance, 3, 5)) 
+        anchor_alarm =  AnchorAlarmModel(self._update_last_state)
+        anchor_alarm.update_configuration(AnchorAlarmConfiguration(self.tolerance, 3, 5)) 
         self.assertState(anchor_alarm, None, AnchorAlarmState('DISABLED', ANY, "info", False, {"state": 'DISABLED', "radius_tolerance": self.tolerance, "drop_point": None, "radius": None, "no_gps_count": 0, "out_of_radius_count": 0, "alarm_muted_count": 0, "current_radius": None}))
 
         with self.assertRaises(RuntimeError):
@@ -749,8 +760,8 @@ class TestAnchorAlarmModel(unittest.TestCase):
 
 
     def test_config_updated(self):
-        anchor_alarm =  AnchorAlarmModel(self._update_last_state, AnchorAlarmConfiguration(3, 3, 5)) 
-        anchor_alarm.on_conf_updated(AnchorAlarmConfiguration(5, 3, 5))
+        anchor_alarm =  AnchorAlarmModel(self._update_last_state) 
+        anchor_alarm.update_configuration(AnchorAlarmConfiguration(5, 3, 5))
         self.assertEqual(5, anchor_alarm._radius_tolerance)
         self.assertEqual(3, anchor_alarm._no_gps_count_threshold)
         self.assertEqual(5, anchor_alarm._mute_duration)
@@ -758,8 +769,8 @@ class TestAnchorAlarmModel(unittest.TestCase):
     def test_tolerance_increased(self):
         # test that when anchor is dragging or muted and tolerance is increased enough, it goes back to IN_RADIUS state
         self.out_of_radius_count         = 0
-        anchor_alarm =  AnchorAlarmModel(self._update_last_state, AnchorAlarmConfiguration(self.tolerance, 3, 5))
-        
+        anchor_alarm =  AnchorAlarmModel(self._update_last_state)
+        anchor_alarm.update_configuration(AnchorAlarmConfiguration(self.tolerance, 3, 5))
         self.assertState(anchor_alarm, None, AnchorAlarmState('DISABLED', ANY, "info", False, {"state": 'DISABLED', "radius_tolerance": self.tolerance, "drop_point": None, "radius": None, "no_gps_count": 0, "out_of_radius_count": 0, "alarm_muted_count": 0, "current_radius": None}))
         self._out_of_sequence_calls(anchor_alarm)
 
@@ -779,7 +790,7 @@ class TestAnchorAlarmModel(unittest.TestCase):
         self.assertState(anchor_alarm, 'ALARM_DRAGGING', AnchorAlarmState('ALARM_DRAGGING', ANY, "emergency", False, {"state": 'ALARM_DRAGGING', "radius_tolerance": self.tolerance, "drop_point": self.gps_position_anchor_down, "radius": 21, "no_gps_count": 0, "out_of_radius_count": self.next_out_of_radius_count(), "alarm_muted_count": 0, "current_radius": 64}))
         self._out_of_sequence_calls(anchor_alarm)
 
-        anchor_alarm.on_conf_updated(AnchorAlarmConfiguration(20, 3, 5))
+        anchor_alarm.update_configuration(AnchorAlarmConfiguration(20, 3, 5))
 
         # tick out radius, check state change event
         anchor_alarm.on_timer_tick(self.gps_position_64m)
@@ -787,12 +798,12 @@ class TestAnchorAlarmModel(unittest.TestCase):
         self._out_of_sequence_calls(anchor_alarm)
 
         
-        anchor_alarm.on_conf_updated(AnchorAlarmConfiguration(50, 3, 5))
+        anchor_alarm.update_configuration(AnchorAlarmConfiguration(50, 3, 5))
         self.assertState(anchor_alarm, 'IN_RADIUS', AnchorAlarmState('IN_RADIUS', ANY, "info", False, {"state": 'IN_RADIUS', "radius_tolerance": 50, "drop_point": self.gps_position_anchor_down, "radius": 21, "no_gps_count": 0, "out_of_radius_count": 0, "alarm_muted_count": 0, "current_radius": 64}))
         self._out_of_sequence_calls(anchor_alarm)
 
 
-        anchor_alarm.on_conf_updated(AnchorAlarmConfiguration(20, 3, 5))
+        anchor_alarm.update_configuration(AnchorAlarmConfiguration(20, 3, 5))
         self.out_of_radius_count         = 0
 
         # tick out radius, check state change event
