@@ -33,13 +33,13 @@ class DBusConnector(AbstractConnector):
         # create the setting that are needed
         settingsList = {
             # last state   
-            "AnchorDownDigitalInputNumber":     ["/Settings/AnchorAlarm/Triggers/AnchorDown/DigitalInputNumber", 1, 0, 4],
+            "AnchorDownDigitalInputNumber":     ["/Settings/AnchorAlarm/Triggers/AnchorDown/DigitalInputNumber", 2, 0, 4],
             "AnchorDownDigitalInputDuration":   ["/Settings/AnchorAlarm/Triggers/AnchorDown/DigitalInputDuration", 3, 0, 30],
 
             "ChainOutDigitalInputNumber":       ["/Settings/AnchorAlarm/Triggers/ChainOut/DigitalInputNumber", 0, 0, 4],
             "ChainOutDigitalInputDuration":     ["/Settings/AnchorAlarm/Triggers/ChainOut/DigitalInputDuration", 0, 0, 30], 
 
-            "AnchorUpDigitalInputNumber":       ["/Settings/AnchorAlarm/Triggers/AnchorUp/DigitalInputNumber", 2, 0, 4],
+            "AnchorUpDigitalInputNumber":       ["/Settings/AnchorAlarm/Triggers/AnchorUp/DigitalInputNumber", 1, 0, 4],
             "AnchorUpDigitalInputDuration":     ["/Settings/AnchorAlarm/Triggers/AnchorUp/DigitalInputDuration", 3, 0, 30], 
 
             "FeedbackDigitaInputNumber"  :      ["/Settings/AnchorAlarm/Triggers/Enable/DigitalInput", 1, 0, 4],
@@ -157,6 +157,7 @@ class DBusConnector(AbstractConnector):
         if ( dbusServiceName == self._anchor_down_digital_input
                 and dbusPath == '/State' ):
             
+            print("anchor_down digital input trigger :" + "On" if changes['Value'] % 2 == 1 else "Off")
             if ( changes['Value'] % 2 == 1 ):
                 self._add_timer('anchor_down', self.controller.trigger_anchor_down, int(self._settings['AnchorDownDigitalInputDuration'])*1000)
             else:
@@ -167,6 +168,7 @@ class DBusConnector(AbstractConnector):
         if ( dbusServiceName == self._anchor_up_digital_input
                 and dbusPath == '/State' ):
             
+            print("anchor_up digital input trigger :" + "On" if changes['Value'] % 2 == 1 else "Off")
             if ( changes['Value'] % 2 == 1 ):
                 self._add_timer('anchor_up', self.controller.trigger_anchor_up, int(self._settings['AnchorUpDigitalInputDuration'])*1000)
             else:
@@ -228,10 +230,10 @@ if __name__ == "__main__":
     dbus_connector = DBusConnector(lambda: GLib, lambda settings, cb: SettingsDevice(bus, settings, cb))
 
     controller = MagicMock()
-    controller.trigger_anchor_down  = MagicMock(side_effect=print)
-    controller.trigger_anchor_up    = MagicMock(side_effect=print)
-    controller.trigger_chain_out    = MagicMock(side_effect=print)
-    controller.trigger_mute_alarm   = MagicMock(side_effect=print)
+    controller.trigger_anchor_down  = MagicMock(side_effect=lambda: print("Trigger anchor down"))
+    controller.trigger_anchor_up    = MagicMock(side_effect=lambda: print("Trigger anchor up"))
+    controller.trigger_chain_out    = MagicMock(side_effect=lambda: print("Trigger chain out"))
+    controller.trigger_mute_alarm   = MagicMock(side_effect=lambda: print("Trigger mute alarm"))
     dbus_connector.set_controller(controller)
 
 	# Start and run the mainloop

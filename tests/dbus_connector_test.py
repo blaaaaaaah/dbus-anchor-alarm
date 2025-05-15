@@ -34,7 +34,7 @@ class MockDBusConnector(DBusConnector):
         return MockDbusMonitor(*args, **kwargs)
     
     def _create_dbus_service(self, *args, **kwargs):
-        return MockDbusService(*args, **kwargs)
+        return MockDbusService(args[0])
 
     def mock_monitor(self):
         return self._alarm_monitor
