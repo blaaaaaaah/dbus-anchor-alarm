@@ -448,17 +448,19 @@ class TestNMEAAlertConnector(unittest.TestCase):
 
         pgn_wrong_id = {
             "pgn": 126984,
-            "Alert Type": "Caution",
-            "Alert Category": "Technical",
-            "Alert System":5,
-            "Alert ID": 456,
-            "Data Source Network ID NAME": "0000000000000012",
-            "Data Source Instance": 0,
-            "Data Source Index-Source": 0,
-            "Alert Occurrence Number": 0,
-            "Acknowledge Source Network ID NAME": "0000000000000012",
-            "Response Command": "Acknowledge"
-            }
+            "fields": {
+                "Alert Type": "Caution",
+                "Alert Category": "Technical",
+                "Alert System":5,
+                "Alert ID": 456,
+                "Data Source Network ID NAME": "0000000000000012",
+                "Data Source Instance": 0,
+                "Data Source Index-Source": 0,
+                "Alert Occurrence Number": 0,
+                "Acknowledge Source Network ID NAME": "0000000000000012",
+                "Response Command": "Acknowledge"
+                }
+        }
 
         
         handler(pgn_wrong_id)
@@ -467,16 +469,18 @@ class TestNMEAAlertConnector(unittest.TestCase):
 
         pgn_wrong_type = {
             "pgn": 126984,
-            "Alert Type": "Caution",
-            "Alert Category": "Technical",
-            "Alert System":5,
-            "Alert ID": connector._ALERT_ID,
-            "Data Source Network ID NAME": "0000000000000012",
-            "Data Source Instance": 0,
-            "Data Source Index-Source": 0,
-            "Alert Occurrence Number": 0,
-            "Acknowledge Source Network ID NAME": "0000000000000012",
-            "Response Command": "Acknowledge"
+            "fields": {
+                "Alert Type": "Caution",
+                "Alert Category": "Technical",
+                "Alert System":5,
+                "Alert ID": connector._ALERT_ID,
+                "Data Source Network ID NAME": "0000000000000012",
+                "Data Source Instance": 0,
+                "Data Source Index-Source": 0,
+                "Alert Occurrence Number": 0,
+                "Acknowledge Source Network ID NAME": "0000000000000012",
+                "Response Command": "Acknowledge"
+            }
         }
 
         
@@ -486,18 +490,27 @@ class TestNMEAAlertConnector(unittest.TestCase):
 
 
         pgn_aknowledge = {
-            "pgn": 126984,
-            "Alert Type": "Emergency Alarm",
-            "Alert Category": "Technical",
-            "Alert System":5,
-            "Alert ID": connector._ALERT_ID,
-            "Data Source Network ID NAME": connector._ALERT_ID,
-            "Data Source Instance": 0,
-            "Data Source Index-Source": 0,
-            "Alert Occurrence Number": 0,
-            "Acknowledge Source Network ID NAME": "0000000000000012",
-            "Response Command": "Acknowledge"
-        }
+            'canId': 166725639, 
+            'prio': 2, 
+            'src': 7, 
+            'dst': 255, 
+            'pgn': 126984, 
+            'timestamp': '2025-05-15T18:31:09.659Z', 
+            'input': [], 
+            'fields': {
+                'Alert Type': 'Emergency Alarm',
+                'Alert Category': 'Technical',
+                'Alert System': 5,
+                'Alert Sub-System': 0,
+                'Alert ID': 54321,
+                'Data Source Network ID NAME': 54321,
+                'Data Source Instance': 0, 
+                'Data Source Index-Source': 0, 
+                'Alert Occurrence Number': 0, 
+                'Acknowledge Source Network ID NAME': 13902754986684846000, 
+                'Response Command': 'Acknowledge', 
+                'Reserved1': 0}, 
+            'description': 'Alert Response'}
 
         
         handler(pgn_aknowledge)

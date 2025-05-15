@@ -47,14 +47,19 @@ class NMEAAlertConnector(AbstractConnector):
     def _on_nmea_message(self, nmea_message):
         """Called when a new NMEA message arrives."""
         self._log(f"Received NMEA message: {nmea_message}")
+        # {'canId': 166725639, 'prio': 2, 'src': 7, 'dst': 255, 'pgn': 126984, 'timestamp': '2025-05-15T18:15:00.974Z', 'input': [], 'fields': {'Alert Type': 'Caution', 'Alert Category': 'Technical', 'Alert System': 5, 'Alert Sub-System': 0, 'Alert ID': 54321, 'Data Source Network ID NAME': 54321, 'Data Source Instance': 0, 'Data Source Index-Source': 0, 'Alert Occurrence Number': 0, 'Acknowledge Source Network ID NAME': 13902754986684846000, 'Response Command': 'Acknowledge', 'Reserved1': 0}, 'description': 'Alert Response'}
+        # {'canId': 166725639, 'prio': 2, 'src': 7, 'dst': 255, 'pgn': 126984, 'timestamp': '2025-05-15T18:31:09.659Z', 'input': [], 'fields': {'Alert Type': 'Emergency Alarm', 'Alert Category': 'Technical', 'Alert System': 5, 'Alert Sub-System': 0, 'Alert ID': 54321, 'Data Source Network ID NAME': 54321, 'Data Source Instance': 0, 'Data Source Index-Source': 0, 'Alert Occurrence Number': 0, 'Acknowledge Source Network ID NAME': 13902754986684846000, 'Response Command': 'Acknowledge', 'Reserved1': 0}, 'description': 'Alert Response'}
 
-        if nmea_message['pgn'] == 126984 and nmea_message["Data Source Network ID NAME"] == self._NETWORK_ID and nmea_message['Alert ID'] == self._ALERT_ID:
+        if nmea_message['pgn'] == 126984 and "fields" in nmea_message and \
+            "Data Source Network ID NAME" in nmea_message["fields"] and  str(nmea_message["fields"]["Data Source Network ID NAME"]) == self._NETWORK_ID and \
+            'Alert ID' in nmea_message["fields"] and  str(nmea_message["fields"]['Alert ID']) == self._ALERT_ID and 'Alert Type' in nmea_message["fields"]:
             # set back state for type to Normal
-            t = next(item for item in self._types_states if item["type"] == nmea_message['Alert Type'])
+
+            t = next(item for item in self._types_states if item["type"] == nmea_message["fields"]['Alert Type'])
             t['state'] = 'Normal'
 
             # TODO XXX : multiple devices on nmea bus will send this message as broadcast, make sure to not call mute multiple times ?
-            if self.controller is not None and nmea_message['Alert Type'] == "Emergency Alarm":
+            if self.controller is not None and nmea_message["fields"]['Alert Type'] == "Emergency Alarm":
                 self.controller.trigger_mute_alarm()
 
 
