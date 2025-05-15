@@ -126,22 +126,22 @@ class TestNMEAAlertConnector(unittest.TestCase):
         led_0 = self._get_pgn_for_command("YD:LED 0")
         
         connector.on_state_changed(state_disabled)
-        mock_bridge.send_nmea.assert_has_calls([call(led_0), call(ds_all_off)])
+        mock_bridge.send_nmea.assert_has_calls([call(ds_all_off), call(led_0)])
 
         connector.on_state_changed(state_drop_point_set)
-        mock_bridge.send_nmea.assert_has_calls([call(led_0), call(ds_all_off), call(ds_10)])
+        mock_bridge.send_nmea.assert_has_calls([call(ds_all_off), call(led_0), call(ds_10)])
 
         connector.on_state_changed(state_in_radius)
-        mock_bridge.send_nmea.assert_has_calls([call(led_0), call(ds_all_off), call(ds_10), call(led_21), call(ds_all_off)])
+        mock_bridge.send_nmea.assert_has_calls([call(ds_all_off), call(led_0), call(ds_10), call(ds_all_off), call(led_21)])
 
         connector.on_state_changed(state_dragging)
-        mock_bridge.send_nmea.assert_has_calls([call(led_0), call(ds_all_off), call(ds_10), call(led_21), call(ds_all_off), call(ds_11)])
+        mock_bridge.send_nmea.assert_has_calls([call(ds_all_off), call(led_0), call(ds_10), call(ds_all_off), call(led_21), call(ds_11)])
 
         connector.on_state_changed(state_dragging_muted)
-        mock_bridge.send_nmea.assert_has_calls([call(led_0), call(ds_all_off), call(ds_10), call(led_21), call(ds_all_off), call(ds_11), call(ds_12)])
+        mock_bridge.send_nmea.assert_has_calls([call(ds_all_off), call(led_0), call(ds_10), call(ds_all_off), call(led_21), call(ds_11), call(ds_12)])
 
         connector.on_state_changed(state_disabled)
-        mock_bridge.send_nmea.assert_has_calls([call(led_0), call(ds_all_off), call(ds_10), call(led_21), call(ds_all_off), call(ds_11), call(ds_12), call(led_0), call(ds_all_off)])
+        mock_bridge.send_nmea.assert_has_calls([call(ds_all_off), call(led_0), call(ds_10), call(ds_all_off), call(led_21), call(ds_11), call(ds_12), call(ds_all_off), call(led_0)])
 
     def test_states_acks(self):
         mock_bridge = MagicMock()
@@ -283,6 +283,7 @@ class TestNMEAAlertConnector(unittest.TestCase):
         expected_commands = [
             "YD:RESET",
             "YD:MODE DS",
+            "YD:BANK 222",
             "YD:CHANNEL 0",
             "YD:VOLUME 100",
             "YD:LINK 10 SOUND 0",
@@ -321,32 +322,34 @@ class TestNMEAAlertConnector(unittest.TestCase):
             }
 
         # trigger new config
-        connector._settings['StartConfiguration'] = True
+        connector._settings['StartConfiguration'] = 1
 
         mock_bridge.send_nmea.assert_called_once_with(get_config_call("YD:RESET"))
 
         # try to put setting back, should reject
-        connector._settings['StartConfiguration'] = False
-        self.assertTrue(connector._settings['StartConfiguration'])
+        connector._settings['StartConfiguration'] = 0
+        self.assertEqual(connector._settings['StartConfiguration'], 1)
 
         # test command send timeout
         timer_provider.tick()
-        self.assertTrue(connector._settings['StartConfiguration'])
-        self.assertEqual(len(connector._queued_config_commands), 10)
-        timer_provider.tick()
-        self.assertFalse(connector._settings['StartConfiguration'])
+        self.assertEqual(connector._settings['StartConfiguration'], 1)
+        self.assertEqual(len(connector._queued_config_commands), 11)
+        for i in range(15):
+            timer_provider.tick()
+
+        self.assertEqual(connector._settings['StartConfiguration'], 0)
         self.assertIsNone(connector._queued_config_commands)
 
         # TODO XXX : test that we had an error feedback ?
 
         mock_bridge.send_nmea.reset_mock()
 
-        connector._settings['StartConfiguration'] = True
+        connector._settings['StartConfiguration'] = 1
         mock_bridge.send_nmea.assert_has_calls([call(get_config_call("YD:RESET"))])
 
         timer_provider.tick()
-        self.assertTrue(connector._settings['StartConfiguration'])
-        self.assertEqual(len(connector._queued_config_commands), 10)
+        self.assertEqual(connector._settings['StartConfiguration'], 1)
+        self.assertEqual(len(connector._queued_config_commands), 11)
 
         pgn_wrong_src = {
                 "prio": 3,
@@ -358,20 +361,22 @@ class TestNMEAAlertConnector(unittest.TestCase):
                 }
             }
         handler(pgn_wrong_src)
-        self.assertTrue(connector._settings['StartConfiguration'])
-        self.assertEqual(len(connector._queued_config_commands), 10)
+        self.assertEqual(connector._settings['StartConfiguration'], 1)
+        self.assertEqual(len(connector._queued_config_commands), 11)
 
-        timer_provider.tick()
-        self.assertFalse(connector._settings['StartConfiguration'])
+        for i in range(15):
+            timer_provider.tick()
+
+        self.assertEqual(connector._settings['StartConfiguration'], 0)
         self.assertIsNone(connector._queued_config_commands)
 
         mock_bridge.send_nmea.reset_mock()
-        connector._settings['StartConfiguration'] = True
+        connector._settings['StartConfiguration'] = 1
         mock_bridge.send_nmea.assert_has_calls([call(get_config_call("YD:RESET"))])
 
         timer_provider.tick()
-        self.assertTrue(connector._settings['StartConfiguration'])
-        self.assertEqual(len(connector._queued_config_commands), 10)
+        self.assertEqual(connector._settings['StartConfiguration'], 1)
+        self.assertEqual(len(connector._queued_config_commands), 11)
 
         pgn_wrong_command = {
                 "prio": 3,
@@ -383,16 +388,18 @@ class TestNMEAAlertConnector(unittest.TestCase):
                 }
             }
         handler(pgn_wrong_command)
-        self.assertTrue(connector._settings['StartConfiguration'])
-        self.assertEqual(len(connector._queued_config_commands), 10)
+        self.assertEqual(connector._settings['StartConfiguration'], 1)
+        self.assertEqual(len(connector._queued_config_commands), 11)
 
-        timer_provider.tick()
-        self.assertFalse(connector._settings['StartConfiguration'])
+        for i in range(15):
+            timer_provider.tick()
+
+        self.assertEqual(connector._settings['StartConfiguration'], 0)
         self.assertIsNone(connector._queued_config_commands)
 
 
         mock_bridge.send_nmea.reset_mock()
-        connector._settings['StartConfiguration'] = True
+        connector._settings['StartConfiguration'] = 1
 
         calls = []
         for i, command in enumerate(expected_commands):
@@ -402,7 +409,7 @@ class TestNMEAAlertConnector(unittest.TestCase):
             handler(get_ack_call(command))
 
             if i < len(expected_commands)-1:
-                self.assertTrue(connector._settings['StartConfiguration'])
+                self.assertEqual(connector._settings['StartConfiguration'], 1)
                 self.assertEqual(len(connector._queued_config_commands), len(expected_commands)-1-i)
 
 
@@ -414,7 +421,7 @@ class TestNMEAAlertConnector(unittest.TestCase):
         calls.append(call(get_config_call("YD:PLAY 0")))
         mock_bridge.send_nmea.assert_has_calls(calls)
 
-        self.assertFalse(connector._settings['StartConfiguration'])
+        self.assertEqual(connector._settings['StartConfiguration'], 0)
         self.assertIsNone(connector._queued_config_commands)
 
 

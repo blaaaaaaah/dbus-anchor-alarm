@@ -15,6 +15,8 @@ class NMEAYDABConnector(AbstractConnector):
             'config_command_timeout': None
         }
 
+        self._queued_config_commands = None
+
         self._init_settings()
 
         self._bridge = nmea_bridge
@@ -33,18 +35,18 @@ class NMEAYDABConnector(AbstractConnector):
             "DSDropPointSetChannel":["/Settings/AnchorAlarm/NMEA/YDAB/DSDropPointSetChannel", 10, 0, 16],
             "DSAlarmChannel":       ["/Settings/AnchorAlarm/NMEA/YDAB/DSAlarmChannel", 11, 0, 16],
             "DSAlarmMutedChannel":  ["/Settings/AnchorAlarm/NMEA/YDAB/DSAlarmMutedChannel", 12, 0, 16],
-            "StartConfiguration":   ["/Settings/AnchorAlarm/NMEA/YDAB/StartConfiguration", False],
+            "StartConfiguration":   ["/Settings/AnchorAlarm/NMEA/YDAB/StartConfiguration", 0, 0, 1],
         }
 
         self._settings = self._settings_provider(settingsList, self._on_setting_changed)
 
     def _on_setting_changed(self, key, old_value, new_value):
         if key == "StartConfiguration":
-            if new_value is False and self._queued_config_commands is not None and len(self._queued_config_commands) > 0:
+            if new_value == 0 and self._queued_config_commands is not None and len(self._queued_config_commands) > 0:
                 # we're sending commands, refuse the change
-                self._settings['StartConfiguration'] = True # TODO XXX is this re-entrant ?
+                self._settings['StartConfiguration'] = 1 # TODO XXX is this re-entrant ?
 
-            if new_value is True: 
+            if new_value == 1: 
                 self._send_init_config()    # TODO XXX : handle error ?
 
 
@@ -87,8 +89,8 @@ class NMEAYDABConnector(AbstractConnector):
 
         if current_state.state == "DISABLED":
             # DISABLED, no led, no sound, not cancellable
-            self._send_config_command("YD:LED 0")
             self._send_ds_command_for_state(None) # all off
+            self._send_config_command("YD:LED 0")
 
 
         elif current_state.state == "DROP_POINT_SET":
@@ -98,8 +100,8 @@ class NMEAYDABConnector(AbstractConnector):
         
         elif current_state.state == "IN_RADIUS":
             # NO_ALARM, glowing led, no sound, not cancellable
-            self._send_config_command("YD:LED 21")
             self._send_ds_command_for_state(None) # all off
+            self._send_config_command("YD:LED 21")
 
         
         elif current_state.state == "ALARM_DRAGGING" or current_state.state == "ALARM_NO_GPS":
@@ -172,6 +174,7 @@ class NMEAYDABConnector(AbstractConnector):
         config_commands = [
             "YD:RESET",
             "YD:MODE DS",           # Set mode to DigitalSwitching
+            "YD:BANK "+ str(self._settings['DSBank']),
 
             # Disable button press channel activation
             "YD:CHANNEL 0",
@@ -201,19 +204,29 @@ class NMEAYDABConnector(AbstractConnector):
         if len(self._queued_config_commands) == 0:
             # last one, clear everything
             self._queued_config_commands = None
-            self._settings['StartConfiguration'] = False
+            self._settings['StartConfiguration'] = 0
             self._send_config_finished_feedback()
         else:
-            self._add_timer('config_command_timeout', self._on_config_command_timeout, 2000)
+            self._add_timer('config_command_timeout', self._on_config_command_timeout, 10000)
             next_command = self._queued_config_commands[0]  
             self._send_config_command(next_command)
 
 
     def _on_config_command_acknowledged(self, nmea_message):
         # {'canId': 435164739, 'prio': 6, 'src': 67, 'dst': 255, 'pgn': 126998, 'timestamp': '2025-05-13T20:44:33.321Z', 'input': [], 'fields': {'Installation Description #2': 'YD:LED 21 DONE', 'Manufacturer Information': 'Yacht Devices Ltd., www.yachtd.com'}, 'description': 'Configuration Information'}
+        # {"canId":435164739,"prio":6,"src":67,"dst":255,"pgn":126998,"timestamp":"2025-05-15T18:55:09.398Z","input":[],"fields":{"Installation Description #2":"YD:LED 0 DONE","Manufacturer Information":"Yacht Devices Ltd., www.yachtd.com"},"description":"Configuration Information"}
+        # {"canId":435164739,"prio":6,"src":67,"dst":255,"pgn":126998,"timestamp":"2025-05-15T19:32:42.124Z","input":[],"fields":{"Manufacturer Information":"Yacht Devices Ltd., www.yachtd.com"},"description":"Configuration Information"}}
+
         if "src" in nmea_message and nmea_message["src"] == self._settings['NMEAAddress'] \
             and 'fields' in  nmea_message and "Installation Description #2" in nmea_message['fields']:
-            acknowledged_command = nmea_message['fields']["Installation Description #2"].removesuffix(" DONE")
+
+            # wtf YDAB ?
+            # TODO XXX fix that
+            if nmea_message['fields']["Installation Description #2"] == "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000 DONE":
+                 nmea_message['fields']["Installation Description #2"] = "YD:RESET DONE"
+                 print("fixed YD:RESET DONE response")
+
+            acknowledged_command = nmea_message['fields']["Installation Description #2"][:-len(" DONE")]
 
             if self._queued_config_commands is not None and self._queued_config_commands[0] == acknowledged_command:
                 self._queued_config_commands.pop(0)
@@ -221,15 +234,16 @@ class NMEAYDABConnector(AbstractConnector):
                 self._send_next_config_command()                    
             else:
                 self._queued_config_commands = None
-                self._settings['StartConfiguration'] = False
+                self._settings['StartConfiguration'] = 0
 
                 # TODO XXX : yield error in whatever way
 
         
     def _on_config_command_timeout(self):
         # we couldn't get an ack, maybe the YDAB NMEA address is wrong ?
+        print("_on_config_command_timeout")
         self._queued_config_commands = None
-        self._settings['StartConfiguration'] = False
+        self._settings['StartConfiguration'] = 0
         # TODO XXX : yield error in whatever way
 
     def _send_config_finished_feedback(self):
@@ -249,3 +263,66 @@ class NMEAYDABConnector(AbstractConnector):
 
 
 
+
+if __name__ == '__main__':
+
+    from nmea_bridge import NMEABridge
+    from utils import handle_stdin
+    from gi.repository import GLib
+    import dbus
+    sys.path.insert(1, os.path.join(os.path.dirname(__file__), '../ext/velib_python'))
+
+    from settingsdevice import SettingsDevice
+    from unittest.mock import MagicMock
+    from collections import namedtuple
+    from dbus.mainloop.glib import DBusGMainLoop
+
+
+    # TODO XXX : move that import somewhere
+    GPSPosition = namedtuple('GPSPosition', ['latitude', 'longitude'])
+
+    bridge = NMEABridge('../nmea_bridge.js')
+    DBusGMainLoop(set_as_default=True)
+
+    bus = dbus.SessionBus() if 'DBUS_SESSION_BUS_ADDRESS' in os.environ else dbus.SystemBus()
+    nmea_alert_connector = NMEAYDABConnector(lambda: GLib, lambda settings, cb: SettingsDevice(bus, settings, cb), bridge)
+
+    controller = MagicMock()
+    controller.trigger_mute_alarm   = MagicMock(side_effect=lambda: print("trigger mute alarm"))
+    controller.trigger_chain_out    = MagicMock(side_effect=lambda: print("trigger chain out"))
+    nmea_alert_connector.set_controller(controller)
+
+    print("NMEA YDAB connector test program. Type : \ndisabled\ndrop\nin_radius\nin_radius2\nin_radius3\ndragging\nmuted\nconf\nexit to exit\nWhen the button is pressed sent when dropped, trigger_chain_out should show on screen\nWhen the button is pressed sent when dragging, trigger_mute_alarm should show on screen\nconf will trigger a start configuration. You can also do this using settings in dbus-spy")
+
+    def handle_command(command, text):
+
+        # AnchorAlarmState = namedtuple('AnchorAlarmState', ['state', 'message', 'level', 'muted', 'params'])
+        state_drop_point_set = AnchorAlarmState('DROP_POINT_SET', 'Drop point set, please do blablala', 'info', False, {'drop_point': GPSPosition(10, 11)})
+        state_in_radius = AnchorAlarmState('IN_RADIUS', 'boat in radius', 'info', False, {'drop_point': GPSPosition(10, 11), 'radius': 12})
+        state_in_radius2 = AnchorAlarmState('IN_RADIUS', 'boat in radius 2', 'info', False, {'drop_point': GPSPosition(10, 11), 'radius': 12})
+        state_in_radius3 = AnchorAlarmState('IN_RADIUS', 'boat in radius 3', 'info', False, {'drop_point': GPSPosition(10, 11), 'radius': 12})
+        state_dragging = AnchorAlarmState('ALARM_DRAGGING', 'Anchor dragging !', 'emergency', False, {'drop_point': GPSPosition(10, 11), 'radius': 12})
+        state_dragging_muted = AnchorAlarmState('ALARM_DRAGGING_MUTED', 'Anchor dragging ! (muted)', 'emergency', True, {'drop_point': GPSPosition(10, 11), 'radius': 12})
+        state_disabled = AnchorAlarmState('DISABLED', 'Anchor alarm disabled', 'info', False, {})
+
+        if command == "disabled":
+            nmea_alert_connector.on_state_changed(state_disabled)
+        elif command == "drop":
+            nmea_alert_connector.on_state_changed(state_drop_point_set)
+        elif command == "in_radius":
+            nmea_alert_connector.on_state_changed(state_in_radius)
+        elif command == "in_radius2":
+            nmea_alert_connector.update_state(state_in_radius2)
+        elif command == "in_radius3":
+            nmea_alert_connector.update_state(state_in_radius3)
+        elif command == "dragging":
+            nmea_alert_connector.on_state_changed(state_dragging)
+        elif command == "muted":
+            nmea_alert_connector.on_state_changed(state_dragging_muted)
+        elif command == "conf":
+            nmea_alert_connector._settings['StartConfiguration'] = 1
+        else:
+            print("Unknown command "+ command)
+
+
+    handle_stdin(handle_command)
