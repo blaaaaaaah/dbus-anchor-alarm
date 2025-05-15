@@ -59,7 +59,7 @@ class TestDBusConnector(unittest.TestCase):
     
         connector = MockDBusConnector(lambda: timer_provider, lambda settings, cb: MockSettingsDevice(settings, cb))
 
-        self.assertEqual(connector._anchor_down_digital_input, 'com.victronenergy.digitalinput.input01')
+        self.assertEqual(connector._anchor_up_digital_input, 'com.victronenergy.digitalinput.input01')
 
         connector._settings['AnchorDownDigitalInputNumber'] = 3
         self.assertEqual(connector._anchor_down_digital_input, 'com.victronenergy.digitalinput.input03')
@@ -297,15 +297,15 @@ class TestDBusConnector(unittest.TestCase):
 
         def _check_input_01():
             timer_provider.tick()
-            controller.trigger_anchor_down.assert_called()
-            controller.trigger_anchor_down.reset_mock()
+            controller.trigger_anchor_up.assert_called()
+            controller.trigger_anchor_up.reset_mock()
 
         check_sequence('com.victronenergy.digitalinput.input01', _check_input_01)
 
         def _check_input_02():
             timer_provider.tick()
-            controller.trigger_anchor_up.assert_called()
-            controller.trigger_anchor_up.reset_mock()
+            controller.trigger_anchor_down.assert_called()
+            controller.trigger_anchor_down.reset_mock()
 
         check_sequence('com.victronenergy.digitalinput.input02', _check_input_02)
         
