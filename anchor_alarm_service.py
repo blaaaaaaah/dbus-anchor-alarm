@@ -62,7 +62,16 @@ class DbusAnchorAlarmService(object):
 
 # TODO XXX : how to launch the service ?
 def main():
-    logging.basicConfig(level=logging.DEBUG)
+    from argparse import ArgumentParser
+    parser = ArgumentParser(
+                    prog='Anchor Alarm Service',
+                    description='Will register on the victron DBUS and provide an anchor alarm',
+                    epilog='Should be run as a service. run setup.sh to install it as a service')
+    
+    parser.add_argument('-v', '--verbose', action='store_true')
+    args = parser.parse_args()
+    log_level = logging.DEBUG if args.verbose else logging.INFO
+    logging.basicConfig(level=log_level)
 
     from dbus.mainloop.glib import DBusGMainLoop
     # Have a mainloop, so we can send/receive asynchronous calls to and from dbus
