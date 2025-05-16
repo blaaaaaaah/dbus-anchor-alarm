@@ -1,5 +1,9 @@
 import sys
 import os
+
+import logging
+logger = logging.getLogger(__name__)
+
 sys.path.insert(1, os.path.join(sys.path[0], '..'))
 
 
@@ -93,8 +97,7 @@ class DBusConnector(AbstractConnector):
 
     def on_state_changed(self, current_state:AnchorAlarmState):
         """Called by controller when state changed"""
-        print("On state changed "+ current_state.state)
-
+        logger.info("On state changed "+ current_state.state)
 
         # update values on DBUS
         self.update_state(current_state)
@@ -157,7 +160,7 @@ class DBusConnector(AbstractConnector):
         if ( dbusServiceName == self._anchor_down_digital_input
                 and dbusPath == '/State' ):
             
-            print("anchor_down digital input trigger :" + "On" if changes['Value'] % 2 == 1 else "Off")
+            logger.debug("anchor_down digital input trigger :" + "On" if changes['Value'] % 2 == 1 else "Off")
             if ( changes['Value'] % 2 == 1 ):
                 self._add_timer('anchor_down', self.controller.trigger_anchor_down, int(self._settings['AnchorDownDigitalInputDuration'])*1000)
             else:
@@ -168,7 +171,7 @@ class DBusConnector(AbstractConnector):
         if ( dbusServiceName == self._anchor_up_digital_input
                 and dbusPath == '/State' ):
             
-            print("anchor_up digital input trigger :" + "On" if changes['Value'] % 2 == 1 else "Off")
+            logger.debug("anchor_up digital input trigger :" + "On" if changes['Value'] % 2 == 1 else "Off")
             if ( changes['Value'] % 2 == 1 ):
                 self._add_timer('anchor_up', self.controller.trigger_anchor_up, int(self._settings['AnchorUpDigitalInputDuration'])*1000)
             else:
@@ -209,8 +212,6 @@ class DBusConnector(AbstractConnector):
 
 
 if __name__ == "__main__":
-
-    import logging
     import sys
     import os
 
@@ -230,10 +231,10 @@ if __name__ == "__main__":
     dbus_connector = DBusConnector(lambda: GLib, lambda settings, cb: SettingsDevice(bus, settings, cb))
 
     controller = MagicMock()
-    controller.trigger_anchor_down  = MagicMock(side_effect=lambda: print("Trigger anchor down"))
-    controller.trigger_anchor_up    = MagicMock(side_effect=lambda: print("Trigger anchor up"))
-    controller.trigger_chain_out    = MagicMock(side_effect=lambda: print("Trigger chain out"))
-    controller.trigger_mute_alarm   = MagicMock(side_effect=lambda: print("Trigger mute alarm"))
+    controller.trigger_anchor_down  = MagicMock(side_effect=lambda: logger.info("Trigger anchor down"))
+    controller.trigger_anchor_up    = MagicMock(side_effect=lambda: logger.info("Trigger anchor up"))
+    controller.trigger_chain_out    = MagicMock(side_effect=lambda: logger.info("Trigger chain out"))
+    controller.trigger_mute_alarm   = MagicMock(side_effect=lambda: logger.info("Trigger mute alarm"))
     dbus_connector.set_controller(controller)
 
 	# Start and run the mainloop

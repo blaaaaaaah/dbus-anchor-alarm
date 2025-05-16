@@ -6,6 +6,8 @@ sys.path.insert(1, os.path.join(sys.path[0], '..'))
 from abstract_connector import AbstractConnector
 from anchor_alarm_model import AnchorAlarmState
 
+import logging
+logger = logging.getLogger(__name__)
 
 class NMEAYDABConnector(AbstractConnector):
     def __init__(self, timer_provider, settings_provider, nmea_bridge):
@@ -55,7 +57,7 @@ class NMEAYDABConnector(AbstractConnector):
 
     def _on_ds_change(self, nmea_message):
         """Called when a new NMEA message arrives."""
-        #self._log(f"Received NMEA message: {nmea_message}")
+        logger.debug(f"Received NMEA message: {nmea_message}")
 
         if self.controller is None:
             return  # no controller yet, should never happend
@@ -67,25 +69,23 @@ class NMEAYDABConnector(AbstractConnector):
 
             alarm_ds_channel = self._switch_name_for('ALARM')
             if alarm_ds_channel in nmea_message['fields'] and nmea_message['fields'][alarm_ds_channel] == 'Off':
+                logger.info("Received Off command for channel "+ alarm_ds_channel+ ", calling trigger_mute_alarm")
                 self.controller.trigger_mute_alarm()
 
             alarm_muted_ds_channel = self._switch_name_for('ALARM_MUTED')
             if alarm_muted_ds_channel in nmea_message['fields'] and nmea_message['fields'][alarm_muted_ds_channel] == 'Off':
+                logger.info("Received Off command for channel "+ alarm_muted_ds_channel+ ", calling trigger_chain_out")
                 self.controller.trigger_chain_out()
 
             set_radius_ds_channel = self._switch_name_for('DROP_POINT_SET')
             if set_radius_ds_channel in nmea_message['fields'] and nmea_message['fields'][set_radius_ds_channel] == 'Off':
+                logger.info("Received Off command for channel "+ set_radius_ds_channel+ ", calling trigger_chain_out")
                 self.controller.trigger_chain_out()
         
-
-
-    def _log(self, msg):
-        print(msg)
-
     # called when a state changes
     def on_state_changed(self, current_state:AnchorAlarmState):
         """Called by controller when state changed"""
-        self._log("On state changed "+ current_state.state)
+        logger.info("On state changed "+ current_state.state)
 
         if current_state.state == "DISABLED":
             # DISABLED, no led, no sound, not cancellable
@@ -140,6 +140,7 @@ class NMEAYDABConnector(AbstractConnector):
             "description":"NMEA - Command group function"
         }
 
+        logger.debug("Sending config command", nmea_message)
         self._bridge.send_nmea(nmea_message)
 
 
@@ -158,6 +159,7 @@ class NMEAYDABConnector(AbstractConnector):
         if state is not None:
             nmea_message['fields'][self._switch_name_for(state)] = "On"
 
+        logger.debug("Sending DS message", nmea_message)
         self._bridge.send_nmea(nmea_message)
 
     def _switch_name_for(self, state):
@@ -225,7 +227,7 @@ class NMEAYDABConnector(AbstractConnector):
             return  # nothing to do
 
         if len(self._queued_config_commands) == 0:
-            print("should not happen ?")
+            logger.error("should not happen ?")
             return
         
         expected_command = self._queued_config_commands[0]
@@ -248,7 +250,7 @@ class NMEAYDABConnector(AbstractConnector):
 
             self._send_next_config_command()   
         else:
-            print("Unexpected acked command "+ acknowledged_command + ", expecting "+ expected_command +", stopping config process")
+            logger.debug("Unexpected acked command "+ acknowledged_command + ", expecting "+ expected_command +", stopping config process")
             self._queued_config_commands = None
             self._settings['StartConfiguration'] = 0
 
@@ -257,7 +259,7 @@ class NMEAYDABConnector(AbstractConnector):
         
     def _on_config_command_timeout(self):
         # we couldn't get an ack, maybe the YDAB NMEA address is wrong ?
-        print("_on_config_command_timeout")
+        logger.info("_on_config_command_timeout")
         self._queued_config_commands = None
         self._settings['StartConfiguration'] = 0
         # TODO XXX : yield error in whatever way

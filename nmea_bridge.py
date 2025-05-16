@@ -3,6 +3,8 @@ import uuid
 from subprocess import Popen, PIPE
 from gi.repository import GLib
 
+import logging
+logger = logging.getLogger(__name__)
 
 from utils import exit_on_error, handle_stdin
 
@@ -26,10 +28,6 @@ class NMEABridge:
         self._start_nodejs_process()
         GLib.timeout_add_seconds(1, exit_on_error, self._check_process_status)
 
-
-    def _log(self,msg):
-        #if __name__ == '__main__':
-        print(msg)
 
     def send_nmea(self, nmea_message):
         """Sends an NMEA message to the Node.js process."""
@@ -87,11 +85,11 @@ class NMEABridge:
             self._watch_id = GLib.io_add_watch(self._nodejs_process.stdout, GLib.IO_IN, self._on_stdout_data)
             self._err_id = GLib.io_add_watch(self._nodejs_process.stderr, GLib.IO_IN, self._on_stderr_data)
 
-            self._log("Node.js process started, waiting for ready")
+            logger.info("Node.js process started, waiting for ready")
             self._send_filters()            
 
         except Exception as e:
-            self._log(f"Failed to start Node.js process: {e}")
+            logger.info(f"Failed to start Node.js process: {e}")
             self._stop_nodejs_process()
 
     def _stop_nodejs_process(self):
@@ -99,7 +97,7 @@ class NMEABridge:
         if self._nodejs_process:
             self._nodejs_process.terminate()
             self._nodejs_process = None
-            self._log("Node.js process stopped")
+            logger.info("Node.js process stopped")
 
     def _on_stdout_data(self, source, condition):
         """Handles stdout data from the Node.js process."""
@@ -116,7 +114,7 @@ class NMEABridge:
         if condition == GLib.IO_IN:
             line = source.readline().strip()
             if line:
-                print("STDERR " + line)
+                logger.error("STDERR " + line)
 
             return True
         
@@ -125,13 +123,13 @@ class NMEABridge:
     def _check_process_status(self, source=None, condition=None):
         """Checks if the Node.js process is still running and restarts if it crashes."""
         if self._nodejs_process and self._nodejs_process.poll() is not None:
-            self._log("Node.js process crashed")
+            logger.info("Node.js process crashed")
             self._restart_attempts += 1
             if self._restart_attempts <= self._max_restart_attempts:
-                self._log(f"Attempting to restart Node.js process (Attempt {self._restart_attempts}/{self._max_restart_attempts})...")
+                logger.info(f"Attempting to restart Node.js process (Attempt {self._restart_attempts}/{self._max_restart_attempts})...")
                 self._start_nodejs_process()
             else:
-                self._log("Max restart attempts reached. Exiting.")
+                logger.info("Max restart attempts reached. Exiting.")
                 self._stop_nodejs_process()
                 from os import _exit as os_exit
                 os_exit(1)
@@ -141,7 +139,7 @@ class NMEABridge:
 
     def _handle_nodejs_message(self, message):
         """Handles messages from the Node.js process."""
-        self._log("received "+ message)
+        logger.debug("received "+ message)
 
         try:
             data = json.loads(message)
@@ -150,16 +148,16 @@ class NMEABridge:
             elif data.get("event") == "on_NMEA_message":
                 self._on_nmea_message(data.get("message"))
             elif data.get("event") == "on_sendPGN":
-                self._log(f"NMEA message sent: {data}")
+                logger.debug(f"NMEA message sent: {data}")
             elif data.get("event") == "on_filterPGN":
-                self._log(f"Filters updated: {data}")
+                logger.debug(f"Filters updated: {data}")
             
             elif data.get("event") == "on_error":
-                self._log(f"Filters updated: {data}")
+                logger.error(f"got error from NodeJS: {data}")
                 
 
         except json.JSONDecodeError:
-            self._log(f"Invalid message from Node.js: {message}")
+            logger.error(f"Invalid JSON from Node.js: {message}")
 
 
     def _send_command(self, command, force=False):
@@ -171,13 +169,13 @@ class NMEABridge:
                 # TODO XXX : make sure \n are escaped !
                 self._nodejs_process.stdin.write(json.dumps(command) + "\n")
                 self._nodejs_process.stdin.flush()
-                self._log("sent "+ json.dumps(command))
+                logger.debug("sent "+ json.dumps(command))
             except Exception as e:
-                self._log(f"Failed to send command: {e}")
+                logger.error(f"Failed to send command: {e}")
                 self._check_process_status()
                 
         else:
-            self._log(f"Queuing: {command}")
+            logger.debug(f"Queuing: {command}")
             self._queue.append(command)
 
 
@@ -188,6 +186,7 @@ class NMEABridge:
                 handler(message)
 
     def _on_bridge_ready(self):
+        logger.info("NMEA Bridge ready, flushing queued commands")
         while len(self._queue) > 0:
             self._send_command(self._queue.pop(0), True)
 

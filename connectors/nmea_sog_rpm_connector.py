@@ -5,6 +5,8 @@ sys.path.insert(1, os.path.join(sys.path[0], '..'))
 from abstract_connector import AbstractConnector
 from anchor_alarm_model import AnchorAlarmState
 
+import logging
+logger = logging.getLogger(__name__)
 
 class NMEASOGRPMConnector(AbstractConnector):
     def __init__(self, timer_provider, settings_provider, nmea_bridge):
@@ -72,8 +74,11 @@ class NMEASOGRPMConnector(AbstractConnector):
     def _check_conditions_met(self):
         if self._conditions_met():
             if self._timer_ids['conditions_met'] is None:
+                logger.info("Conditions are met, arming timer")
                 self._add_timer('conditions_met', self._on_conditions_met, self._settings['Duration']*1000)
         else:
+            if self._timer_ids['conditions_met'] is not None:
+                logger.info("Conditions are not met anymore, removing timer")
             self._remove_timer('conditions_met')
 
     def _conditions_met(self):
@@ -92,10 +97,8 @@ class NMEASOGRPMConnector(AbstractConnector):
         if self.controller is None:
             return
         
+        logger.info("Conditions met for enough time, calling trigger_chain_out")
         self.controller.trigger_chain_out()
-
-    def _log(self, msg):
-        print(msg)
 
     # called when a state changes
     def on_state_changed(self, current_state:AnchorAlarmState):

@@ -9,6 +9,8 @@ from utils import exit_on_error
 from collections import namedtuple
 GPSPosition = namedtuple('GPSPosition', ['latitude', 'longitude'])
 
+import logging
+logger = logging.getLogger(__name__)
 
 class AnchorAlarmController(object):
 
@@ -27,6 +29,7 @@ class AnchorAlarmController(object):
 
         # if the Active flag was set, reset_state
         if self._settings["Active"] == 1:
+            logger.info("Resetting state to "+ str(self._settings["Latitude"]) + ";" + str(self._settings["Longitude"])+ " with radius "+ str(self._settings["Radius"]))
             drop_point = GPSPosition(self._settings["Latitude"], self._settings["Longitude"])
             self.reset_state(drop_point, self._settings["Radius"])
     
@@ -67,9 +70,10 @@ class AnchorAlarmController(object):
         self._connectors.append(connector)
         try:
             current_state = self._anchor_alarm.get_current_state()
-            connector.update_state(current_state)
-        except Exception:
-            pass # TODO XXX        
+            logger.info("sending state "+ current_state.state +" to connector "+ str(connector))
+            connector.on_state_changed(current_state)
+        except Exception as e:
+            logger.error(e)      
 
     def trigger_anchor_down(self):
         """Delegate method called by connector when setting anchor"""
@@ -106,8 +110,11 @@ class AnchorAlarmController(object):
             self._settings['Longitude']  = current_state.params['drop_point'].longitude
             self._settings['Radius']     = current_state.params['radius']
             self._settings["Active"]     = 1
+            logger.info("Saved new position to Settings")
         elif current_state.state == "DISABLED":
             self._settings["Active"]     = 0
+            logger.info("Set Active flag in Settings to 0")
+
 
         for connector in self._connectors:
             try:

@@ -8,6 +8,7 @@ sys.path.insert(1, os.path.join(os.path.dirname(__file__), 'ext'))
 
 from transitions import Machine
 import logging
+logger = logging.getLogger(__name__)
 from collections import namedtuple
 from geopy.distance import geodesic
 
@@ -94,6 +95,7 @@ class AnchorAlarmModel(object):
 
         if tolerance_updated:
             # we're back in radius with new tolerance
+            logger.info("Tolerance updated to "+ str(self._radius_tolerance))
             if self.state in ['ALARM_DRAGGING', 'ALARM_DRAGGING_MUTED'] and self._current_radius < self._radius + self._radius_tolerance:
                 self._out_of_radius_count = 0
                 self.on_tolerance_updated()
@@ -113,6 +115,7 @@ class AnchorAlarmModel(object):
             raise TypeError("gps_position must be a GPSPosition namedtuple")
         
         self.on_set_drop_point(gps_position)  
+        logger.info("Set new drop point to "+ str(gps_position.longitude)+ ";"+ str(gps_position.latitude))
 
 
 
@@ -138,6 +141,7 @@ class AnchorAlarmModel(object):
 
         radius = round(self._calculate_distance(self._drop_point, gps_position))
         self.on_set_radius(radius)
+        logger.info("Set new radius to "+ str(radius))
 
 
     def on_timer_tick(self, gps_position):
@@ -193,7 +197,8 @@ class AnchorAlarmModel(object):
                     self._out_of_radius_count += 1  # when once dragging, being in safe radius again doesn't reset out_of_radius_count
                 else:
                     self._out_of_radius_count = 0   # only reset out of radius count if not dragging
-                    self.on_in_radius()
+                    if self.state != "IN_RADIUS":
+                        self.on_in_radius()
 
                 #if last_state in ["ALARM_NO_GPS", "ALARM_NO_GPS_MUTED"]: 
                 # TODO XXX how to get feedback that boat is safe again ?

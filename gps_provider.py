@@ -46,7 +46,7 @@ class GPSProvider(object):
         gps_position = GPSPosition(latitude=  self._dbusmonitor.get_value(self._current_service, '/Position/Latitude'), 
                                    longitude= self._dbusmonitor.get_value(self._current_service, '/Position/Longitude'))
 
-        logger.info("Found gps position "+ str(gps_position))
+        logger.debug("Found gps position "+ str(gps_position))
         return gps_position
 
 

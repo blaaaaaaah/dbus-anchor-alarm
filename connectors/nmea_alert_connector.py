@@ -5,6 +5,8 @@ sys.path.insert(1, os.path.join(sys.path[0], '..'))
 from abstract_connector import AbstractConnector
 from anchor_alarm_model import AnchorAlarmState
 
+import logging
+logger = logging.getLogger(__name__)
 
 class NMEAAlertConnector(AbstractConnector):
     def __init__(self, timer_provider, settings_provider, nmea_bridge):
@@ -46,7 +48,7 @@ class NMEAAlertConnector(AbstractConnector):
 
     def _on_nmea_message(self, nmea_message):
         """Called when a new NMEA message arrives."""
-        self._log(f"Received NMEA message: {nmea_message}")
+        logger.debug(f"Received NMEA message: {nmea_message}")
         # {'canId': 166725639, 'prio': 2, 'src': 7, 'dst': 255, 'pgn': 126984, 'timestamp': '2025-05-15T18:15:00.974Z', 'input': [], 'fields': {'Alert Type': 'Caution', 'Alert Category': 'Technical', 'Alert System': 5, 'Alert Sub-System': 0, 'Alert ID': 54321, 'Data Source Network ID NAME': 54321, 'Data Source Instance': 0, 'Data Source Index-Source': 0, 'Alert Occurrence Number': 0, 'Acknowledge Source Network ID NAME': 13902754986684846000, 'Response Command': 'Acknowledge', 'Reserved1': 0}, 'description': 'Alert Response'}
         # {'canId': 166725639, 'prio': 2, 'src': 7, 'dst': 255, 'pgn': 126984, 'timestamp': '2025-05-15T18:31:09.659Z', 'input': [], 'fields': {'Alert Type': 'Emergency Alarm', 'Alert Category': 'Technical', 'Alert System': 5, 'Alert Sub-System': 0, 'Alert ID': 54321, 'Data Source Network ID NAME': 54321, 'Data Source Instance': 0, 'Data Source Index-Source': 0, 'Alert Occurrence Number': 0, 'Acknowledge Source Network ID NAME': 13902754986684846000, 'Response Command': 'Acknowledge', 'Reserved1': 0}, 'description': 'Alert Response'}
 
@@ -62,14 +64,10 @@ class NMEAAlertConnector(AbstractConnector):
             if self.controller is not None and nmea_message["fields"]['Alert Type'] == "Emergency Alarm":
                 self.controller.trigger_mute_alarm()
 
-
-    def _log(self, msg):
-        print(msg)
-
     # called when a state changes
     def on_state_changed(self, current_state:AnchorAlarmState):
         """Called by controller when state changed"""
-        self._log("On state changed "+ current_state.state)
+        logger.info("On state changed "+ current_state.state)
 
         #"Alert Type"" = "Emergency Alarm" | "Alarm" | "Warning" | "Caution"
         type = self._type_for_alarm_state(current_state)
@@ -154,6 +152,7 @@ class NMEAAlertConnector(AbstractConnector):
             "Alert Priority": 0
         }
 
+        logger.debug("Sending alert payload", nmea_message)
         self._bridge.send_nmea(nmea_message)
 
     def _send_alert_text_message(self, type, message):
@@ -172,6 +171,7 @@ class NMEAAlertConnector(AbstractConnector):
             "Alert Text Description": message
         }
 
+        logger.debug("Sending alert text", nmea_message)
         self._bridge.send_nmea(nmea_message)
 
 
