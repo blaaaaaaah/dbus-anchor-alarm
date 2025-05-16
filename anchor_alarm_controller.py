@@ -49,20 +49,38 @@ class AnchorAlarmController(object):
         }
 
         self._settings = self._settings_provider(settingsList, self._on_setting_changed)
-        self._on_setting_changed(None, None, None)  # dummy values to trigger anchor_alarm.update_configuration
+        
+        self._on_setting_changed("Tolerance", None, None)  # dummy values to trigger anchor_alarm.update_configuration
+        if self._settings['Active'] == 1:
+            self._on_setting_changed("Active", 0, 1)
 
 
     def _on_setting_changed(self, key, old_value, new_value):
         if not hasattr(self, '_settings'):
             return  # not yet instanciated
         
-        conf = AnchorAlarmConfiguration(self._settings["Tolerance"], self._settings["NoGPSCountThreshold"], self._settings["MuteDuration"])
-        self._anchor_alarm.update_configuration(conf)
+        if key in ["Tolerance", "NoGPSCountThreshold", "MuteDuration"]:
+            conf = AnchorAlarmConfiguration(self._settings["Tolerance"], self._settings["NoGPSCountThreshold"], self._settings["MuteDuration"])
+            self._anchor_alarm.update_configuration(conf)
+
+        if key == "Active":
+             # if the Active flag was set, reset_state
+            if new_value == 1:
+                logger.info("Resetting state to "+ str(self._settings["Latitude"]) + ";" + str(self._settings["Longitude"])+ " with radius "+ str(self._settings["Radius"]))
+                drop_point = GPSPosition(self._settings["Latitude"], self._settings["Longitude"])
+                self.reset_state(drop_point, self._settings["Radius"])
+            else:
+                logger.info("Disabling anchor alarm from Settings")
+                self.trigger_anchor_up()
+
         
 
 
     def reset_state(self, drop_point, radius):
-        self._anchor_alarm.reset_state(drop_point, radius)
+        try:
+            self._anchor_alarm.reset_state(drop_point, radius)
+        except Exception as e:
+            logger.error(e) 
 
     def register_connector(self, connector):
         """Registers an external connector to interface with DBUS or MTTQ triggers"""

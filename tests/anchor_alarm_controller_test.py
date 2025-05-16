@@ -167,6 +167,14 @@ class TestAnchorAlarmController(unittest.TestCase):
         connector.on_state_changed.assert_called_with(mock_state_in_radius)
 
 
+        # test that settings change watch is working
+        controller._settings['Active'] = 0
+        connector.on_state_changed.assert_called_with(mock_state_disabled)
+
+        controller._settings['Active'] = 1
+        connector.on_state_changed.assert_called_with(mock_state_in_radius)
+
+
 
     def test_connector_mock(self):
         mock_state_disabled = AnchorAlarmState('DISABLED', ANY, ANY, ANY, ANY)
@@ -225,6 +233,7 @@ class TestAnchorAlarmController(unittest.TestCase):
 
         connector.update_state.assert_not_called()
         connector2.update_state.assert_not_called()
+
 
 
 if __name__ == '__main__':
