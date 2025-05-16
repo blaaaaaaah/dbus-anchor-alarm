@@ -30,10 +30,10 @@ class NMEASOGRPMConnector(AbstractConnector):
     def _init_settings(self):
         # create the setting that are needed
         settingsList = {
-            "NumberOfEngines":     ["/Settings/AnchorAlarm/NMEA/SOGRPM/NumberOfEngines", 2, 1, 2],
-            "SOG":                 ["/Settings/AnchorAlarm/NMEA/SOGRPM/SOG", 0.3, 0, 2],
-            "RPM":                 ["/Settings/AnchorAlarm/NMEA/SOGRPM/RPM", 1700, 1000, 2200],
-            "Duration":             ["/Settings/AnchorAlarm/NMEA/SOGRPM/Duration", 3, 0, 10],
+            "NumberOfEngines":     ["/Settings/AnchorAlarm/Configuration/NMEA/SOGRPM/NumberOfEngines", 2, 1, 2],
+            "SOG":                 ["/Settings/AnchorAlarm/Configuration/NMEA/SOGRPM/SOG", 0.3, 0, 2],
+            "RPM":                 ["/Settings/AnchorAlarm/Configuration/NMEA/SOGRPM/RPM", 1700, 1000, 2200],
+            "Duration":            ["/Settings/AnchorAlarm/Configuration/NMEA/SOGRPM/Duration", 3, 0, 10],
         }
 
         # we don't care about getting notified if settings are updated

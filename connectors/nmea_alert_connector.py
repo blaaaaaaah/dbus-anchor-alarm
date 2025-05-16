@@ -39,7 +39,7 @@ class NMEAAlertConnector(AbstractConnector):
     def _init_settings(self):
         # create the setting that are needed
         settingsList = {
-            "AutoAcknowledgeInterval":     ["/Settings/AnchorAlarm/NMEA/Alert/AutoAcknowledgeInterval", 15, 1, 90]
+            "AutoAcknowledgeInterval":     ["/Settings/AnchorAlarm/Configuration/NMEA/Alert/AutoAcknowledgeInterval", 15, 1, 90]
         }
 
         # we don't care about getting notified if settings are updated

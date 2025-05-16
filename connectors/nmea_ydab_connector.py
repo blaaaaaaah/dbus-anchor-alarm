@@ -30,14 +30,14 @@ class NMEAYDABConnector(AbstractConnector):
     def _init_settings(self):
         # create the setting that are needed
         settingsList = {
-            "NMEAAddress":          ["/Settings/AnchorAlarm/NMEA/YDAB/NMEAAddress", 67, 0, 254],
-            "AlarmSoundID":         ["/Settings/AnchorAlarm/NMEA/YDAB/AlarmSoundID", 15, 1, 28],
-            "AlarmVolume":          ["/Settings/AnchorAlarm/NMEA/YDAB/AlarmVolume", 100, 0, 100],
-            "DSBank":               ["/Settings/AnchorAlarm/NMEA/YDAB/DSBank", 222, 0, 252],
-            "DSDropPointSetChannel":["/Settings/AnchorAlarm/NMEA/YDAB/DSDropPointSetChannel", 10, 0, 16],
-            "DSAlarmChannel":       ["/Settings/AnchorAlarm/NMEA/YDAB/DSAlarmChannel", 11, 0, 16],
-            "DSAlarmMutedChannel":  ["/Settings/AnchorAlarm/NMEA/YDAB/DSAlarmMutedChannel", 12, 0, 16],
-            "StartConfiguration":   ["/Settings/AnchorAlarm/NMEA/YDAB/StartConfiguration", 0, 0, 1],
+            "NMEAAddress":          ["/Settings/AnchorAlarm/Configuration/NMEA/YDAB/NMEAAddress", 67, 0, 254],
+            "AlarmSoundID":         ["/Settings/AnchorAlarm/Configuration/NMEA/YDAB/AlarmSoundID", 15, 1, 28],
+            "AlarmVolume":          ["/Settings/AnchorAlarm/Configuration/NMEA/YDAB/AlarmVolume", 100, 0, 100],
+            "DSBank":               ["/Settings/AnchorAlarm/Configuration/NMEA/YDAB/DSBank", 222, 0, 252],
+            "DSDropPointSetChannel":["/Settings/AnchorAlarm/Configuration/NMEA/YDAB/DSDropPointSetChannel", 10, 0, 16],
+            "DSAlarmChannel":       ["/Settings/AnchorAlarm/Configuration/NMEA/YDAB/DSAlarmChannel", 11, 0, 16],
+            "DSAlarmMutedChannel":  ["/Settings/AnchorAlarm/Configuration/NMEA/YDAB/DSAlarmMutedChannel", 12, 0, 16],
+            "StartConfiguration":   ["/Settings/AnchorAlarm/Configuration/NMEA/YDAB/StartConfiguration", 0, 0, 1],
         }
 
         self._settings = self._settings_provider(settingsList, self._on_setting_changed)
