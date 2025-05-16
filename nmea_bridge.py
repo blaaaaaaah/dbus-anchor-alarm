@@ -211,7 +211,7 @@ if __name__ == '__main__':
 
     
 
-    print("NMEA Bridge test program. Enter show:text to send Alert PGN.\nhide to hide message.\nyd:command to send YDAB command\nds:BankInstance,BankChannel,On|Off to send a DigitalSwitching command\nkill to kill the underlying nodeJS program\nexit to exit\n")
+    print("NMEA Bridge test program. Enter show:text to send Alert PGN.\nhide to hide message.\nyd:command to send YDAB command\nds:BankInstance,BankChannel,On|Off to send a DigitalSwitching command\nfilter:<PGN> to filter and print received PGNS\nkill to kill the underlying nodeJS program\nexit to exit\n")
 
     def handle_command(command, text):
         mapping = {
@@ -304,16 +304,6 @@ if __name__ == '__main__':
                 "description":"NMEA - Command group function"
             })
 
-        elif command == "ds":
-            bridge.send_nmea({
-                "pgn":127502,
-                "fields": {
-                    "Instance":0,
-                    "Switch"+text:"On",
-                },
-                "description":"Switch Bank Control"
-            })
-
         elif command == "yd":
                 bridge.send_nmea({
                     "prio":3,
@@ -348,6 +338,9 @@ if __name__ == '__main__':
                 },
                 "description":"Switch Bank Control"
             })
+
+        elif command == "filter":
+            bridge.add_pgn_handler(int(text), print)
 
         elif command == "kill":
             bridge._nodejs_process.terminate()
