@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python3
 
 """
@@ -6,20 +5,24 @@ Service that will listen on com.victronenergy.gps and raise an alarm when outisd
 Can check on digital inputn for automaric enabling/disabling
 Can
 """
-from connectors.dbus_connector import DBusConnector
+
 import logging
 import sys
 import os
 
+
+sys.path.insert(1, os.path.join(os.path.dirname(__file__), 'ext/velib_python'))
+sys.path.insert(1, os.path.join(os.path.dirname(__file__), 'connectors'))
+
+
+from dbus_connector import DBusConnector
+from nmea_alert_connector import NMEAAlertConnector
+from nmea_ydab_connector import NMEAYDABConnector
+from nmea_sog_rpm_connector import NMEASOGRPMConnector
+
+
 from anchor_alarm_controller import AnchorAlarmController
 from nmea_bridge import NMEABridge
-
-# our own packages
-# use an established Victron service to maintain compatiblity
-sys.path.insert(1, os.path.join('/opt/victronenergy/dbus-systemcalc-py', 'ext', 'velib_python'))
-
-from connectors.nmea_alert_connector import NMEAAlertConnector
-from connectors.nmea_ydab_connector import NMEAYDABConnector
 
 
 from gi.repository import GLib
@@ -32,8 +35,6 @@ from gps_provider import GPSProvider
 class DbusAnchorAlarmService(object):
     def __init__(self):
         
-        self._initSettings()
-
         self._gps_provider = GPSProvider()
         self._nmea_bridge  = NMEABridge()
 
@@ -46,13 +47,15 @@ class DbusAnchorAlarmService(object):
         self._alarm_controller = AnchorAlarmController(lambda: GLib, lambda settings, cb: SettingsDevice(bus, settings, cb), self._gps_provider)
 
         dbus_connector = DBusConnector(lambda: GLib, lambda settings, cb: SettingsDevice(bus, settings, cb))
-        nmea_alert_connector = NMEAAlertConnector(lambda: GLib, lambda settings, cb: SettingsDevice(bus, settings, cb), self.nmea_bridge)
-        nmea_ydab_connector = NMEAYDABConnector(lambda: GLib, lambda settings, cb: SettingsDevice(bus, settings, cb), self.nmea_bridge)
+        nmea_alert_connector = NMEAAlertConnector(lambda: GLib, lambda settings, cb: SettingsDevice(bus, settings, cb), self._nmea_bridge)
+        nmea_ydab_connector = NMEAYDABConnector(lambda: GLib, lambda settings, cb: SettingsDevice(bus, settings, cb), self._nmea_bridge)
+        nmea_sog_rpm_connector = NMEASOGRPMConnector(lambda: GLib, lambda settings, cb: SettingsDevice(bus, settings, cb), self._nmea_bridge)
 
         # TODO XXX move registration of connectors elsewhere ? 
         self._alarm_controller.register_connector(dbus_connector)
         self._alarm_controller.register_connector(nmea_alert_connector)
         self._alarm_controller.register_connector(nmea_ydab_connector)
+        self._alarm_controller.register_connector(nmea_sog_rpm_connector)
 
 
 
