@@ -37,7 +37,7 @@ class NMEAAlertConnector(AbstractConnector):
     def _init_settings(self):
         # create the setting that are needed
         settingsList = {
-            "AutoAcknowledgeInterval":     ["/Settings/AnchorAlarm/NMEA/AutoAcknowledgeInterval", 15, 1, 90]
+            "AutoAcknowledgeInterval":     ["/Settings/AnchorAlarm/NMEA/Alert/AutoAcknowledgeInterval", 15, 1, 90]
         }
 
         # we don't care about getting notified if settings are updated
@@ -101,6 +101,7 @@ class NMEAAlertConnector(AbstractConnector):
     def update_state(self, current_state:AnchorAlarmState):
         """Called by controller every second with updated state"""
        
+       # TODO XXX : do not send a message every second when nothing is happening
         type = self._type_for_alarm_state(current_state)
         self._send_alert_text_message(type, current_state.message)
 
