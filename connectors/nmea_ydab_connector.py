@@ -44,10 +44,10 @@ class NMEAYDABConnector(AbstractConnector):
         if key == "StartConfiguration":
             if new_value == 0 and self._queued_config_commands is not None and len(self._queued_config_commands) > 0:
                 # we're sending commands, refuse the change
-                self._settings['StartConfiguration'] = 1 # TODO XXX is this re-entrant ?
+                self._settings['StartConfiguration'] = 1
 
             if new_value == 1: 
-                self._send_init_config()    # TODO XXX : handle error ?
+                self._send_init_config()
 
 
 
@@ -214,29 +214,45 @@ class NMEAYDABConnector(AbstractConnector):
 
     def _on_config_command_acknowledged(self, nmea_message):
         # {'canId': 435164739, 'prio': 6, 'src': 67, 'dst': 255, 'pgn': 126998, 'timestamp': '2025-05-13T20:44:33.321Z', 'input': [], 'fields': {'Installation Description #2': 'YD:LED 21 DONE', 'Manufacturer Information': 'Yacht Devices Ltd., www.yachtd.com'}, 'description': 'Configuration Information'}
+        if "src" in nmea_message and nmea_message["src"] != self._settings['NMEAAddress']:
+            return # not YDAB talking to us
+        
+        if "fields" not in nmea_message:
+            return # no fields, should not happen
+        
+
+        if self._queued_config_commands is None:
+            return  # nothing to do
+
+        if len(self._queued_config_commands) == 0:
+            print("should not happen ?")
+            return
+        
+        expected_command = self._queued_config_commands[0]
+
+        # YD:RESET will sometimes trigger a message with no "Installation Description #2" field or with "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000 DONE" as content
         # {"canId":435164739,"prio":6,"src":67,"dst":255,"pgn":126998,"timestamp":"2025-05-15T18:55:09.398Z","input":[],"fields":{"Installation Description #2":"YD:LED 0 DONE","Manufacturer Information":"Yacht Devices Ltd., www.yachtd.com"},"description":"Configuration Information"}
         # {"canId":435164739,"prio":6,"src":67,"dst":255,"pgn":126998,"timestamp":"2025-05-15T19:32:42.124Z","input":[],"fields":{"Manufacturer Information":"Yacht Devices Ltd., www.yachtd.com"},"description":"Configuration Information"}}
 
-        if "src" in nmea_message and nmea_message["src"] == self._settings['NMEAAddress'] \
-            and 'fields' in  nmea_message and "Installation Description #2" in nmea_message['fields']:
+        if "Installation Description #2" not in nmea_message['fields'] or \
+            nmea_message['fields']["Installation Description #2"] == "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000 DONE":
+            nmea_message['fields']["Installation Description #2"] = "YD:RESET DONE"
+        
+        acknowledged_command = nmea_message['fields']["Installation Description #2"][:-len(" DONE")]
 
-            # wtf YDAB ?
-            # TODO XXX fix that
-            if nmea_message['fields']["Installation Description #2"] == "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000 DONE":
-                 nmea_message['fields']["Installation Description #2"] = "YD:RESET DONE"
-                 print("fixed YD:RESET DONE response")
 
-            acknowledged_command = nmea_message['fields']["Installation Description #2"][:-len(" DONE")]
 
-            if self._queued_config_commands is not None and self._queued_config_commands[0] == acknowledged_command:
-                self._queued_config_commands.pop(0)
-                self._remove_timer('config_command_timeout')
-                self._send_next_config_command()                    
-            else:
-                self._queued_config_commands = None
-                self._settings['StartConfiguration'] = 0
+        if expected_command == acknowledged_command:
+            self._queued_config_commands.pop(0)
+            self._remove_timer('config_command_timeout')
 
-                # TODO XXX : yield error in whatever way
+            self._send_next_config_command()   
+        else:
+            print("Unexpected acked command "+ acknowledged_command + ", expecting "+ expected_command +", stopping config process")
+            self._queued_config_commands = None
+            self._settings['StartConfiguration'] = 0
+
+            # TODO XXX : yield error in whatever way
 
         
     def _on_config_command_timeout(self):

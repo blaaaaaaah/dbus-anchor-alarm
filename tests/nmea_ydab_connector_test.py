@@ -311,6 +311,10 @@ class TestNMEAAlertConnector(unittest.TestCase):
             }
         
         def get_ack_call(command) :
+            # TODO XXX : if YD:RESET, send either 
+                # {"canId":435164739,"prio":6,"src":67,"dst":255,"pgn":126998,"timestamp":"2025-05-15T18:55:09.398Z","input":[],"fields":{"Installation Description #2":"YD:LED 0 DONE","Manufacturer Information":"Yacht Devices Ltd., www.yachtd.com"},"description":"Configuration Information"}
+                # {"canId":435164739,"prio":6,"src":67,"dst":255,"pgn":126998,"timestamp":"2025-05-15T19:32:42.124Z","input":[],"fields":{"Manufacturer Information":"Yacht Devices Ltd., www.yachtd.com"},"description":"Configuration Information"}}
+
             return {
                 "prio": 3,
                 "dst": 255,
@@ -333,7 +337,7 @@ class TestNMEAAlertConnector(unittest.TestCase):
         # test command send timeout
         timer_provider.tick()
         self.assertEqual(connector._settings['StartConfiguration'], 1)
-        self.assertEqual(len(connector._queued_config_commands), 11)
+        self.assertEqual(len(connector._queued_config_commands), len(expected_commands))
         for i in range(15):
             timer_provider.tick()
 
@@ -349,7 +353,7 @@ class TestNMEAAlertConnector(unittest.TestCase):
 
         timer_provider.tick()
         self.assertEqual(connector._settings['StartConfiguration'], 1)
-        self.assertEqual(len(connector._queued_config_commands), 11)
+        self.assertEqual(len(connector._queued_config_commands), len(expected_commands))
 
         pgn_wrong_src = {
                 "prio": 3,
@@ -362,7 +366,7 @@ class TestNMEAAlertConnector(unittest.TestCase):
             }
         handler(pgn_wrong_src)
         self.assertEqual(connector._settings['StartConfiguration'], 1)
-        self.assertEqual(len(connector._queued_config_commands), 11)
+        self.assertEqual(len(connector._queued_config_commands), len(expected_commands))
 
         for i in range(15):
             timer_provider.tick()
@@ -376,7 +380,7 @@ class TestNMEAAlertConnector(unittest.TestCase):
 
         timer_provider.tick()
         self.assertEqual(connector._settings['StartConfiguration'], 1)
-        self.assertEqual(len(connector._queued_config_commands), 11)
+        self.assertEqual(len(connector._queued_config_commands), len(expected_commands))
 
         pgn_wrong_command = {
                 "prio": 3,
@@ -389,7 +393,7 @@ class TestNMEAAlertConnector(unittest.TestCase):
             }
         handler(pgn_wrong_command)
         self.assertEqual(connector._settings['StartConfiguration'], 1)
-        self.assertEqual(len(connector._queued_config_commands), 11)
+        self.assertEqual(len(connector._queued_config_commands), len(expected_commands))
 
         for i in range(15):
             timer_provider.tick()
