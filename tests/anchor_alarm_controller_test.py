@@ -130,13 +130,13 @@ class TestAnchorAlarmController(unittest.TestCase):
         self.assertEqual(controller._settings['Active'],    0)
 
         connector = MagicMock()
-        connector.on_state_change =  MagicMock(return_value=None)
+        connector.on_state_changed =  MagicMock(return_value=None)
         connector.update_state =  MagicMock(return_value=None)
 
         mock_state_disabled = AnchorAlarmState('DISABLED', ANY, ANY, ANY, ANY)
 
         controller.register_connector(connector)
-        connector.update_state.assert_called_with(mock_state_disabled)
+        connector.on_state_changed.assert_called_with(mock_state_disabled)
 
 
 
@@ -158,13 +158,13 @@ class TestAnchorAlarmController(unittest.TestCase):
         self.assertEqual(controller._settings['Active'],    1)
 
         connector = MagicMock()
-        connector.on_state_change =  MagicMock(return_value=None)
+        connector.on_state_changed =  MagicMock(return_value=None)
         connector.update_state =  MagicMock(return_value=None)
 
         mock_state_in_radius = AnchorAlarmState('IN_RADIUS', ANY, ANY, ANY, ANY)
 
         controller.register_connector(connector)
-        connector.update_state.assert_called_with(mock_state_in_radius)
+        connector.on_state_changed.assert_called_with(mock_state_in_radius)
 
 
 
@@ -177,21 +177,21 @@ class TestAnchorAlarmController(unittest.TestCase):
         gps_provider.get_gps_position = MagicMock(return_value=None)
 
         connector = MagicMock()
-        connector.on_state_change =  MagicMock(return_value=None)
+        connector.on_state_changed =  MagicMock(return_value=None)
         connector.update_state =  MagicMock(return_value=None)
 
         connector2 = MagicMock()
-        connector2.on_state_change =  MagicMock(return_value=None)
+        connector2.on_state_changed =  MagicMock(return_value=None)
         connector2.update_state =  MagicMock(return_value=None)
 
     
         controller = AnchorAlarmController(lambda: timer_provider, MockSettingsDevice, gps_provider)
 
         controller.register_connector(connector)
-        connector.update_state.assert_called_with(mock_state_disabled)
+        connector.on_state_changed.assert_called_with(mock_state_disabled)
 
         controller.register_connector(connector2)
-        connector2.update_state.assert_called_with(mock_state_disabled)
+        connector2.on_state_changed.assert_called_with(mock_state_disabled)
 
         gps_provider.get_gps_position = MagicMock(return_value=self.gps_position_anchor_down)
         controller.trigger_anchor_down()
