@@ -36,7 +36,7 @@ class DbusAnchorAlarmService(object):
     def __init__(self):
         
         self._gps_provider = GPSProvider()
-        self._nmea_bridge  = NMEABridge()
+        self._nmea_bridge  = NMEABridge(os.path.join(os.path.dirname(__file__), 'nmea_bridge.js'))
 
         self._initStateMachine()
 
