@@ -32,30 +32,30 @@ class NMEAYDABConnector(AbstractConnector):
         settingsList = {
             # NMEA Address of the YDAB-01 device. 
             # You can find it by going on the Cerbo in Settings/Services/VE.Can port/Devices/YDAB-01/Network Address
-            "NMEAAddress":          ["/Settings/AnchorAlarm/Configuration/NMEA/YDAB/NMEAAddress", 67, 0, 254],
+            "NMEAAddress":          ["/Settings/AnchorAlarm/NMEA/YDAB/NMEAAddress", 67, 0, 254],
 
             # Sound ID to be played when the alarm is activated
-            "AlarmSoundID":         ["/Settings/AnchorAlarm/Configuration/NMEA/YDAB/AlarmSoundID", 15, 1, 28],
+            "AlarmSoundID":         ["/Settings/AnchorAlarm/NMEA/YDAB/AlarmSoundID", 15, 1, 28],
 
             # Volume (0-100) the sound must be played at
-            "AlarmVolume":          ["/Settings/AnchorAlarm/Configuration/NMEA/YDAB/AlarmVolume", 100, 0, 100],
+            "AlarmVolume":          ["/Settings/AnchorAlarm/NMEA/YDAB/AlarmVolume", 100, 0, 100],
 
             # Digital Switching Bank ID the YDAB-1 must be registered with. Only change it if conflicts with existing configuration
             # Digital Switching is used to communicate with the physical button of the YDAB-01
-            "DSBank":               ["/Settings/AnchorAlarm/Configuration/NMEA/YDAB/DSBank", 222, 0, 252],
+            "DSBank":               ["/Settings/AnchorAlarm/NMEA/YDAB/DSBank", 222, 0, 252],
 
             # Digital Switching Channel to use to get feedback from the button to set the radius. Only change it if conflicts with existing configuration
-            "DSDropPointSetChannel":["/Settings/AnchorAlarm/Configuration/NMEA/YDAB/DSDropPointSetChannel", 10, 0, 16],
+            "DSDropPointSetChannel":["/Settings/AnchorAlarm/NMEA/YDAB/DSDropPointSetChannel", 10, 0, 16],
 
             # Digital Switching Channel to use to get feedback from the button when the alarm is activated. Only change it if conflicts with existing configuration
-            "DSAlarmChannel":       ["/Settings/AnchorAlarm/Configuration/NMEA/YDAB/DSAlarmChannel", 11, 0, 16],
+            "DSAlarmChannel":       ["/Settings/AnchorAlarm/NMEA/YDAB/DSAlarmChannel", 11, 0, 16],
 
             # Digital Switching Channel to use to get feedback from the button when the alarm is muted. Only change it if conflicts with existing configuration
-            "DSAlarmMutedChannel":  ["/Settings/AnchorAlarm/Configuration/NMEA/YDAB/DSAlarmMutedChannel", 12, 0, 16],
+            "DSAlarmMutedChannel":  ["/Settings/AnchorAlarm/NMEA/YDAB/DSAlarmMutedChannel", 12, 0, 16],
 
             # Set to 1 to initiate the configuration of the YDAB-01. NMEAddress must be set. 
             # Will go back to 0 when done (success AND error). Will play a chime sound upon success. 
-            "StartConfiguration":   ["/Settings/AnchorAlarm/Configuration/NMEA/YDAB/StartConfiguration", 0, 0, 1],
+            "StartConfiguration":   ["/Settings/AnchorAlarm/NMEA/YDAB/StartConfiguration", 0, 0, 1],
         }
 
         self._settings = self._settings_provider(settingsList, self._on_setting_changed)
@@ -104,6 +104,9 @@ class NMEAYDABConnector(AbstractConnector):
     def on_state_changed(self, current_state:AnchorAlarmState):
         """Called by controller when state changed"""
         logger.info("On state changed "+ current_state.state)
+
+        if self._settings['NMEAAddress'] == 0:
+            return
 
         if current_state.state == "DISABLED":
             # DISABLED, no led, no sound, not cancellable
@@ -191,6 +194,9 @@ class NMEAYDABConnector(AbstractConnector):
 
 
     def _send_init_config(self):
+        if self._settings['NMEAAddress'] == 0:
+            return
+        
         config_commands = [
             "YD:RESET",
             "YD:MODE DS",           # Set mode to DigitalSwitching
@@ -260,15 +266,13 @@ class NMEAYDABConnector(AbstractConnector):
         
         acknowledged_command = nmea_message['fields']["Installation Description #2"][:-len(" DONE")]
 
-
-
         if expected_command == acknowledged_command:
             self._queued_config_commands.pop(0)
             self._remove_timer('config_command_timeout')
 
             self._send_next_config_command()   
         else:
-            logger.debug("Unexpected acked command "+ acknowledged_command + ", expecting "+ expected_command +", stopping config process")
+            logger.error("Unexpected acked command "+ acknowledged_command + ", expecting "+ expected_command +", stopping config process")
             self._queued_config_commands = None
             self._settings['StartConfiguration'] = 0
 
@@ -277,7 +281,7 @@ class NMEAYDABConnector(AbstractConnector):
         
     def _on_config_command_timeout(self):
         # we couldn't get an ack, maybe the YDAB NMEA address is wrong ?
-        logger.info("_on_config_command_timeout")
+        logger.error("_on_config_command_timeout")
         self._queued_config_commands = None
         self._settings['StartConfiguration'] = 0
         # TODO XXX : yield error in whatever way

@@ -32,16 +32,16 @@ class NMEASOGRPMConnector(AbstractConnector):
         settingsList = {
             # Speed Over Ground to be considered as a non moving position. In windy conditions, boat will always move a bit side to side
             # and it will be very hard to get a 0.0 SOG for 3 seconds. 0.3knots seems to be a good value
-            "SOG":                 ["/Settings/AnchorAlarm/Configuration/NMEA/SOGRPM/SOG", 0.3, 0, 1],
+            "SOG":                 ["/Settings/AnchorAlarm/NMEA/SOGRPM/SOG", 0.3, 0, 1],
 
             # Number of engines to watch RPM for
-            "NumberOfEngines":     ["/Settings/AnchorAlarm/Configuration/NMEA/SOGRPM/NumberOfEngines", 2, 1, 2],
+            "NumberOfEngines":     ["/Settings/AnchorAlarm/NMEA/SOGRPM/NumberOfEngines", 2, 1, 2],
 
             # RPM that needs to be reached to enable the anchor alarm
-            "RPM":                 ["/Settings/AnchorAlarm/Configuration/NMEA/SOGRPM/RPM", 1700, 1000, 2200],
-            
+            "RPM":                 ["/Settings/AnchorAlarm/NMEA/SOGRPM/RPM", 1700, 1000, 2200],
+
             # Duration for which both SOG and RPM conditions need to be met to activate anchor alarm
-            "Duration":            ["/Settings/AnchorAlarm/Configuration/NMEA/SOGRPM/Duration", 3, 0, 10],
+            "Duration":            ["/Settings/AnchorAlarm/NMEA/SOGRPM/Duration", 3, 0, 10],
         }
 
         # we don't care about getting notified if settings are updated

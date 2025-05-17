@@ -40,7 +40,7 @@ class NMEAAlertConnector(AbstractConnector):
         # create the setting that are needed
         settingsList = {
             # Duration an info (Caution) message will be automatically dismissed after
-            "AutoAcknowledgeInterval":     ["/Settings/AnchorAlarm/Configuration/NMEA/Alert/AutoAcknowledgeInterval", 15, 1, 90]
+            "AutoAcknowledgeInterval":     ["/Settings/AnchorAlarm/NMEA/Alert/AutoAcknowledgeInterval", 15, 1, 90]
         }
 
         # we don't care about getting notified if settings are updated
