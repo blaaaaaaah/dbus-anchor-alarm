@@ -101,7 +101,7 @@ class AnchorAlarmController(object):
             logger.info("sending state "+ current_state.state +" to connector "+ str(connector))
             connector.on_state_changed(current_state)
         except Exception as e:
-            logger.error(e)      
+            logger.error(e, exc_info=True)      
 
     def trigger_anchor_down(self):
         """Delegate method called by connector when setting anchor"""
