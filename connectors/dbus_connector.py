@@ -36,17 +36,38 @@ class DBusConnector(AbstractConnector):
     def _init_settings(self):
         # create the setting that are needed
         settingsList = {
-            # last state   
+            # Digital input number for Anchor Down trigger. 
+            # Wire a relay between windlass DOWN contactor/button and digital input. Use "0" to disable.
+            # Enable the digital input on the Cerbo in Settings/IO/Digital inputs/Digital input [0-4] and set "Bilge pump". 
             "AnchorDownDigitalInputNumber":     ["/Settings/AnchorAlarm/Triggers/AnchorDown/DigitalInputNumber", 2, 0, 4],
+
+            # Duration for which the digital input must be activated before triggering an Anchor Down event. 
+            # 3 seconds seems to be a good value. Too short and you might get false positives, too long you might get 
+            # inacuracies with the boat drifting while dropping the anchor
             "AnchorDownDigitalInputDuration":   ["/Settings/AnchorAlarm/Triggers/AnchorDown/DigitalInputDuration", 3, 0, 30],
 
+            # Digital input number for the desired chain out/set radius trigger. 
+            # You can wire a button but this event is usually handled by the NMEA bus. Use "0" to disable.
+            # Enable the digital input on the Cerbo in Settings/IO/Digital inputs/Digital input [0-4] and set "Bilge pump"
             "ChainOutDigitalInputNumber":       ["/Settings/AnchorAlarm/Triggers/ChainOut/DigitalInputNumber", 0, 0, 4],
+
+            # Duration for which the digital input must be activated before triggering an Chain Out event. 
             "ChainOutDigitalInputDuration":     ["/Settings/AnchorAlarm/Triggers/ChainOut/DigitalInputDuration", 0, 0, 30], 
 
+            # Digital input number for Anchor Up trigger. 
+            # Wire a relay between windlass UP contactor/button and digital input. Use "0" to disable.
+            # Enable the digital input on the Cerbo in Settings/IO/Digital inputs/Digital input [0-4] and set "Bilge pump"
             "AnchorUpDigitalInputNumber":       ["/Settings/AnchorAlarm/Triggers/AnchorUp/DigitalInputNumber", 1, 0, 4],
+
+            # Duration for which the digital input must be activated before triggering an Anchor Up event. 
             "AnchorUpDigitalInputDuration":     ["/Settings/AnchorAlarm/Triggers/AnchorUp/DigitalInputDuration", 3, 0, 30], 
 
-            "FeedbackDigitaInputNumber"  :      ["/Settings/AnchorAlarm/Triggers/Enable/DigitalInput", 1, 0, 4],
+            # Digital input number to use to show feedback and handle notifications on the Cerbo
+            # You can use an unused one re-use Anchor Down or Anchor Up digital inputs as it will only change the name
+            # of the digital input. Use "0" to disable.
+            # Cerbo's Alarm/Notifications system is very hard coded, so abusing the Digital input system is a 
+            # good compromise.
+            "FeedbackDigitaInputNumber"  :      ["/Settings/AnchorAlarm/Triggers/Feedback/DigitalInput", 1, 0, 4],
         }
 
         self._settings = self._settings_provider(settingsList, self._on_setting_changed)

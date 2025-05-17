@@ -39,6 +39,7 @@ class NMEAAlertConnector(AbstractConnector):
     def _init_settings(self):
         # create the setting that are needed
         settingsList = {
+            # Duration an info (Caution) message will be automatically dismissed after
             "AutoAcknowledgeInterval":     ["/Settings/AnchorAlarm/Configuration/NMEA/Alert/AutoAcknowledgeInterval", 15, 1, 90]
         }
 

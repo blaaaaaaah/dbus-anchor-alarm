@@ -30,13 +30,31 @@ class NMEAYDABConnector(AbstractConnector):
     def _init_settings(self):
         # create the setting that are needed
         settingsList = {
+            # NMEA Address of the YDAB-01 device. 
+            # You can find it by going on the Cerbo in Settings/Services/VE.Can port/Devices/YDAB-01/Network Address
             "NMEAAddress":          ["/Settings/AnchorAlarm/Configuration/NMEA/YDAB/NMEAAddress", 67, 0, 254],
+
+            # Sound ID to be played when the alarm is activated
             "AlarmSoundID":         ["/Settings/AnchorAlarm/Configuration/NMEA/YDAB/AlarmSoundID", 15, 1, 28],
+
+            # Volume (0-100) the sound must be played at
             "AlarmVolume":          ["/Settings/AnchorAlarm/Configuration/NMEA/YDAB/AlarmVolume", 100, 0, 100],
+
+            # Digital Switching Bank ID the YDAB-1 must be registered with. Only change it if conflicts with existing configuration
+            # Digital Switching is used to communicate with the physical button of the YDAB-01
             "DSBank":               ["/Settings/AnchorAlarm/Configuration/NMEA/YDAB/DSBank", 222, 0, 252],
+
+            # Digital Switching Channel to use to get feedback from the button to set the radius. Only change it if conflicts with existing configuration
             "DSDropPointSetChannel":["/Settings/AnchorAlarm/Configuration/NMEA/YDAB/DSDropPointSetChannel", 10, 0, 16],
+
+            # Digital Switching Channel to use to get feedback from the button when the alarm is activated. Only change it if conflicts with existing configuration
             "DSAlarmChannel":       ["/Settings/AnchorAlarm/Configuration/NMEA/YDAB/DSAlarmChannel", 11, 0, 16],
+
+            # Digital Switching Channel to use to get feedback from the button when the alarm is muted. Only change it if conflicts with existing configuration
             "DSAlarmMutedChannel":  ["/Settings/AnchorAlarm/Configuration/NMEA/YDAB/DSAlarmMutedChannel", 12, 0, 16],
+
+            # Set to 1 to initiate the configuration of the YDAB-01. NMEAddress must be set. 
+            # Will go back to 0 when done (success AND error). Will play a chime sound upon success. 
             "StartConfiguration":   ["/Settings/AnchorAlarm/Configuration/NMEA/YDAB/StartConfiguration", 0, 0, 1],
         }
 
