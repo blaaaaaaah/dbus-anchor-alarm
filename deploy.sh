@@ -1,2 +1,5 @@
-#find . | grep -E "(/__pycache__$|\.pyc$|\.pyo$)" | xargs rm -rf
-scp -r * root@victron.matsu:~/dbus-anchor-alarm
+rsync -vr --exclude=".*" * root@victron.matsu:/data/dbus-anchor-alarm
+
+# run by doing :
+# cd /opt/victronenergy/services
+# svc -u dbus-anchor-alarm
