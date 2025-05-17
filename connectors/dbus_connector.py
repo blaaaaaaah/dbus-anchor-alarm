@@ -1,5 +1,6 @@
 import sys
 import os
+import json
 
 import logging
 logger = logging.getLogger(__name__)
@@ -98,7 +99,8 @@ class DBusConnector(AbstractConnector):
         self._dbus_service.add_path('/State', 'DISABLED', "State of the anchor alarm")
         self._dbus_service.add_path('/Message', '', "Description of the state")
         self._dbus_service.add_path('/Level', '', "Info, Warning, Alarm or Emergency")
-        self._dbus_service.add_path('/Muted', False, "Is alarm muted")
+        self._dbus_service.add_path('/Muted', 0, "Is alarm muted")
+        self._dbus_service.add_path('/Alarm', 0, "Is alarm on")
         self._dbus_service.add_path('/Params', '', "Various params (radius, current radius, tolerance, ..)")
 
         # create trigger points for other people to manipulate state
@@ -124,11 +126,7 @@ class DBusConnector(AbstractConnector):
         self.update_state(current_state)
 
 
-        alarm_state = current_state.state in ['ALARM_DRAGGING', 'ALARM_NO_GPS'] 
-
-        # update feedback alarm name so Cerbo shows correct alarm description
-        self._alarm_monitor.set_value(self._feedback_digital_input, '/CustomName', current_state.message)
-        self._alarm_monitor.set_value(self._feedback_digital_input, '/ProductName', current_state.message)
+        alarm_state = 1 if current_state.state in ['ALARM_DRAGGING', 'ALARM_NO_GPS'] else 0
 
         # toggle alarm state
         self._alarm_monitor.set_value(self._feedback_digital_input, '/Alarm', alarm_state)
@@ -139,8 +137,8 @@ class DBusConnector(AbstractConnector):
         self._dbus_service['/State']    = current_state.state
         self._dbus_service['/Message']  = current_state.message
         self._dbus_service['/Level']    = current_state.level
-        self._dbus_service['/Muted']    = current_state.muted
-        self._dbus_service['/Params']   = current_state.params # TODO XXX as json string ?
+        self._dbus_service['/Muted']    = 1 if current_state.muted else 0
+        self._dbus_service['/Params']   = json.dumps(current_state.params)
 
         self._alarm_monitor.set_value(self._feedback_digital_input, '/CustomName', current_state.message)
         self._alarm_monitor.set_value(self._feedback_digital_input, '/ProductName', current_state.message)
