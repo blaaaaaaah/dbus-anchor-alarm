@@ -78,8 +78,19 @@ class DBusConnector(AbstractConnector):
         # listen to all 4 digital inputs so we don't have to recreate/update the dbus monitor
 
         dummy = {'code': None, 'whenToLog': 'configChange', 'accessLevel': None}
-        dummy_service = {'/Alarm': dummy, '/CustomName': dummy,	'/ProductName': dummy, '/State': dummy}
-        monitorlist = {'com.victronenergy.digitalinput': dummy_service}
+        digitalinput_service = {'/Alarm': dummy, '/CustomName': dummy,	'/ProductName': dummy, '/State': dummy}
+        settings_service = {
+            '/Settings/DigitalInput/1/AlarmSetting': dummy,
+            '/Settings/DigitalInput/2/AlarmSetting': dummy,
+            '/Settings/DigitalInput/3/AlarmSetting': dummy,
+            '/Settings/DigitalInput/4/AlarmSetting': dummy,
+            
+            '/Settings/DigitalInput/1/InvertAlarm': dummy,
+            '/Settings/DigitalInput/2/InvertAlarm': dummy,
+            '/Settings/DigitalInput/3/InvertAlarm': dummy,
+            '/Settings/DigitalInput/4/InvertAlarm': dummy,
+        }
+        monitorlist = {'com.victronenergy.digitalinput': digitalinput_service, 'com.victronenergy.settings': settings_service}
 
         # TODO XXX : add deviceAddedCallback handler in case of digitalinput service is loaded after us ?
         self._alarm_monitor = self._create_dbus_monitor(monitorlist, self._on_digitalinput_service_changed, deviceAddedCallback=None, deviceRemovedCallback=None)
@@ -129,7 +140,11 @@ class DBusConnector(AbstractConnector):
         alarm_state = 1 if current_state.state in ['ALARM_DRAGGING', 'ALARM_NO_GPS'] else 0
 
         # toggle alarm state
-        self._alarm_monitor.set_value(self._feedback_digital_input, '/Alarm', alarm_state)
+        # we can't simply change the /Alarm path on the digital_input dbus. We need to workaround using settings and creating
+        # an alarm condition by setting Alarm to True and invert Alarm to True as well 
+        if self._settings['FeedbackDigitaInputNumber'] != 0:
+            self._alarm_monitor.set_value("com.victronenergy.settings", '/Settings/DigitalInput/'+ str(self._settings['FeedbackDigitaInputNumber']) +'/AlarmSetting', alarm_state)
+            self._alarm_monitor.set_value("com.victronenergy.settings", '/Settings/DigitalInput/'+ str(self._settings['FeedbackDigitaInputNumber']) +'/InvertAlarm', alarm_state)
 
 
     def update_state(self, current_state:AnchorAlarmState):
