@@ -24,7 +24,9 @@ from nmea_sog_rpm_connector import NMEASOGRPMConnector
 timer_provider = GLibTimerMock()
 
 
-
+# TODO XXX : move that import somewhere
+from collections import namedtuple
+GPSPosition = namedtuple('GPSPosition', ['latitude', 'longitude'])
 
 
 
@@ -61,6 +63,8 @@ class TestNMEASOGRPMConnector(unittest.TestCase):
         controller.trigger_chain_out   = MagicMock()
         connector.set_controller(controller)
 
+        state_drop_point_set = AnchorAlarmState('DROP_POINT_SET', 'Drop point set, please do blablala', 'info', False, {'drop_point': GPSPosition(10, 11)})
+        connector.on_state_changed(state_drop_point_set)
 
         sog_0_07 = {'canId': 167248387, 'prio': 2, 'src': 3, 'dst': 255, 'pgn': 129026, 'timestamp': '2025-05-16T13:51:59.279Z', 
                    'fields': {'SID': 208, 'COG Reference': 'True', 'COG': 0.2787, 'SOG': 0.07}, 'description': 'COG & SOG, Rapid Update'}
@@ -256,6 +260,9 @@ class TestNMEASOGRPMConnector(unittest.TestCase):
         controller.trigger_chain_out   = MagicMock()
         connector.set_controller(controller)
 
+        state_drop_point_set = AnchorAlarmState('DROP_POINT_SET', 'Drop point set, please do blablala', 'info', False, {'drop_point': GPSPosition(10, 11)})
+        connector.on_state_changed(state_drop_point_set)
+
 
         sog_0_07 = {'canId': 167248387, 'prio': 2, 'src': 3, 'dst': 255, 'pgn': 129026, 'timestamp': '2025-05-16T13:51:59.279Z', 
                    'fields': {'SID': 208, 'COG Reference': 'True', 'COG': 0.2787, 'SOG': 0.07}, 'description': 'COG & SOG, Rapid Update'}
@@ -374,6 +381,7 @@ class TestNMEASOGRPMConnector(unittest.TestCase):
 
 
     def test_none_comparaisons(self):
+        # when first initialized, values are None in the connector which triggers error when comparing to int
         sog_handler = None
         rpm_handler = None
 
@@ -425,6 +433,118 @@ class TestNMEASOGRPMConnector(unittest.TestCase):
 
         # TODO XXX : make this test more robust
 
+
+    def test_listen_only_in_drop_point_set_state(self):
+        sog_handler = None
+        rpm_handler = None
+
+        def _set_handler(pgn, the_handler):
+            nonlocal sog_handler
+            nonlocal rpm_handler
+            if pgn == 129026:
+                sog_handler = the_handler
+            else:
+                rpm_handler = the_handler
+
+        mock_bridge = MagicMock()
+        mock_bridge.add_pgn_handler = MagicMock(side_effect=_set_handler)        
+
+
+        connector = NMEASOGRPMConnector(lambda: timer_provider, MockSettingsDevice,  mock_bridge)
+
+        controller = MagicMock()
+        controller.trigger_chain_out   = MagicMock()
+        connector.set_controller(controller)
+
+
+        sog_0_07 = {'canId': 167248387, 'prio': 2, 'src': 3, 'dst': 255, 'pgn': 129026, 'timestamp': '2025-05-16T13:51:59.279Z', 
+                   'fields': {'SID': 208, 'COG Reference': 'True', 'COG': 0.2787, 'SOG': 0.07}, 'description': 'COG & SOG, Rapid Update'}
+
+        sog_0_4 = {'canId': 167248387, 'prio': 2, 'src': 3, 'dst': 255, 'pgn': 129026, 'timestamp': '2025-05-16T13:51:59.279Z', 
+                   'fields': {'SID': 208, 'COG Reference': 'True', 'COG': 0.2787, 'SOG': 0.4}, 'description': 'COG & SOG, Rapid Update'}
+
+
+        port_speed_1300 = {'canId': 166854714, 'prio': 2, 'src': 58, 'dst': 255, 'pgn': 127488, 'timestamp': '2025-05-16T13:57:08.889Z', 
+                           'fields': {'Instance': 'Single Engine or Dual Engine Port', 'Speed': 1300, 'Boost Pressure': 0}, 'description': 'Engine Parameters, Rapid Update'}
+
+        port_speed_1800 = {'canId': 166854714, 'prio': 2, 'src': 58, 'dst': 255, 'pgn': 127488, 'timestamp': '2025-05-16T13:57:08.889Z', 
+                           'fields': {'Instance': 'Single Engine or Dual Engine Port', 'Speed': 1800, 'Boost Pressure': 0}, 'description': 'Engine Parameters, Rapid Update'}
+
+
+        stb_speed_1300 =  {'canId': 166854712, 'prio': 2, 'src': 56, 'dst': 255, 'pgn': 127488, 'timestamp': '2025-05-16T13:57:41.254Z', 
+                           'fields': {'Instance': 'Dual Engine Starboard', 'Speed': 1300, 'Boost Pressure': 0}, 'description': 'Engine Parameters, Rapid Update'}
+
+
+        stb_speed_1800 =  {'canId': 166854712, 'prio': 2, 'src': 56, 'dst': 255, 'pgn': 127488, 'timestamp': '2025-05-16T13:57:41.254Z', 
+                           'fields': {'Instance': 'Dual Engine Starboard', 'Speed': 1800, 'Boost Pressure': 0}, 'description': 'Engine Parameters, Rapid Update'}
+
+
+        # make sure that connector is only listening 
+
+        rpm_handler(port_speed_1800)
+        rpm_handler(stb_speed_1800)
+        sog_handler(sog_0_07)
+
+        controller.trigger_chain_out.assert_not_called()
+
+        state_disabled = AnchorAlarmState('DISABLED', 'Anchor alarm disabled', 'info', False, {})
+        state_drop_point_set = AnchorAlarmState('DROP_POINT_SET', 'Drop point set, please do blablala', 'info', False, {'drop_point': GPSPosition(10, 11)})
+
+        connector.on_state_changed(state_drop_point_set)
+        rpm_handler(port_speed_1800)
+        rpm_handler(stb_speed_1800)
+        sog_handler(sog_0_07)
+        controller.trigger_chain_out.assert_not_called()
+
+        timer_provider.tick()
+        rpm_handler(port_speed_1800)
+        rpm_handler(stb_speed_1800)
+        sog_handler(sog_0_07)
+        controller.trigger_chain_out.assert_not_called()
+
+        timer_provider.tick()
+        rpm_handler(port_speed_1800)
+        rpm_handler(stb_speed_1800)
+        sog_handler(sog_0_07)
+        controller.trigger_chain_out.assert_not_called()
+
+        connector.on_state_changed(state_disabled)
+        timer_provider.tick()
+        rpm_handler(port_speed_1800)
+        rpm_handler(stb_speed_1800)
+        sog_handler(sog_0_07)
+        controller.trigger_chain_out.assert_not_called()
+
+        timer_provider.tick()
+        rpm_handler(port_speed_1800)
+        rpm_handler(stb_speed_1800)
+        sog_handler(sog_0_07)
+        controller.trigger_chain_out.assert_not_called()
+
+
+        connector.on_state_changed(state_drop_point_set)
+        rpm_handler(port_speed_1800)
+        rpm_handler(stb_speed_1800)
+        sog_handler(sog_0_07)
+        controller.trigger_chain_out.assert_not_called()
+
+        timer_provider.tick()
+        rpm_handler(port_speed_1800)
+        rpm_handler(stb_speed_1800)
+        sog_handler(sog_0_07)
+        controller.trigger_chain_out.assert_not_called()
+
+        timer_provider.tick()
+        rpm_handler(port_speed_1800)
+        rpm_handler(stb_speed_1800)
+        sog_handler(sog_0_07)
+        controller.trigger_chain_out.assert_not_called()
+
+        timer_provider.tick()
+        rpm_handler(port_speed_1800)
+        rpm_handler(stb_speed_1800)
+        sog_handler(sog_0_07)
+        controller.trigger_chain_out.assert_called_once()
 
 
 if __name__ == '__main__':

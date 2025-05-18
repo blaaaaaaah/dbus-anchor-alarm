@@ -18,6 +18,8 @@ class NMEASOGRPMConnector(AbstractConnector):
             'conditions_met': None,
         }
 
+        self._should_watch  = False
+
         self._last_sog      = None
         self._last_rpm_port = None
         self._last_rpm_stb  = None
@@ -47,6 +49,9 @@ class NMEASOGRPMConnector(AbstractConnector):
         # we don't care about getting notified if settings are updated
         self._settings = self._settings_provider(settingsList, None)
 
+        # TODO XXX add some code to only watch if in DROP_POINT_SET state
+
+        
 
     def _on_sog(self, nmea_message):
         # {'canId': 167248387, 'prio': 2, 'src': 3, 'dst': 255, 'pgn': 129026, 'timestamp': '2025-05-16T13:51:59.279Z', 'fields': {'SID': 208, 'COG Reference': 'True', 'COG': 0.2787, 'SOG': 0.07}, 'description': 'COG & SOG, Rapid Update'}
@@ -90,6 +95,9 @@ class NMEASOGRPMConnector(AbstractConnector):
             self._remove_timer('conditions_met')
 
     def _conditions_met(self):
+        if not self._should_watch:
+            return False
+        
         if self._last_sog is None or self._last_sog is not None and self._last_sog > self._settings['SOG']:
             return False
         
@@ -110,8 +118,8 @@ class NMEASOGRPMConnector(AbstractConnector):
 
     # called when a state changes
     def on_state_changed(self, current_state:AnchorAlarmState):
-        # we don't really care
-        pass
+        self._should_watch = current_state.state == "DROP_POINT_SET"
+        self._check_conditions_met()
 
 
     # called every second to update state
