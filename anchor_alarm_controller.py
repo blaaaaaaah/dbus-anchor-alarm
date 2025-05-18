@@ -37,13 +37,13 @@ class AnchorAlarmController(object):
         # create the setting that are needed
         settingsList = {
             # Distance in meters that will be added to the safe radius
-            "Tolerance":            ["/Settings/Anchoralarm/Configuration/RadiusTolerance", 15, 0, 512],
+            "Tolerance":            ["/Settings/Anchoralarm/RadiusTolerance", 15, 0, 512],
 
             # Number of seconds the GPS can be lost before activating the alarm
-            "NoGPSCountThreshold":  ["/Settings/Anchoralarm/Configuration/NoGPSCountThreshold", 30, 0, 300],
+            "NoGPSCountThreshold":  ["/Settings/Anchoralarm/NoGPSCountThreshold", 30, 0, 300],
 
             # Number of seconds the alarm will be muted for when the alarm is acknowledged
-            "MuteDuration":         ["/Settings/Anchoralarm/Configuration/MuteDuration", 30, 0, 300], 
+            "MuteDuration":         ["/Settings/Anchoralarm/MuteDuration", 30, 0, 300], 
 
             # Last saved latitude where anchor was dropped. Used when device reboots or to set a specific location arbitrary
             "Latitude":             ["/Settings/AnchorAlarm/Last/Position/Latitude", 0.0, -90.0, 90],
