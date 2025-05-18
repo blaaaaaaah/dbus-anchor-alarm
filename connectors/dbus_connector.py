@@ -78,19 +78,28 @@ class DBusConnector(AbstractConnector):
         # listen to all 4 digital inputs so we don't have to recreate/update the dbus monitor
 
         dummy = {'code': None, 'whenToLog': 'configChange', 'accessLevel': None}
-        digitalinput_service = {'/Alarm': dummy, '/CustomName': dummy,	'/ProductName': dummy, '/State': dummy}
-        settings_service = {
-            '/Settings/DigitalInput/1/AlarmSetting': dummy,
-            '/Settings/DigitalInput/2/AlarmSetting': dummy,
-            '/Settings/DigitalInput/3/AlarmSetting': dummy,
-            '/Settings/DigitalInput/4/AlarmSetting': dummy,
-            
-            '/Settings/DigitalInput/1/InvertAlarm': dummy,
-            '/Settings/DigitalInput/2/InvertAlarm': dummy,
-            '/Settings/DigitalInput/3/InvertAlarm': dummy,
-            '/Settings/DigitalInput/4/InvertAlarm': dummy,
+        
+        monitorlist = {
+            'com.victronenergy.digitalinput': {
+                '/CustomName': dummy,	
+                '/ProductName': dummy, 
+                '/State': dummy
+            }, 
+            'com.victronenergy.settings': {
+                '/Settings/DigitalInput/1/AlarmSetting': dummy,
+                '/Settings/DigitalInput/2/AlarmSetting': dummy,
+                '/Settings/DigitalInput/3/AlarmSetting': dummy,
+                '/Settings/DigitalInput/4/AlarmSetting': dummy,
+                
+                '/Settings/DigitalInput/1/InvertAlarm': dummy,
+                '/Settings/DigitalInput/2/InvertAlarm': dummy,
+                '/Settings/DigitalInput/3/InvertAlarm': dummy,
+                '/Settings/DigitalInput/4/InvertAlarm': dummy,
+            },
+            'com.victronenergy.platform': {
+                '/Notifications/Alarm': dummy
+            }
         }
-        monitorlist = {'com.victronenergy.digitalinput': digitalinput_service, 'com.victronenergy.settings': settings_service}
 
         # TODO XXX : add deviceAddedCallback handler in case of digitalinput service is loaded after us ?
         self._alarm_monitor = self._create_dbus_monitor(monitorlist, self._on_digitalinput_service_changed, deviceAddedCallback=None, deviceRemovedCallback=None)
@@ -178,12 +187,14 @@ class DBusConnector(AbstractConnector):
         if self.controller is None:
             return
         
+        logger.debug("DBUSMonitor "+ dbusServiceName + " "+ dbusPath + " " + str(changes["Value"]))
+
         # digital inputs states are pairs of ints. 0 is low, 1 is high, 2 is off, 3 is on and so on 
         # depending on input type in settings
 
         # mute alarm
-        if ( dbusServiceName == self._feedback_digital_input 
-                and dbusPath == '/Alarm'
+        if ( dbusServiceName == 'com.victronenergy.platform'
+                and dbusPath == '/Notifications/Alarm'
                 and changes['Value'] == 0 
                 and self._dbus_service['/State'] in ['ALARM_DRAGGING', 'ALARM_NO_GPS']):
 
@@ -279,6 +290,14 @@ if __name__ == "__main__":
     controller.trigger_chain_out    = MagicMock(side_effect=lambda: logger.info("Trigger chain out"))
     controller.trigger_mute_alarm   = MagicMock(side_effect=lambda: logger.info("Trigger mute alarm"))
     dbus_connector.set_controller(controller)
+
+    # code to test notifications to Cerbo
+    """
+    state_disabled = AnchorAlarmState('DISABLED', 'Anchor alarm disabled', 'info', False, {})
+    dbus_connector.on_state_changed(state_disabled)
+    state_dragging = AnchorAlarmState('ALARM_DRAGGING', 'Anchor dragging !', 'emergency', False, {'drop_point': GPSPosition(10, 11), 'radius': 12})
+    dbus_connector.on_state_changed(state_dragging)
+    """
 
 	# Start and run the mainloop
     #logger.info("Starting mainloop, responding only on events")
