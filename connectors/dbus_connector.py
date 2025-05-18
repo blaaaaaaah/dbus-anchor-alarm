@@ -93,7 +93,7 @@ class DBusConnector(AbstractConnector):
     def _init_dbus_service(self):
         self._dbus_service = self._create_dbus_service("com.victronenergy.anchoralarm", register=False)
 
-        self._dbus_service.add_mandatory_paths(__file__, '0.1', None, 0, 0, 'AnchorAlarm', 0, 0, 1)
+        self._dbus_service.add_mandatory_paths(sys.argv[0], self._get_version(), None, 0, 0, 'Anchor Alarm', 0, 0, 1)
 
         # publish data on the service for other people to consume (MTTQ, ..)
         self._dbus_service.add_path('/State', 'DISABLED', "State of the anchor alarm")
@@ -227,6 +227,16 @@ class DBusConnector(AbstractConnector):
             return False
 
 
+    def _get_version(self):
+        version_file_path = os.path.join(os.path.dirname(__file__), '..', 'VERSION')
+        try:
+            with open(version_file_path, 'r') as version_file:
+                version = version_file.read().strip()
+        except Exception:
+            # Handle unexpected errors
+            version = "unknown"
+
+        return version
 
 
 if __name__ == "__main__":
