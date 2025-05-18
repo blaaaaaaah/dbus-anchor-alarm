@@ -312,7 +312,7 @@ class TestAnchorAlarmModel(unittest.TestCase):
             #anchor_alarm.anchor_down(self.gps_position_anchor_down)
 
             anchor_alarm.chain_out(self.gps_position_21m)
-            self.assertState(anchor_alarm, None, anchor_alarm_state)  # TODO XXX : why does that trigger an event change ?
+            self.assertState(anchor_alarm, None, anchor_alarm_state)  
 
             anchor_alarm.on_timer_tick(self.gps_position_21m)
             self.assertState(anchor_alarm, None, anchor_alarm_state) 
@@ -321,7 +321,7 @@ class TestAnchorAlarmModel(unittest.TestCase):
             self.assertState(anchor_alarm, None, anchor_alarm_state) 
 
             anchor_alarm.anchor_up()
-            self.assertState(anchor_alarm, 'DISABLED', anchor_alarm_state)  # TODO XXX : why does that trigger an event change ?
+            self.assertState(anchor_alarm, None, anchor_alarm_state)  # TODO XXX : why does that trigger an event change ?
 
             #anchor_alarm.reset_state(self.gps_position_anchor_down, 21)
 
@@ -483,7 +483,7 @@ class TestAnchorAlarmModel(unittest.TestCase):
         self._out_of_sequence_calls(anchor_alarm)
 
         anchor_alarm.anchor_up()
-        self.assertState(anchor_alarm, 'DISABLED', AnchorAlarmState('DISABLED', ANY, "info", False, {"state": 'DISABLED', "radius_tolerance": self.tolerance, "drop_point": None, "radius": None, "no_gps_count": 0, "out_of_radius_count": 0, "alarm_muted_count": 0, "current_radius": None}))
+        self.assertState(anchor_alarm, None, AnchorAlarmState('DISABLED', ANY, "info", False, {"state": 'DISABLED', "radius_tolerance": self.tolerance, "drop_point": None, "radius": None, "no_gps_count": 0, "out_of_radius_count": 0, "alarm_muted_count": 0, "current_radius": None}))
         self._out_of_sequence_calls(anchor_alarm)
 
 
@@ -810,9 +810,6 @@ class TestAnchorAlarmModel(unittest.TestCase):
         anchor_alarm.on_timer_tick(self.gps_position_64m)
         self.assertState(anchor_alarm, 'ALARM_DRAGGING', AnchorAlarmState('ALARM_DRAGGING', ANY, "emergency", False, {"state": 'ALARM_DRAGGING', "radius_tolerance": self.tolerance, "drop_point": self.gps_position_anchor_down, "radius": 21, "no_gps_count": 0, "out_of_radius_count": self.next_out_of_radius_count(), "alarm_muted_count": 0, "current_radius": 64}))
         self._out_of_sequence_calls(anchor_alarm)
-
-
-
 
 
 

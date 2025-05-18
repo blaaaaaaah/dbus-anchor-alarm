@@ -74,7 +74,13 @@ class AnchorAlarmModel(object):
 
             { 'trigger': 'on_reset_state',      'source': 'DISABLED',               'dest': 'IN_RADIUS' },
 
-            { 'trigger': 'on_anchor_up',        'source': '*',                      'dest': 'DISABLED' },
+            { 'trigger': 'on_anchor_up',        'source': 'DROP_POINT_SET',         'dest': 'DISABLED' },
+            { 'trigger': 'on_anchor_up',        'source': 'IN_RADIUS',              'dest': 'DISABLED' },
+            { 'trigger': 'on_anchor_up',        'source': 'ALARM_DRAGGING',         'dest': 'DISABLED' },
+            { 'trigger': 'on_anchor_up',        'source': 'ALARM_DRAGGING_MUTED',   'dest': 'DISABLED' },
+            { 'trigger': 'on_anchor_up',        'source': 'ALARM_NO_GPS',           'dest': 'DISABLED' },
+            { 'trigger': 'on_anchor_up',        'source': 'ALARM_NO_GPS_MUTED',     'dest': 'DISABLED' },
+
             { 'trigger': 'on_error',            'source': '*',                      'dest': 'DISABLED' }
         ]
 
