@@ -3,7 +3,7 @@ from collections import namedtuple
 import logging
 import sys
 import os
-sys.path.insert(1, os.path.join('/opt/victronenergy/dbus-systemcalc-py', 'ext', 'velib_python'))
+sys.path.insert(1, os.path.join(os.path.dirname(__file__), 'ext/velib_python'))
 
 from gi.repository import GLib
 from dbusmonitor import DbusMonitor
