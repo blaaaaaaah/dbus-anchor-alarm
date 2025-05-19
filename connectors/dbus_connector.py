@@ -18,7 +18,7 @@ sys.path.insert(1, os.path.join(os.path.dirname(__file__), '../ext/velib_python'
 
 
 class DBusConnector(AbstractConnector):
-    def __init__(self, timer_provider, settings_provider):
+    def __init__(self, timer_provider, settings_provider, service_name="com.victronenergy.anchoralarm"):
         super().__init__(timer_provider, settings_provider)
 
         self._timer_ids = {
@@ -32,7 +32,7 @@ class DBusConnector(AbstractConnector):
         self._update_digital_input_names()
 
         self._init_dbus_monitor()
-        self._init_dbus_service()
+        self._init_dbus_service(service_name)
         
     def _init_settings(self):
         # create the setting that are needed
@@ -110,8 +110,8 @@ class DBusConnector(AbstractConnector):
 
 
 
-    def _init_dbus_service(self):
-        self._dbus_service = self._create_dbus_service("com.victronenergy.anchoralarm", register=False)
+    def _init_dbus_service(self, service_name):
+        self._dbus_service = self._create_dbus_service(service_name, register=False)
 
         self._dbus_service.add_mandatory_paths(sys.argv[0], self._get_version(), None, 0, 0, 'Anchor Alarm', 0, 0, 1)
 
@@ -282,7 +282,7 @@ if __name__ == "__main__":
     from ve_utils import exit_on_error
    
     bus = dbus.SessionBus() if 'DBUS_SESSION_BUS_ADDRESS' in os.environ else dbus.SystemBus()
-    dbus_connector = DBusConnector(lambda: GLib, lambda settings, cb: SettingsDevice(bus, settings, cb))
+    dbus_connector = DBusConnector(lambda: GLib, lambda settings, cb: SettingsDevice(bus, settings, cb), "com.victronenergy.anchoralarm-test")
 
     controller = MagicMock()
     controller.trigger_anchor_down  = MagicMock(side_effect=lambda: logger.info("Trigger anchor down"))
