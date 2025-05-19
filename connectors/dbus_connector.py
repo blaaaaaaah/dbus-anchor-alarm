@@ -231,6 +231,10 @@ class DBusConnector(AbstractConnector):
                 self._remove_timer('chain_out')
 
 
+    # WARNING : triggering '/Triggers/AnchorDown' etc by setting 1 in dbus-spy will only work the first time
+    # since dbus-spy doesn't interpret return False to reject the change correctly.
+    # Use dbus -y com.victronenergy.anchoralarm /Triggers/AnchorDown SetValue %1   instead
+
     def _on_service_changed(self, path, newvalue):
         if path == '/Triggers/AnchorDown':
             self.controller.trigger_anchor_down()
