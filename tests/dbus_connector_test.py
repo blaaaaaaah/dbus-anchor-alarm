@@ -1,5 +1,6 @@
 import sys
 import os
+import json
 
 sys.path.insert(1, os.path.join(sys.path[0], '..'))
 sys.path.insert(1, os.path.join(os.path.dirname(__file__), '../ext/velib_python/test'))
@@ -79,8 +80,18 @@ class TestDBusConnector(unittest.TestCase):
 			values={
 				'/ProductName': "qwe",
 				'/CustomName': "qwe",
-				'/Alarm': False,
                 '/DeviceInstance': 0
+			})
+        
+        monitor.add_service('com.victronenergy.settings',
+			values={
+                '/Settings/DigitalInput/1/AlarmSetting': 0,
+                '/Settings/DigitalInput/1/InvertAlarm': 0
+			})
+        
+        monitor.add_service('com.victronenergy.platform',
+			values={
+                '/Notifications/Alarm': 0
 			})
 
         service = connector.mock_service()
@@ -99,11 +110,13 @@ class TestDBusConnector(unittest.TestCase):
         self.assertEqual(service['/Message'], state.message)
         self.assertEqual(service['/Level'], state.level)
         self.assertEqual(service['/Muted'], state.muted)
-        self.assertEqual(service['/Params'], state.params)
+        self.assertEqual(service['/Params'], json.dumps(state.params))
 
         self.assertEqual(monitor.get_value('com.victronenergy.digitalinput.input01', '/CustomName'), state.message)
         self.assertEqual(monitor.get_value('com.victronenergy.digitalinput.input01', '/ProductName'), state.message)
-        self.assertEqual(monitor.get_value('com.victronenergy.digitalinput.input01', '/Alarm'), False)
+
+        self.assertEqual(monitor.get_value("com.victronenergy.settings", '/Settings/DigitalInput/1/AlarmSetting'), False)
+        self.assertEqual(monitor.get_value("com.victronenergy.settings", '/Settings/DigitalInput/1/InvertAlarm'), False)
 
 
         state2 = AnchorAlarmState('IN_RADIUS', 'boat in radius 2', 'info', False, {'drop_point': GPSPosition(110, 111), 'radius': 112})
@@ -113,13 +126,15 @@ class TestDBusConnector(unittest.TestCase):
         self.assertEqual(service['/Message'], state2.message)
         self.assertEqual(service['/Level'], state2.level)
         self.assertEqual(service['/Muted'], state2.muted)
-        self.assertEqual(service['/Params'], state2.params)
+        self.assertEqual(service['/Params'], json.dumps(state2.params))
 
 
         # make sure alarm feedback didnt change. TODO XXX maybe change that ?
-        self.assertEqual(monitor.get_value('com.victronenergy.digitalinput.input01', '/CustomName'), state.message)
-        self.assertEqual(monitor.get_value('com.victronenergy.digitalinput.input01', '/ProductName'), state.message)
-        self.assertEqual(monitor.get_value('com.victronenergy.digitalinput.input01', '/Alarm'), False)
+        self.assertEqual(monitor.get_value('com.victronenergy.digitalinput.input01', '/CustomName'), state2.message)
+        self.assertEqual(monitor.get_value('com.victronenergy.digitalinput.input01', '/ProductName'), state2.message)
+        
+        self.assertEqual(monitor.get_value("com.victronenergy.settings", '/Settings/DigitalInput/1/AlarmSetting'), False)
+        self.assertEqual(monitor.get_value("com.victronenergy.settings", '/Settings/DigitalInput/1/InvertAlarm'), False)
 
 
 
@@ -130,18 +145,30 @@ class TestDBusConnector(unittest.TestCase):
         self.assertEqual(service['/Message'], state3.message)
         self.assertEqual(service['/Level'], state3.level)
         self.assertEqual(service['/Muted'], state3.muted)
-        self.assertEqual(service['/Params'], state3.params)
+        self.assertEqual(service['/Params'], json.dumps(state3.params))
 
 
         self.assertEqual(monitor.get_value('com.victronenergy.digitalinput.input01', '/CustomName'), state3.message)
         self.assertEqual(monitor.get_value('com.victronenergy.digitalinput.input01', '/ProductName'), state3.message)
-        self.assertEqual(monitor.get_value('com.victronenergy.digitalinput.input01', '/Alarm'), True)
+        self.assertEqual(monitor.get_value("com.victronenergy.settings", '/Settings/DigitalInput/1/AlarmSetting'), True)
+        self.assertEqual(monitor.get_value("com.victronenergy.settings", '/Settings/DigitalInput/1/InvertAlarm'), True)
+        monitor.set_value('com.victronenergy.platform', '/Notifications/Alarm', 1)  # our code doesn't set that to 1 automatically, Cerbo does
 
-        monitor.set_value('com.victronenergy.digitalinput.input01', '/Alarm', 0)
-        self.assertEqual(monitor.get_value('com.victronenergy.digitalinput.input01', '/Alarm'), False)
-        
+        # test mute alarm from cerbo
+        monitor.set_value('com.victronenergy.platform', '/Notifications/Alarm', 0)
+      
         controller.trigger_mute_alarm.assert_called_once()
 
+        state4 = AnchorAlarmState('ALARM_DRAGGING_MUTED', 'boat outside radius', 'emergency', True, {'drop_point': GPSPosition(10, 11), 'radius': 12})
+        connector.on_state_changed(state4)
+
+        self.assertEqual(service['/State'], state4.state)
+        self.assertEqual(service['/Message'], state4.message)
+        self.assertEqual(service['/Level'], state4.level)
+        self.assertEqual(service['/Muted'], state4.muted)
+        self.assertEqual(service['/Params'], json.dumps(state4.params))
+        self.assertEqual(monitor.get_value("com.victronenergy.settings", '/Settings/DigitalInput/1/AlarmSetting'), False)
+        self.assertEqual(monitor.get_value("com.victronenergy.settings", '/Settings/DigitalInput/1/InvertAlarm'), False)  
 
     def test_reset_state(self):
         pass
@@ -164,7 +191,6 @@ class TestDBusConnector(unittest.TestCase):
 			values={
 				'/ProductName': "qwe",
 				'/CustomName': "qwe",
-				'/Alarm': False,
                 '/State': 1,
                 '/DeviceInstance': 0
 			})
@@ -173,10 +199,10 @@ class TestDBusConnector(unittest.TestCase):
 			values={
 				'/ProductName': "qwe",
 				'/CustomName': "qwe",
-				'/Alarm': False,
                 '/State': 1,
                 '/DeviceInstance': 1
 			})
+        
 
         service = connector.mock_service()
         
@@ -318,7 +344,7 @@ class TestDBusConnector(unittest.TestCase):
         self.assertEqual(service['/Message'], state3.message)
         self.assertEqual(service['/Level'], state3.level)
         self.assertEqual(service['/Muted'], state3.muted)
-        self.assertEqual(service['/Params'], state3.params)
+        self.assertEqual(service['/Params'], json.dumps(state3.params))
 
 
         state4 = AnchorAlarmState('ALARM_DRAGGING_MUTED', 'boat outside radius', 'emergency', True, {'drop_point': GPSPosition(10, 11), 'radius': 12})
@@ -328,7 +354,7 @@ class TestDBusConnector(unittest.TestCase):
         self.assertEqual(service['/Message'], state4.message)
         self.assertEqual(service['/Level'], state4.level)
         self.assertEqual(service['/Muted'], state4.muted)
-        self.assertEqual(service['/Params'], state4.params)
+        self.assertEqual(service['/Params'], json.dumps(state4.params))
 
 
 
@@ -355,7 +381,6 @@ class TestDBusConnector(unittest.TestCase):
 			values={
 				'/ProductName': "qwe",
 				'/CustomName': "qwe",
-				'/Alarm': False,
                 '/State': 1,
                 '/DeviceInstance': 0
 			})
