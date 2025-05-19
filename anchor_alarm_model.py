@@ -165,6 +165,8 @@ class AnchorAlarmModel(object):
         if self.state in ['ALARM_DRAGGING_MUTED', 'ALARM_NO_GPS_MUTED'] and self._alarm_muted_count < self._mute_duration:
             self._alarm_muted_count += 1
             should_transition = False
+        elif self.state in ['ALARM_DRAGGING', 'ALARM_NO_GPS']:
+            should_transition = False
         else:
             self._alarm_muted_count = 0
             should_transition = True
