@@ -103,7 +103,7 @@ class TestDBusConnector(unittest.TestCase):
 
 
         # AnchorAlarmState = namedtuple('AnchorAlarmState', ['state', 'message', 'level', 'muted', 'params'])
-        state = AnchorAlarmState('IN_RADIUS', 'boat in radius', 'info', False, {'drop_point': GPSPosition(10, 11), 'radius': 12})
+        state = AnchorAlarmState('IN_RADIUS', 'boat in radius', "short message", 'info', False, {'drop_point': GPSPosition(10, 11), 'radius': 12})
         connector.on_state_changed(state)
 
         self.assertEqual(service['/State'], state.state)
@@ -119,7 +119,7 @@ class TestDBusConnector(unittest.TestCase):
         self.assertEqual(monitor.get_value("com.victronenergy.settings", '/Settings/DigitalInput/1/InvertAlarm'), False)
 
 
-        state2 = AnchorAlarmState('IN_RADIUS', 'boat in radius 2', 'info', False, {'drop_point': GPSPosition(110, 111), 'radius': 112})
+        state2 = AnchorAlarmState('IN_RADIUS', 'boat in radius 2',"short message", 'info', False, {'drop_point': GPSPosition(110, 111), 'radius': 112})
         connector.update_state(state2)
 
         self.assertEqual(service['/State'], state2.state)
@@ -138,7 +138,7 @@ class TestDBusConnector(unittest.TestCase):
 
 
 
-        state3 = AnchorAlarmState('ALARM_DRAGGING', 'boat outside radius', 'emergency', False, {'drop_point': GPSPosition(10, 11), 'radius': 12})
+        state3 = AnchorAlarmState('ALARM_DRAGGING', 'boat outside radius', "short message",'emergency', False, {'drop_point': GPSPosition(10, 11), 'radius': 12})
         connector.on_state_changed(state3)
 
         self.assertEqual(service['/State'], state3.state)
@@ -159,7 +159,7 @@ class TestDBusConnector(unittest.TestCase):
       
         controller.trigger_mute_alarm.assert_called_once()
 
-        state4 = AnchorAlarmState('ALARM_DRAGGING_MUTED', 'boat outside radius', 'emergency', True, {'drop_point': GPSPosition(10, 11), 'radius': 12})
+        state4 = AnchorAlarmState('ALARM_DRAGGING_MUTED', 'boat outside radius', "short message",'emergency', True, {'drop_point': GPSPosition(10, 11), 'radius': 12})
         connector.on_state_changed(state4)
 
         self.assertEqual(service['/State'], state4.state)
@@ -337,7 +337,7 @@ class TestDBusConnector(unittest.TestCase):
         
 
         # TODO XXX : check mute Alarm
-        state3 = AnchorAlarmState('ALARM_DRAGGING', 'boat outside radius', 'emergency', False, {'drop_point': GPSPosition(10, 11), 'radius': 12})
+        state3 = AnchorAlarmState('ALARM_DRAGGING', 'boat outside radius', "short message",'emergency', False, {'drop_point': GPSPosition(10, 11), 'radius': 12})
         connector.on_state_changed(state3)
 
         self.assertEqual(service['/State'], state3.state)
@@ -347,7 +347,7 @@ class TestDBusConnector(unittest.TestCase):
         self.assertEqual(service['/Params'], json.dumps(state3.params))
 
 
-        state4 = AnchorAlarmState('ALARM_DRAGGING_MUTED', 'boat outside radius', 'emergency', True, {'drop_point': GPSPosition(10, 11), 'radius': 12})
+        state4 = AnchorAlarmState('ALARM_DRAGGING_MUTED', 'boat outside radius', "short message",'emergency', True, {'drop_point': GPSPosition(10, 11), 'radius': 12})
         connector.on_state_changed(state4)
 
         self.assertEqual(service['/State'], state4.state)

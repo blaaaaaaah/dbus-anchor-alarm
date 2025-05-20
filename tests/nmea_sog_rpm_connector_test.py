@@ -63,7 +63,7 @@ class TestNMEASOGRPMConnector(unittest.TestCase):
         controller.trigger_chain_out   = MagicMock()
         connector.set_controller(controller)
 
-        state_drop_point_set = AnchorAlarmState('DROP_POINT_SET', 'Drop point set, please do blablala', 'info', False, {'drop_point': GPSPosition(10, 11)})
+        state_drop_point_set = AnchorAlarmState('DROP_POINT_SET', 'Drop point set, please do blablala',"short message", 'info', False, {'drop_point': GPSPosition(10, 11)})
         connector.on_state_changed(state_drop_point_set)
 
         sog_0_07 = {'canId': 167248387, 'prio': 2, 'src': 3, 'dst': 255, 'pgn': 129026, 'timestamp': '2025-05-16T13:51:59.279Z', 
@@ -260,7 +260,7 @@ class TestNMEASOGRPMConnector(unittest.TestCase):
         controller.trigger_chain_out   = MagicMock()
         connector.set_controller(controller)
 
-        state_drop_point_set = AnchorAlarmState('DROP_POINT_SET', 'Drop point set, please do blablala', 'info', False, {'drop_point': GPSPosition(10, 11)})
+        state_drop_point_set = AnchorAlarmState('DROP_POINT_SET', 'Drop point set, please do blablala',"short message", 'info', False, {'drop_point': GPSPosition(10, 11)})
         connector.on_state_changed(state_drop_point_set)
 
 
@@ -487,8 +487,8 @@ class TestNMEASOGRPMConnector(unittest.TestCase):
 
         controller.trigger_chain_out.assert_not_called()
 
-        state_disabled = AnchorAlarmState('DISABLED', 'Anchor alarm disabled', 'info', False, {})
-        state_drop_point_set = AnchorAlarmState('DROP_POINT_SET', 'Drop point set, please do blablala', 'info', False, {'drop_point': GPSPosition(10, 11)})
+        state_disabled = AnchorAlarmState('DISABLED', 'Anchor alarm disabled',"short message", 'info', False, {})
+        state_drop_point_set = AnchorAlarmState('DROP_POINT_SET', 'Drop point set, please do blablala',"short message", 'info', False, {'drop_point': GPSPosition(10, 11)})
 
         connector.on_state_changed(state_drop_point_set)
         rpm_handler(port_speed_1800)

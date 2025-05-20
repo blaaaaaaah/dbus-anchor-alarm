@@ -80,21 +80,21 @@ class TestAnchorAlarmController(unittest.TestCase):
         self.assertEqual(controller._settings['Radius'],    0)
         self.assertEqual(controller._settings['Active'],    0)
 
-        state_drop_point_set = AnchorAlarmState('DROP_POINT_SET', 'Drop point set, please do blablala', 'info', False, {'drop_point': GPSPosition(10, 11)})
+        state_drop_point_set = AnchorAlarmState('DROP_POINT_SET', 'Drop point set, please do blablala', "short message", 'info', False, {'drop_point': GPSPosition(10, 11)})
         controller._on_state_changed(state_drop_point_set)
         self.assertEqual(controller._settings['Latitude'],  0)
         self.assertEqual(controller._settings['Longitude'], 0)
         self.assertEqual(controller._settings['Radius'],    0)
         self.assertEqual(controller._settings['Active'],    0)
 
-        state_in_radius = AnchorAlarmState('IN_RADIUS', 'boat in radius', 'info', False, {'drop_point': GPSPosition(10, 11), 'radius': 12})
+        state_in_radius = AnchorAlarmState('IN_RADIUS', 'boat in radius', "short message", 'info', False, {'drop_point': GPSPosition(10, 11), 'radius': 12})
         controller._on_state_changed(state_in_radius)
         self.assertEqual(controller._settings['Latitude'],  state_in_radius.params['drop_point'].latitude)
         self.assertEqual(controller._settings['Longitude'], state_in_radius.params['drop_point'].longitude)
         self.assertEqual(controller._settings['Radius'],    state_in_radius.params['radius'])
         self.assertEqual(controller._settings['Active'],    1)
 
-        state_dragging = AnchorAlarmState('ALARM_DRAGGING', 'Anchor dragging !', 'emergency', False, {'drop_point': GPSPosition(23, 23), 'radius': 23})
+        state_dragging = AnchorAlarmState('ALARM_DRAGGING', 'Anchor dragging !', "short message", 'emergency', False, {'drop_point': GPSPosition(23, 23), 'radius': 23})
         # should keep in_radius values
         controller._on_state_changed(state_dragging)
         self.assertEqual(controller._settings['Latitude'],  state_in_radius.params['drop_point'].latitude)
@@ -103,7 +103,7 @@ class TestAnchorAlarmController(unittest.TestCase):
         self.assertEqual(controller._settings['Active'],    1)
 
         # TODO XXX : test that if we call set_radius after dragging the radius is updated
-        state_disabled = AnchorAlarmState('DISABLED', 'Anchor alarm disabled', 'info', False, {})
+        state_disabled = AnchorAlarmState('DISABLED', 'Anchor alarm disabled', "short message", 'info', False, {})
         controller._on_state_changed(state_disabled)
         self.assertEqual(controller._settings['Latitude'],  state_in_radius.params['drop_point'].latitude)
         self.assertEqual(controller._settings['Longitude'], state_in_radius.params['drop_point'].longitude)
@@ -133,7 +133,7 @@ class TestAnchorAlarmController(unittest.TestCase):
         connector.on_state_changed =  MagicMock(return_value=None)
         connector.update_state =  MagicMock(return_value=None)
 
-        mock_state_disabled = AnchorAlarmState('DISABLED', ANY, ANY, ANY, ANY)
+        mock_state_disabled = AnchorAlarmState('DISABLED', ANY, ANY, ANY, ANY, ANY)
 
         controller.register_connector(connector)
         connector.on_state_changed.assert_called_with(mock_state_disabled)
@@ -161,7 +161,7 @@ class TestAnchorAlarmController(unittest.TestCase):
         connector.on_state_changed =  MagicMock(return_value=None)
         connector.update_state =  MagicMock(return_value=None)
 
-        mock_state_in_radius = AnchorAlarmState('IN_RADIUS', ANY, ANY, ANY, ANY)
+        mock_state_in_radius = AnchorAlarmState('IN_RADIUS', ANY, ANY, ANY, ANY, ANY)
 
         controller.register_connector(connector)
         connector.on_state_changed.assert_called_with(mock_state_in_radius)
@@ -177,9 +177,9 @@ class TestAnchorAlarmController(unittest.TestCase):
 
 
     def test_connector_mock(self):
-        mock_state_disabled = AnchorAlarmState('DISABLED', ANY, ANY, ANY, ANY)
-        mock_state_drop_point_set = AnchorAlarmState('DROP_POINT_SET', ANY, ANY, ANY, ANY)
-        mock_state_in_radius = AnchorAlarmState('IN_RADIUS', ANY, ANY, ANY, ANY)
+        mock_state_disabled = AnchorAlarmState('DISABLED', ANY, ANY, ANY, ANY, ANY)
+        mock_state_drop_point_set = AnchorAlarmState('DROP_POINT_SET', ANY, ANY, ANY, ANY, ANY)
+        mock_state_in_radius = AnchorAlarmState('IN_RADIUS', ANY, ANY, ANY, ANY, ANY)
 
         gps_provider = MagicMock()
         gps_provider.get_gps_position = MagicMock(return_value=None)

@@ -70,10 +70,10 @@ class TestNMEAAlertConnector(unittest.TestCase):
         connector.set_controller(controller)
 
         # AnchorAlarmState = namedtuple('AnchorAlarmState', ['state', 'message', 'level', 'muted', 'params'])
-        state_disabled = AnchorAlarmState('DISABLED', 'Anchor alarm disabled', 'info', False, {})
+        state_disabled = AnchorAlarmState('DISABLED', 'Anchor alarm disabled',"short message", 'info', False, {})
         led_0 = self._get_pgn_for_command("YD:LED 0")
 
-        state_drop_point_set = AnchorAlarmState('DROP_POINT_SET', 'Drop point set, please do blablala', 'info', False, {'drop_point': GPSPosition(10, 11)})
+        state_drop_point_set = AnchorAlarmState('DROP_POINT_SET', 'Drop point set, please do blablala', "short message",'info', False, {'drop_point': GPSPosition(10, 11)})
         ds_10 = {
             "pgn":127502,
             "fields": {
@@ -85,7 +85,7 @@ class TestNMEAAlertConnector(unittest.TestCase):
             "description":"Switch Bank Control"
         }
 
-        state_in_radius = AnchorAlarmState('IN_RADIUS', 'boat in radius', 'info', False, {'drop_point': GPSPosition(10, 11), 'radius': 12})
+        state_in_radius = AnchorAlarmState('IN_RADIUS', 'boat in radius',"short message", 'info', False, {'drop_point': GPSPosition(10, 11), 'radius': 12})
         led_21 = self._get_pgn_for_command("YD:LED 21")
         ds_all_off = {
             "pgn":127502,
@@ -98,8 +98,8 @@ class TestNMEAAlertConnector(unittest.TestCase):
             "description":"Switch Bank Control"
         }
 
-        state_dragging = AnchorAlarmState('ALARM_DRAGGING', 'Anchor dragging !', 'emergency', False, {'drop_point': GPSPosition(10, 11), 'radius': 12})
-        state_no_gps = AnchorAlarmState('ALARM_NO_GPS', 'No GPS', 'emergency', False, {'drop_point': GPSPosition(10, 11), 'radius': 12})
+        state_dragging = AnchorAlarmState('ALARM_DRAGGING', 'Anchor dragging !',"short message", 'emergency', False, {'drop_point': GPSPosition(10, 11), 'radius': 12})
+        state_no_gps = AnchorAlarmState('ALARM_NO_GPS', 'No GPS',"short message", 'emergency', False, {'drop_point': GPSPosition(10, 11), 'radius': 12})
         ds_11 = {
             "pgn":127502,
             "fields": {
@@ -111,8 +111,8 @@ class TestNMEAAlertConnector(unittest.TestCase):
             "description":"Switch Bank Control"
         }
 
-        state_dragging_muted = AnchorAlarmState('ALARM_DRAGGING_MUTED', 'Anchor dragging ! (muted)', 'emergency', True, {'drop_point': GPSPosition(10, 11), 'radius': 12})
-        state_no_gps_muted = AnchorAlarmState('ALARM_NO_GPS_MUTED', 'No GPS (muted)', 'emergency', True, {'drop_point': GPSPosition(10, 11), 'radius': 12})
+        state_dragging_muted = AnchorAlarmState('ALARM_DRAGGING_MUTED', 'Anchor dragging ! (muted)',"short message", 'emergency', True, {'drop_point': GPSPosition(10, 11), 'radius': 12})
+        state_no_gps_muted = AnchorAlarmState('ALARM_NO_GPS_MUTED', 'No GPS (muted)', 'emergency',"short message", True, {'drop_point': GPSPosition(10, 11), 'radius': 12})
         ds_12 = {
             "pgn":127502,
             "fields": {

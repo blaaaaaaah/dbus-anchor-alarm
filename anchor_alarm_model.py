@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 AnchorAlarmConfiguration = namedtuple('AnchorAlarmConfiguration', ['tolerance', 'no_gps_count_threshold', 'mute_duration'], defaults=[15, 30, 30])
 # level = info | warning | error | emergency
-AnchorAlarmState = namedtuple('AnchorAlarmState', ['state', 'message', 'level', 'muted', 'params'])
+AnchorAlarmState = namedtuple('AnchorAlarmState', ['state', 'message', 'short_message', 'level', 'muted', 'params'])
 
 
 
@@ -266,28 +266,35 @@ class AnchorAlarmModel(object):
 
         level = ""
         message = ""
+        short_message = ""
         muted = False
 
         if self.state == "DISABLED":
             level = "info"
-            message =  "Anchor alarm DISABLED, anchor raised."
+            message =  "Anchor alarm DISABLED, anchor is raised."
+            short_message = "⚓ Disabled"
+
             
         elif self.state == "DROP_POINT_SET":
             level = "info"
-            message = "Drop point set, let chain out and secure bridle. 2000RPM and SOG of 0 will arm anchor alarm."
+            message = "Anchor position saved, let chain out and secure bridle. 2000RPM and SOG of 0 will arm anchor alarm."
+            short_message = "⚓ Anchor position saved"
 
 
         elif self.state ==  "IN_RADIUS":
             level = "info"
             if self._current_radius is None:
-                message = 'Anchor alarm ENABLED, temporarely no GPS position for {no_gps_count:.0f} seconds'.format(no_gps_count=self._no_gps_count)
+                message = 'Anchor alarm watching, temporarely no GPS position for {no_gps_count:.0f} seconds'.format(no_gps_count=self._no_gps_count)
+                short_message = "⚓ Watching     No GPS for {no_gps_count:.0f}s".format(no_gps_count=self._no_gps_count)
             else:
-                message = 'Anchor alarm ENABLED, currently {current_radius:.0f}m of {radius:.0f}m with {tolerance:.0f}m tolerance.'.format(current_radius=self._current_radius, radius=self._radius, tolerance=self._radius_tolerance)
+                message = 'Anchor alarm watching, currently {current_radius:.0f}m of {radius:.0f}m with {tolerance:.0f}m tolerance.'.format(current_radius=self._current_radius, radius=self._radius, tolerance=self._radius_tolerance)
+                short_message = '⚓ Watching {current_radius:.0f}/{radius:.0f}m (±{tolerance:.0f}m)'.format(current_radius=self._current_radius, radius=self._radius, tolerance=self._radius_tolerance)
 
 
         elif self.state ==  "ALARM_NO_GPS" or self.state == "ALARM_NO_GPS_MUTED":
             level = "emergency"
             message = 'No GPS position for {no_gps_count:.0f} seconds'.format(no_gps_count=self._no_gps_count)
+            short_message = '⚓ No GPS position for {no_gps_count:.0f} seconds'.format(no_gps_count=self._no_gps_count)
             muted = self.state == "ALARM_NO_GPS_MUTED"
 
             
@@ -295,19 +302,22 @@ class AnchorAlarmModel(object):
             level = "emergency"
             if self._current_radius is None:    # we temporarely have no GPS
                     message = 'Anchor dragging for {out_of_radius_count} seconds, temporarely having no GPS.'.format(out_of_radius_count=self._out_of_radius_count)
+                    short_message = '⚓ Dragging for {out_of_radius_count}s, no GPS.'.format(out_of_radius_count=self._out_of_radius_count)
             else:
                 out_of_radius_distance = self._current_radius - self._radius
                 if out_of_radius_distance > 0:
                     message = 'Anchor dragging for {out_of_radius_count} seconds, {out_of_radius_distance:.0f}m out of {radius:.0f}m radius.'.format(out_of_radius_count=self._out_of_radius_count, out_of_radius_distance=out_of_radius_distance, radius=self._radius)
+                    short_message = '⚓ Dragging for {out_of_radius_count}s {out_of_radius_distance:.0f}m out of radius.'.format(out_of_radius_count=self._out_of_radius_count, out_of_radius_distance=out_of_radius_distance)
                 else:
                     message = 'Anchor dragging for {out_of_radius_count} seconds, temporarely back in safe radius : {current_radius:.0f}m of {radius:.0f}m with {tolerance:.0f}m tolerance.'.format(out_of_radius_count=self._out_of_radius_count, current_radius=self._current_radius, radius=self._radius, tolerance=self._radius_tolerance)
+                    short_message = '⚓ Dragging for {out_of_radius_count}s ({current_radius:.0f}/{radius:.0f}m ±{tolerance:.0f}).'.format(out_of_radius_count=self._out_of_radius_count, current_radius=self._current_radius, radius=self._radius, tolerance=self._radius_tolerance)
 
             muted = self.state == "ALARM_DRAGGING_MUTED"
 
         else:
             raise RuntimeError("Unknown state "+ self.state)
 
-        current_state = AnchorAlarmState(self.state, message, level, muted, params)
+        current_state = AnchorAlarmState(self.state, message, short_message, level, muted, params)
 
         return current_state
 
