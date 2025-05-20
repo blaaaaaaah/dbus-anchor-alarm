@@ -86,13 +86,15 @@ class TestDBusConnector(unittest.TestCase):
         monitor.add_service('com.victronenergy.settings',
 			values={
                 '/Settings/DigitalInput/1/AlarmSetting': 0,
-                '/Settings/DigitalInput/1/InvertAlarm': 0
+                '/Settings/DigitalInput/1/InvertAlarm': 0,
+                '/Settings/SystemSetup/SystemName': 'system name'
 			})
         
         monitor.add_service('com.victronenergy.platform',
 			values={
                 '/Notifications/Alarm': 0
 			})
+
 
         service = connector.mock_service()
         self.assertEqual(service['/State'], 'DISABLED')
@@ -103,7 +105,7 @@ class TestDBusConnector(unittest.TestCase):
 
 
         # AnchorAlarmState = namedtuple('AnchorAlarmState', ['state', 'message', 'level', 'muted', 'params'])
-        state = AnchorAlarmState('IN_RADIUS', 'boat in radius', "short message", 'info', False, {'drop_point': GPSPosition(10, 11), 'radius': 12})
+        state = AnchorAlarmState('IN_RADIUS', 'boat in radius', "short in radius message", 'info', False, {'drop_point': GPSPosition(10, 11), 'radius': 12})
         connector.on_state_changed(state)
 
         self.assertEqual(service['/State'], state.state)
@@ -118,8 +120,11 @@ class TestDBusConnector(unittest.TestCase):
         self.assertEqual(monitor.get_value("com.victronenergy.settings", '/Settings/DigitalInput/1/AlarmSetting'), False)
         self.assertEqual(monitor.get_value("com.victronenergy.settings", '/Settings/DigitalInput/1/InvertAlarm'), False)
 
+        self.assertEqual(monitor.get_value("com.victronenergy.settings", '/Settings/SystemSetup/SystemName'), 'system name')
 
-        state2 = AnchorAlarmState('IN_RADIUS', 'boat in radius 2',"short message", 'info', False, {'drop_point': GPSPosition(110, 111), 'radius': 112})
+        connector._settings['FeedbackUseSystemName'] = 1
+
+        state2 = AnchorAlarmState('IN_RADIUS', 'boat in radius 2',"in radius short message", 'info', False, {'drop_point': GPSPosition(110, 111), 'radius': 112})
         connector.update_state(state2)
 
         self.assertEqual(service['/State'], state2.state)
@@ -136,6 +141,7 @@ class TestDBusConnector(unittest.TestCase):
         self.assertEqual(monitor.get_value("com.victronenergy.settings", '/Settings/DigitalInput/1/AlarmSetting'), False)
         self.assertEqual(monitor.get_value("com.victronenergy.settings", '/Settings/DigitalInput/1/InvertAlarm'), False)
 
+        self.assertEqual(monitor.get_value("com.victronenergy.settings", '/Settings/SystemSetup/SystemName'), state2.short_message)
 
 
         state3 = AnchorAlarmState('ALARM_DRAGGING', 'boat outside radius', "short message",'emergency', False, {'drop_point': GPSPosition(10, 11), 'radius': 12})

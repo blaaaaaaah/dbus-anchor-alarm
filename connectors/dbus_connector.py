@@ -69,6 +69,11 @@ class DBusConnector(AbstractConnector):
             # Cerbo's Alarm/Notifications system is very hard coded, so abusing the Digital input system is a 
             # good compromise.
             "FeedbackDigitaInputNumber"  :      ["/Settings/AnchorAlarm/DigitalInputs/Feedback/DigitalInputNumber", 1, 0, 4],
+
+            # Use or not the custom System Name of the system to show messages on the main top middle tile
+            # Will override any custom name and will not save the previous one so write it down if needed
+            "FeedbackUseSystemName":            ["/Settings/AnchorAlarm/FeedbackUseSystemName", 0, 0, 1],
+
         }
 
         self._settings = self._settings_provider(settingsList, self._on_setting_changed)
@@ -95,6 +100,8 @@ class DBusConnector(AbstractConnector):
                 '/Settings/DigitalInput/2/InvertAlarm': dummy,
                 '/Settings/DigitalInput/3/InvertAlarm': dummy,
                 '/Settings/DigitalInput/4/InvertAlarm': dummy,
+
+                '/Settings/SystemSetup/SystemName':      dummy
             },
             'com.victronenergy.platform': {
                 '/Notifications/Alarm': dummy
@@ -164,8 +171,12 @@ class DBusConnector(AbstractConnector):
         self._dbus_service['/Muted']    = 1 if current_state.muted else 0
         self._dbus_service['/Params']   = json.dumps(current_state.params)
 
-        self._alarm_monitor.set_value(self._feedback_digital_input, '/CustomName', current_state.message)
-        self._alarm_monitor.set_value(self._feedback_digital_input, '/ProductName', current_state.message)
+        if self._settings['FeedbackDigitaInputNumber'] != 0:
+            self._alarm_monitor.set_value(self._feedback_digital_input, '/CustomName', current_state.message)
+            self._alarm_monitor.set_value(self._feedback_digital_input, '/ProductName', current_state.message)
+
+        if self._settings['FeedbackUseSystemName'] != 0:
+            self._alarm_monitor.set_value('com.victronenergy.settings', '/Settings/SystemSetup/SystemName', current_state.short_message)
 
 
     def _on_setting_changed(self, path, old_value, new_value):
@@ -297,9 +308,9 @@ if __name__ == "__main__":
 
     # code to test notifications to Cerbo
     """
-    state_disabled = AnchorAlarmState('DISABLED', 'Anchor alarm disabled', 'info', False, {})
+    state_disabled = AnchorAlarmState('DISABLED', 'Anchor alarm disabled',"short message", 'info', False, {})
     dbus_connector.on_state_changed(state_disabled)
-    state_dragging = AnchorAlarmState('ALARM_DRAGGING', 'Anchor dragging !', 'emergency', False, {'drop_point': GPSPosition(10, 11), 'radius': 12})
+    state_dragging = AnchorAlarmState('ALARM_DRAGGING', 'Anchor dragging !',"short message", 'emergency', False, {'drop_point': GPSPosition(10, 11), 'radius': 12})
     dbus_connector.on_state_changed(state_dragging)
     """
 
