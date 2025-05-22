@@ -36,10 +36,10 @@ class AbstractConnector:
         pass
 
 
-    def _add_timer(self, timer_name, cb, duration):
+    def _add_timer(self, timer_name, cb, duration, once=True):
         self._remove_timer(timer_name)
 #        print("Adding timer "+timer_name + " with duration "+ str(duration))
-        self._timer_ids[timer_name] = self._timer_provider().timeout_add(duration, exit_on_error, self._trigger_and_remove_timer, timer_name, cb)
+        self._timer_ids[timer_name] = self._timer_provider().timeout_add(duration, exit_on_error, self._trigger_and_remove_timer, timer_name, cb, once)
 
 
     def _remove_timer(self, timer_name):
@@ -48,8 +48,11 @@ class AbstractConnector:
             self._timer_provider().source_remove(self._timer_ids[timer_name])
             self._timer_ids[timer_name] = None
 
-    def _trigger_and_remove_timer(self, timer_name, cb):
-        self._timer_ids[timer_name] = None
-#        print("Triggering timer "+timer_name)
-        cb()
-        return False
+    def _trigger_and_remove_timer(self, timer_name, cb, once):
+        should_keep_trigger = cb()
+
+        if once or not should_keep_trigger:
+            self._timer_ids[timer_name] = None
+            return False
+        
+        return should_keep_trigger
