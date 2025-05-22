@@ -45,13 +45,13 @@ class NMEAYDABConnector(AbstractConnector):
             "DSBank":               ["/Settings/AnchorAlarm/NMEA/YDAB/DSBank", 222, 0, 252],
 
             # Digital Switching Channel to use to get feedback from the button to set the radius. Only change it if conflicts with existing configuration
-            "DSDropPointSetChannel":["/Settings/AnchorAlarm/NMEA/YDAB/DSDropPointSetChannel", 10, 0, 16],
+            "DSDropPointSetChannel":["/Settings/AnchorAlarm/NMEA/YDAB/DSDropPointSetChannel", 10, 0, 28],
 
             # Digital Switching Channel to use to get feedback from the button when the alarm is activated. Only change it if conflicts with existing configuration
-            "DSAlarmChannel":       ["/Settings/AnchorAlarm/NMEA/YDAB/DSAlarmChannel", 11, 0, 16],
+            "DSAlarmChannel":       ["/Settings/AnchorAlarm/NMEA/YDAB/DSAlarmChannel", 11, 0, 28],
 
             # Digital Switching Channel to use to get feedback from the button when the alarm is muted. Only change it if conflicts with existing configuration
-            "DSAlarmMutedChannel":  ["/Settings/AnchorAlarm/NMEA/YDAB/DSAlarmMutedChannel", 12, 0, 16],
+            "DSAlarmMutedChannel":  ["/Settings/AnchorAlarm/NMEA/YDAB/DSAlarmMutedChannel", 12, 0, 28],
 
             # Set to 1 to initiate the configuration of the YDAB-01. NMEAddress must be set. 
             # Will go back to 0 when done (success AND error). Will play a chime sound upon success. 
@@ -201,6 +201,9 @@ class NMEAYDABConnector(AbstractConnector):
             "YD:RESET",
             "YD:MODE DS",           # Set mode to DigitalSwitching
             "YD:BANK "+ str(self._settings['DSBank']),
+            
+            "YD:PGN 127501 0",  # Disabling 127501 DigitialSwitching Status
+                                # so YDAB default digital switches are not advertised
 
             # Disable button press channel activation
             "YD:CHANNEL 0",

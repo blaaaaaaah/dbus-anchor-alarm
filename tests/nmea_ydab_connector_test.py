@@ -284,6 +284,7 @@ class TestNMEAAlertConnector(unittest.TestCase):
             "YD:RESET",
             "YD:MODE DS",
             "YD:BANK 222",
+            "YD:PGN 127501 0",
             "YD:CHANNEL 0",
             "YD:VOLUME 100",
             "YD:LINK 10 SOUND 0",
