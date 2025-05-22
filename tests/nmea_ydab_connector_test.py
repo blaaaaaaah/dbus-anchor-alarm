@@ -32,7 +32,7 @@ GPSPosition = namedtuple('GPSPosition', ['latitude', 'longitude'])
 
 
 
-class TestNMEAAlertConnector(unittest.TestCase):
+class TestNMEAYDABConnector(unittest.TestCase):
 
     def setUp(self):
         self.maxDiff = None
