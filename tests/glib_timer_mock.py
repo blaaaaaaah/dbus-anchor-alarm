@@ -30,6 +30,8 @@ class GLibTimerMock():
             if c['delay']   <= c['count']*1000:
                 ret = c['cb']()
                 c['cancelled'] = not ret
+                if ret:
+                    c['count'] = 0  # reset counter
 
 
     def source_remove(self, id):
