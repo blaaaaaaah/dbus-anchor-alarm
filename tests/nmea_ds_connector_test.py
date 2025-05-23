@@ -2,6 +2,7 @@ import sys
 import os
 from unittest import mock
 
+
 sys.path.insert(1, os.path.join(sys.path[0], '..'))
 sys.path.insert(1, os.path.join(os.path.dirname(__file__), '../ext/velib_python/test'))
 
@@ -19,15 +20,13 @@ from glib_timer_mock import GLibTimerMock
 
 sys.path.insert(1, os.path.join(sys.path[0], '../connectors'))
 
-from nmea_ds_connector import NMEADSConnector
-          
-timer_provider = GLibTimerMock()
-
-
 # TODO XXX : move that import somewhere
 from collections import namedtuple
 GPSPosition = namedtuple('GPSPosition', ['latitude', 'longitude'])
 
+from nmea_ds_connector import NMEADSConnector
+          
+timer_provider = GLibTimerMock()
 
 
 
@@ -36,9 +35,96 @@ class TestNMEADSConnector(unittest.TestCase):
 
     def setUp(self):
         self.maxDiff = None
-        self._ADDRESS = 67
 
-    
+
+    def test_no_interval(self):
+        mock_bridge = MagicMock()
+        
+        handler = None
+        def _set_handler(pgn, the_handler):
+            nonlocal handler
+            handler = the_handler
+
+        mock_bridge.add_pgn_handler = MagicMock(side_effect=_set_handler)              
+        mock_bridge.send_nmea = MagicMock()
+
+
+        connector = NMEADSConnector(lambda: timer_provider, MockSettingsDevice,  mock_bridge)
+        connector._settings['AdvertiseInterval'] = 0
+
+        controller = MagicMock()
+        controller.trigger_anchor_down     = MagicMock()
+        controller.trigger_chain_out       = MagicMock()
+        controller.trigger_anchor_up       = MagicMock()
+        controller.trigger_mute_alarm      = MagicMock()
+
+        connector.set_controller(controller)
+
+        mock_bridge.send_nmea.assert_not_called()
+        timer_provider.tick()
+        mock_bridge.send_nmea.assert_not_called()
+
+        state_drop_point_set = AnchorAlarmState('DROP_POINT_SET', 'Drop point set, please do blablala',"short message", 'info', False, {'drop_point': GPSPosition(10, 11)})
+        connector.on_state_changed(state_drop_point_set)
+        mock_bridge.send_nmea.assert_not_called()
+        timer_provider.tick()
+        mock_bridge.send_nmea.assert_not_called() 
+        
+
+
+    def test_no_channels(self):
+        mock_bridge = MagicMock()
+        
+        handler = None
+        def _set_handler(pgn, the_handler):
+            nonlocal handler
+            handler = the_handler
+
+        mock_bridge.add_pgn_handler = MagicMock(side_effect=_set_handler)              
+        mock_bridge.send_nmea = MagicMock()
+
+
+        connector = NMEADSConnector(lambda: timer_provider, MockSettingsDevice,  mock_bridge)
+        connector._settings['AdvertiseInterval'] = 2
+        connector._settings['AnchorDownChannel'] = 0
+        connector._settings['ChainOutChannel'] = 0
+        connector._settings['AnchorUpChannel'] = 0
+        connector._settings['MuteAlarmChannel'] = 0
+        connector._settings['DisabledFeedbackChannel'] = 0
+        connector._settings['DropPointSetFeedbackChannel'] = 0
+        connector._settings['InRadiusFeedbackChannel'] = 0
+        connector._settings['AlarmDraggingFeedbackChannel'] = 0
+        connector._settings['AlarmDraggingMutedFeedbackChannel'] = 0
+        connector._settings['AlarmNoGPSFeedbackChannel'] = 0
+        connector._settings['AlarmNoGPSMutedFeedbackChannel'] = 0
+
+        controller = MagicMock()
+        controller.trigger_anchor_down     = MagicMock()
+        controller.trigger_chain_out       = MagicMock()
+        controller.trigger_anchor_up       = MagicMock()
+        controller.trigger_mute_alarm      = MagicMock()
+
+        connector.set_controller(controller)
+
+        mock_bridge.send_nmea.assert_not_called()
+        timer_provider.tick()
+        mock_bridge.send_nmea.assert_not_called()
+        timer_provider.tick()
+        mock_bridge.send_nmea.assert_not_called()
+        timer_provider.tick()
+        mock_bridge.send_nmea.assert_not_called()
+
+        state_drop_point_set = AnchorAlarmState('DROP_POINT_SET', 'Drop point set, please do blablala',"short message", 'info', False, {'drop_point': GPSPosition(10, 11)})
+        connector.on_state_changed(state_drop_point_set)
+        mock_bridge.send_nmea.assert_not_called()
+        timer_provider.tick()
+        mock_bridge.send_nmea.assert_not_called() 
+        timer_provider.tick()
+        mock_bridge.send_nmea.assert_not_called()
+        timer_provider.tick()
+        mock_bridge.send_nmea.assert_not_called()
+        
+            
 
     def test_ds_changes(self):
         mock_bridge = MagicMock()
@@ -53,7 +139,7 @@ class TestNMEADSConnector(unittest.TestCase):
 
 
         connector = NMEADSConnector(lambda: timer_provider, MockSettingsDevice,  mock_bridge)
-        #connector._settings['AutoAcknowledgeInterval'] = 3
+        connector._settings['AdvertiseInterval'] = 2
 
         controller = MagicMock()
         controller.trigger_anchor_down     = MagicMock()
@@ -63,6 +149,51 @@ class TestNMEADSConnector(unittest.TestCase):
 
         connector.set_controller(controller)
 
+        def test_switch_status(nmea_message, assert_cb, status):
+            mock_bridge.send_nmea.reset_mock()
+            controller
+            timer_provider.tick()
+            mock_bridge.send_nmea.assert_has_calls([])
+            timer_provider.tick()
+            mock_bridge.send_nmea.assert_has_calls([call(status_all_off)])
+
+
+            handler(nmea_message)
+            assert_cb()
+
+            mock_bridge.send_nmea.assert_has_calls([call(status_all_off), call(status)])
+            timer_provider.tick()   # 1 second
+            mock_bridge.send_nmea.assert_has_calls([call(status_all_off), call(status), call(status_all_off)])
+            timer_provider.tick()  
+            mock_bridge.send_nmea.assert_has_calls([call(status_all_off), call(status), call(status_all_off), call(status_all_off)])
+
+
+
+        status_all_off = {
+            "pgn":127501,
+            "fields": {
+                "Instance":221,
+                "Indicator1":"Off",
+                "Indicator2":"Off",
+                "Indicator3":"Off",
+                "Indicator4":"Off",
+
+                # feedback status
+                "Indicator11":"Off",
+                "Indicator12":"Off",
+                "Indicator13":"Off",
+                "Indicator14":"Off",
+                "Indicator15":"Off",
+                "Indicator16":"Off",
+                "Indicator17":"Off",
+            },
+            "description":"Binary Switch Bank Status"
+        }
+
+
+
+
+
         ds_anchor_down = {
             "pgn":127502,
             "fields": {
@@ -71,8 +202,32 @@ class TestNMEADSConnector(unittest.TestCase):
             },
             "description":"Switch Bank Control"
         }
-        handler(ds_anchor_down)
-        controller.trigger_anchor_down.assert_called_once()
+
+        ds_anchor_down_status = {
+            "pgn":127501,
+            "fields": {
+                "Instance":221,
+                "Indicator1":"On",
+                "Indicator2":"Off",
+                "Indicator3":"Off",
+                "Indicator4":"Off",
+
+                # feedback status
+                "Indicator11":"Off",
+                "Indicator12":"Off",
+                "Indicator13":"Off",
+                "Indicator14":"Off",
+                "Indicator15":"Off",
+                "Indicator16":"Off",
+                "Indicator17":"Off",
+            },
+            "description":"Binary Switch Bank Status"
+        }
+
+        test_switch_status(ds_anchor_down, controller.trigger_anchor_down.assert_called_once, ds_anchor_down_status)
+
+
+
 
         ds_set_radius = {
             "pgn":127502,
@@ -82,8 +237,30 @@ class TestNMEADSConnector(unittest.TestCase):
             },
             "description":"Switch Bank Control"
         }
-        handler(ds_set_radius)
-        controller.trigger_chain_out.assert_called_once()
+
+        ds_set_radius_status = {
+            "pgn":127501,
+            "fields": {
+                "Instance":221,
+                "Indicator1":"Off",
+                "Indicator2":"On",
+                "Indicator3":"Off",
+                "Indicator4":"Off",
+
+                # feedback status
+                "Indicator11":"Off",
+                "Indicator12":"Off",
+                "Indicator13":"Off",
+                "Indicator14":"Off",
+                "Indicator15":"Off",
+                "Indicator16":"Off",
+                "Indicator17":"Off",
+            },
+            "description":"Binary Switch Bank Status"
+        }
+
+        test_switch_status(ds_set_radius, controller.trigger_chain_out.assert_called_once, ds_set_radius_status)
+
 
 
         ds_anchor_up = {
@@ -94,8 +271,30 @@ class TestNMEADSConnector(unittest.TestCase):
             },
             "description":"Switch Bank Control"
         }
-        handler(ds_anchor_up)
-        controller.trigger_anchor_up.assert_called_once()
+
+        ds_anchor_up_status = {
+            "pgn":127501,
+            "fields": {
+                "Instance":221,
+                "Indicator1":"Off",
+                "Indicator2":"Off",
+                "Indicator3":"On",
+                "Indicator4":"Off",
+
+                # feedback status
+                "Indicator11":"Off",
+                "Indicator12":"Off",
+                "Indicator13":"Off",
+                "Indicator14":"Off",
+                "Indicator15":"Off",
+                "Indicator16":"Off",
+                "Indicator17":"Off",
+            },
+            "description":"Binary Switch Bank Status"
+        }
+
+        test_switch_status(ds_anchor_up, controller.trigger_anchor_up.assert_called_once, ds_anchor_up_status)
+
 
 
         ds_mute_alarm = {
@@ -106,8 +305,36 @@ class TestNMEADSConnector(unittest.TestCase):
             },
             "description":"Switch Bank Control"
         }
-        handler(ds_mute_alarm)
-        controller.trigger_mute_alarm.assert_called_once()
+
+        ds_mute_alarm_status = {
+            "pgn":127501,
+            "fields": {
+                "Instance":221,
+                "Indicator1":"Off",
+                "Indicator2":"Off",
+                "Indicator3":"Off",
+                "Indicator4":"On",
+
+                # feedback status
+                "Indicator11":"Off",
+                "Indicator12":"Off",
+                "Indicator13":"Off",
+                "Indicator14":"Off",
+                "Indicator15":"Off",
+                "Indicator16":"Off",
+                "Indicator17":"Off",
+            },
+            "description":"Binary Switch Bank Status"
+        }
+
+        
+        test_switch_status(ds_mute_alarm, controller.trigger_mute_alarm.assert_called_once, ds_mute_alarm_status)
+
+
+
+
+        
+
         
                 
     def test_advertised_status(self):
@@ -122,7 +349,7 @@ class TestNMEADSConnector(unittest.TestCase):
 
 
         connector = NMEADSConnector(lambda: timer_provider, MockSettingsDevice,  mock_bridge)
-        #connector._settings['AutoAcknowledgeInterval'] = 3
+        connector._settings['AdvertiseInterval'] = 2
 
         controller = MagicMock()
         controller.trigger_mute_alarm   = MagicMock()
@@ -132,14 +359,83 @@ class TestNMEADSConnector(unittest.TestCase):
                # AnchorAlarmState = namedtuple('AnchorAlarmState', ['state', 'message', 'level', 'muted', 'params'])
         state_drop_point_set = AnchorAlarmState('DROP_POINT_SET', 'Drop point set, please do blablala',"short message", 'info', False, {'drop_point': GPSPosition(10, 11)})
         state_in_radius = AnchorAlarmState('IN_RADIUS', 'boat in radius',"short message", 'info', False, {'drop_point': GPSPosition(10, 11), 'radius': 12})
-        state_in_radius2 = AnchorAlarmState('IN_RADIUS', 'boat in radius 2',"short message", 'info', False, {'drop_point': GPSPosition(10, 11), 'radius': 12})
-        state_in_radius3 = AnchorAlarmState('IN_RADIUS', 'boat in radius 3',"short message", 'info', False, {'drop_point': GPSPosition(10, 11), 'radius': 12})
         state_dragging = AnchorAlarmState('ALARM_DRAGGING', 'Anchor dragging !',"short message", 'emergency', False, {'drop_point': GPSPosition(10, 11), 'radius': 12})
         state_dragging_muted = AnchorAlarmState('ALARM_DRAGGING_MUTED', 'Anchor dragging ! (muted)',"short message", 'emergency', True, {'drop_point': GPSPosition(10, 11), 'radius': 12})
         state_disabled = AnchorAlarmState('DISABLED', 'Anchor alarm disabled',"short message", 'info', False, {})
+        state_no_gps = AnchorAlarmState('ALARM_NO_GPS', 'alarm no gps',"short message", 'emergency', False, {})
+        state_no_gps_muted = AnchorAlarmState('ALARM_NO_GPS_MUTED', 'alarm no gps',"short message", 'emergency', True, {})
 
 
-        ds_all_off = {
+
+
+        def test_state(state, channel):
+            expected_status = {
+                "pgn":127501,
+                "fields": {
+                    "Instance":221,
+                    "Indicator1":"Off",
+                    "Indicator2":"Off",
+                    "Indicator3":"Off",
+                    "Indicator4":"Off",
+
+                    # feedback status
+                    "Indicator11":"Off",
+                    "Indicator12":"Off",
+                    "Indicator13":"Off",
+                    "Indicator14":"Off",
+                    "Indicator15":"Off",
+                    "Indicator16":"Off",
+                    "Indicator17":"Off",
+                },
+                "description":"Binary Switch Bank Status"
+            }
+            expected_status['fields']['Indicator'+ str(channel)] = "On"
+
+            mock_bridge.send_nmea.reset_mock()
+            connector.on_state_changed(state)
+            mock_bridge.send_nmea.assert_has_calls([call(expected_status)])
+            timer_provider.tick()
+            mock_bridge.send_nmea.assert_has_calls([call(expected_status)])
+            timer_provider.tick()
+            mock_bridge.send_nmea.assert_has_calls([call(expected_status), call(expected_status)])
+            timer_provider.tick()
+            mock_bridge.send_nmea.assert_has_calls([call(expected_status), call(expected_status)])
+            timer_provider.tick()
+            mock_bridge.send_nmea.assert_has_calls([call(expected_status), call(expected_status), call(expected_status)])
+
+
+        test_state(state_disabled, 11)
+        test_state(state_drop_point_set, 12)
+        test_state(state_in_radius, 13)
+        test_state(state_dragging, 14)
+        test_state(state_dragging_muted, 15)
+        test_state(state_no_gps, 16)
+        test_state(state_no_gps_muted, 17)
+
+
+    def test_switch_and_status(self):
+
+        mock_bridge = MagicMock()
+        handler = None
+        def _set_handler(pgn, the_handler):
+            nonlocal handler
+            handler = the_handler
+
+        mock_bridge.add_pgn_handler = MagicMock(side_effect=_set_handler)        
+        mock_bridge.send_nmea = MagicMock()
+
+
+        connector = NMEADSConnector(lambda: timer_provider, MockSettingsDevice,  mock_bridge)
+        connector._settings['AdvertiseInterval'] = 2
+
+        controller = MagicMock()
+        controller.trigger_anchor_down   = MagicMock()
+        connector.set_controller(controller)
+
+
+
+        state_disabled = AnchorAlarmState('DISABLED', 'Anchor alarm disabled',"short message", 'info', False, {})
+        disabled_status =  {
             "pgn":127501,
             "fields": {
                 "Instance":221,
@@ -147,11 +443,38 @@ class TestNMEADSConnector(unittest.TestCase):
                 "Indicator2":"Off",
                 "Indicator3":"Off",
                 "Indicator4":"Off",
+
+                # feedback status
+                "Indicator11":"On",
+                "Indicator12":"Off",
+                "Indicator13":"Off",
+                "Indicator14":"Off",
+                "Indicator15":"Off",
+                "Indicator16":"Off",
+                "Indicator17":"Off",
             },
             "description":"Binary Switch Bank Status"
         }
+        connector.on_state_changed(state_disabled)
+        mock_bridge.send_nmea.assert_has_calls([call(disabled_status)])
+        timer_provider.tick()
+        mock_bridge.send_nmea.assert_has_calls([call(disabled_status)])
+        timer_provider.tick()
+        mock_bridge.send_nmea.assert_has_calls([call(disabled_status), call(disabled_status)])
 
-        ds_1 = {
+
+
+
+        ds_anchor_down = {
+            "pgn":127502,
+            "fields": {
+                "Instance":221,
+                "Switch1":"On",
+            },
+            "description":"Switch Bank Control"
+        }
+
+        ds_disabled_anchor_down_status = {
             "pgn":127501,
             "fields": {
                 "Instance":221,
@@ -159,126 +482,78 @@ class TestNMEADSConnector(unittest.TestCase):
                 "Indicator2":"Off",
                 "Indicator3":"Off",
                 "Indicator4":"Off",
+
+                # feedback status
+                "Indicator11":"On",
+                "Indicator12":"Off",
+                "Indicator13":"Off",
+                "Indicator14":"Off",
+                "Indicator15":"Off",
+                "Indicator16":"Off",
+                "Indicator17":"Off",
             },
             "description":"Binary Switch Bank Status"
         }
 
-        ds_2 = {
-            "pgn":127501,
-            "fields": {
-                "Instance":221,
-                "Indicator1":"Off",
-                "Indicator2":"On",
-                "Indicator3":"Off",
-                "Indicator4":"Off",
-            },
-            "description":"Binary Switch Bank Status"
-        }
+        handler(ds_anchor_down)
+        mock_bridge.send_nmea.assert_has_calls([call(disabled_status), call(disabled_status), call(ds_disabled_anchor_down_status)])
 
-        ds_3 = {
-            "pgn":127501,
-            "fields": {
-                "Instance":221,
-                "Indicator1":"Off",
-                "Indicator2":"Off",
-                "Indicator3":"On",
-                "Indicator4":"Off",
-            },
-            "description":"Binary Switch Bank Status"
-        }
-
-        ds_4 = {
-            "pgn":127501,
-            "fields": {
-                "Instance":221,
-                "Indicator1":"Off",
-                "Indicator2":"Off",
-                "Indicator3":"Off",
-                "Indicator4":"On",
-            },
-            "description":"Binary Switch Bank Status"
-        }
-
-
-        #connector.on_state_changed(state_disabled)
-        mock_bridge.send_nmea.assert_has_calls([])
-        timer_provider.tick()
-        mock_bridge.send_nmea.assert_has_calls([])
-        timer_provider.tick()
-        mock_bridge.send_nmea.assert_has_calls([call(ds_all_off)])
-        timer_provider.tick()
-        mock_bridge.send_nmea.assert_has_calls([call(ds_all_off)])
-        timer_provider.tick()
-        mock_bridge.send_nmea.assert_has_calls([call(ds_all_off), call(ds_all_off)])
-
-        connector.on_state_changed(state_disabled)
-        mock_bridge.send_nmea.assert_has_calls([call(ds_all_off), call(ds_all_off), call(ds_3)])
-        timer_provider.tick()
-        mock_bridge.send_nmea.assert_has_calls([call(ds_all_off), call(ds_all_off), call(ds_3)])
-        timer_provider.tick()
-        mock_bridge.send_nmea.assert_has_calls([call(ds_all_off), call(ds_all_off), call(ds_3), call(ds_all_off)])
-
-        timer_provider.tick()
+        state_drop_point_set = AnchorAlarmState('DROP_POINT_SET', 'Drop point set, please do blablala',"short message", 'info', False, {'drop_point': GPSPosition(10, 11)})
         connector.on_state_changed(state_drop_point_set)
-        mock_bridge.send_nmea.assert_has_calls([call(ds_all_off), call(ds_all_off), call(ds_3), call(ds_all_off),
-                                                call(ds_1)
-                                                ])
-        timer_provider.tick()
-        mock_bridge.send_nmea.assert_has_calls([call(ds_all_off), call(ds_all_off), call(ds_3), call(ds_all_off),
-                                                call(ds_1), call(ds_all_off)
-                                                ])
-        timer_provider.tick()
-        mock_bridge.send_nmea.assert_has_calls([call(ds_all_off), call(ds_all_off), call(ds_3), call(ds_all_off),
-                                                call(ds_1), call(ds_all_off)
-                                                ])
-        
-        timer_provider.tick()
-        mock_bridge.send_nmea.assert_has_calls([call(ds_all_off), call(ds_all_off), call(ds_3), call(ds_all_off),
-                                                call(ds_1), call(ds_all_off), call(ds_all_off), 
-                                                ])
 
-        connector.on_state_changed(state_in_radius)
-        timer_provider.tick()
-        mock_bridge.send_nmea.assert_has_calls([call(ds_all_off), call(ds_all_off), call(ds_3), call(ds_all_off),
-                                                call(ds_1), call(ds_all_off), call(ds_all_off), 
-                                                call(ds_2), 
-                                                ])
-        
-        connector.on_state_changed(state_dragging)
-        mock_bridge.send_nmea.assert_has_calls([call(ds_all_off), call(ds_all_off), call(ds_3), call(ds_all_off),
-                                                call(ds_1), call(ds_all_off), call(ds_all_off), 
-                                                call(ds_2),
-                                                ])
-        timer_provider.tick()
-        mock_bridge.send_nmea.assert_has_calls([call(ds_all_off), call(ds_all_off), call(ds_3), call(ds_all_off),
-                                                call(ds_1), call(ds_all_off), call(ds_all_off), 
-                                                call(ds_2),
-                                                call(ds_all_off)
-                                                ])
-        
-        connector.on_state_changed(state_dragging_muted)
-        mock_bridge.send_nmea.assert_has_calls([call(ds_all_off), call(ds_all_off), call(ds_3), call(ds_all_off),
-                                                call(ds_1), call(ds_all_off), call(ds_all_off), 
-                                                call(ds_2),
-                                                call(ds_all_off),
-                                                call(ds_4)
-                                                ])
-        timer_provider.tick()
-        mock_bridge.send_nmea.assert_has_calls([call(ds_all_off), call(ds_all_off), call(ds_3), call(ds_all_off),
-                                                call(ds_1), call(ds_all_off), call(ds_all_off), 
-                                                call(ds_2),
-                                                call(ds_all_off),
-                                                call(ds_4)
-                                                ])
-        timer_provider.tick()
-        mock_bridge.send_nmea.assert_has_calls([call(ds_all_off), call(ds_all_off), call(ds_3), call(ds_all_off),
-                                                call(ds_1), call(ds_all_off), call(ds_all_off), 
-                                                call(ds_2),
-                                                call(ds_all_off),
-                                                call(ds_4),
-                                                call(ds_all_off),
-                                                ])
+        drop_point_set_status =  {
+            "pgn":127501,
+            "fields": {
+                "Instance":221,
+                "Indicator1":"Off",
+                "Indicator2":"Off",
+                "Indicator3":"Off",
+                "Indicator4":"Off",
 
+                # feedback status
+                "Indicator11":"Off",
+                "Indicator12":"On",
+                "Indicator13":"Off",
+                "Indicator14":"Off",
+                "Indicator15":"Off",
+                "Indicator16":"Off",
+                "Indicator17":"Off",
+            },
+            "description":"Binary Switch Bank Status"
+        }
+        
+        drop_point_set_with_switch_status =  {
+            "pgn":127501,
+            "fields": {
+                "Instance":221,
+                "Indicator1":"On",
+                "Indicator2":"Off",
+                "Indicator3":"Off",
+                "Indicator4":"Off",
+
+                # feedback status
+                "Indicator11":"Off",
+                "Indicator12":"On",
+                "Indicator13":"Off",
+                "Indicator14":"Off",
+                "Indicator15":"Off",
+                "Indicator16":"Off",
+                "Indicator17":"Off",
+            },
+            "description":"Binary Switch Bank Status"
+        }
+
+        mock_bridge.send_nmea.assert_has_calls([
+            call(disabled_status), call(disabled_status), call(ds_disabled_anchor_down_status),
+            call(drop_point_set_with_switch_status)
+            ])
+        
+        timer_provider.tick()
+
+        mock_bridge.send_nmea.assert_has_calls([
+            call(disabled_status), call(disabled_status), call(ds_disabled_anchor_down_status),
+            call(drop_point_set_with_switch_status), call(drop_point_set_status)
+            ])
 
 if __name__ == '__main__':
     unittest.main()

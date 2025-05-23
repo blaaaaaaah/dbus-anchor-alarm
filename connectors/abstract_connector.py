@@ -43,7 +43,7 @@ class AbstractConnector:
 
 
     def _remove_timer(self, timer_name):
-        if self._timer_ids[timer_name] is not None:
+        if timer_name in self._timer_ids and self._timer_ids[timer_name] is not None:
 #            print("Removing timer "+timer_name)
             self._timer_provider().source_remove(self._timer_ids[timer_name])
             self._timer_ids[timer_name] = None
