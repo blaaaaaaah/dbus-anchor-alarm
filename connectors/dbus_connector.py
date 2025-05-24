@@ -24,7 +24,8 @@ class DBusConnector(AbstractConnector):
         self._timer_ids = {
             'anchor_up': None,
             'anchor_down': None,
-            'chain_out': None
+            'chain_out': None,
+            'mute_alarm': None
         }
 
         self._init_settings()
@@ -62,6 +63,15 @@ class DBusConnector(AbstractConnector):
 
             # Duration for which the digital input must be activated before triggering an Anchor Up event. 
             "AnchorUpDigitalInputDuration":     ["/Settings/AnchorAlarm/DigitalInputs/AnchorUp/DigitalInputDuration", 3, 0, 30], 
+
+            # Digital input number for Mute Alarm trigger. 
+            # You can wire a button but this event is usually handled by the NMEA bus. Use "0" to disable.
+            # Enable the digital input on the Cerbo in Settings/IO/Digital inputs/Digital input [0-4] and set "Bilge pump"
+            "MuteAlarmDigitalInputNumber":      ["/Settings/AnchorAlarm/DigitalInputs/MuteAlarm/DigitalInputNumber", 0, 0, 4],
+
+            # Duration for which the digital input must be activated before triggering an Anchor Up event. 
+            "MuteAlarmDigitalInputDuration":    ["/Settings/AnchorAlarm/DigitalInputs/MuteAlarm/DigitalInputDuration", 0, 0, 30], 
+
 
             # Digital input number to use to show feedback and handle notifications on the Cerbo
             # You can use an unused one re-use Anchor Down or Anchor Up digital inputs as it will only change the name
@@ -192,6 +202,7 @@ class DBusConnector(AbstractConnector):
         self._anchor_down_digital_input = 'com.victronenergy.digitalinput.input0' + str(self._settings['AnchorDownDigitalInputNumber'])
         self._chain_out_digital_input   = 'com.victronenergy.digitalinput.input0' + str(self._settings['ChainOutDigitalInputNumber'])
         self._anchor_up_digital_input   = 'com.victronenergy.digitalinput.input0' + str(self._settings['AnchorUpDigitalInputNumber'])
+        self._mute_alarm_digital_input  = 'com.victronenergy.digitalinput.input0' + str(self._settings['MuteAlarmDigitalInputNumber'])
         self._feedback_digital_input    = 'com.victronenergy.digitalinput.input0' + str(self._settings['FeedbackDigitaInputNumber'])
 
 
@@ -244,6 +255,14 @@ class DBusConnector(AbstractConnector):
                 self._remove_timer('chain_out')
 
 
+        # mute alarm digital input trigger
+        if ( dbusServiceName == self._mute_alarm_digital_input
+                and dbusPath == '/State' ):
+            
+            if ( changes['Value'] % 2 == 1 ):
+                self._add_timer('mute_alarm', self.controller.trigger_mute_alarm, int(self._settings['MuteAlarmDigitalInputDuration'])*1000)
+            else:
+                self._remove_timer('mute_alarm')
     # WARNING : triggering '/Triggers/AnchorDown' etc by setting 1 in dbus-spy will only work the first time
     # since dbus-spy doesn't interpret return False to reject the change correctly.
     # Use dbus -y com.victronenergy.anchoralarm /Triggers/AnchorDown SetValue %1   instead

@@ -191,6 +191,8 @@ class TestDBusConnector(unittest.TestCase):
 
         connector = MockDBusConnector(lambda: timer_provider, lambda settings, cb: MockSettingsDevice(settings, cb))
         connector.set_controller(controller)
+        connector._settings['MuteAlarmDigitalInputNumber']=4
+        connector._settings['MuteAlarmDigitalInputDuration']=3
 
         monitor = connector.mock_monitor()
         monitor.add_service('com.victronenergy.digitalinput.input01',
@@ -208,7 +210,13 @@ class TestDBusConnector(unittest.TestCase):
                 '/State': 1,
                 '/DeviceInstance': 1
 			})
-        
+        monitor.add_service('com.victronenergy.digitalinput.input04',
+			values={
+				'/ProductName': "qwe",
+				'/CustomName': "qwe",
+                '/State': 1,
+                '/DeviceInstance': 1
+			})
 
         service = connector.mock_service()
         
@@ -341,6 +349,12 @@ class TestDBusConnector(unittest.TestCase):
 
         check_sequence('com.victronenergy.digitalinput.input02', _check_input_02)
         
+        def _check_input_04():
+            timer_provider.tick()
+            controller.trigger_mute_alarm.assert_called()
+            controller.trigger_mute_alarm.reset_mock()
+
+        check_sequence('com.victronenergy.digitalinput.input04', _check_input_04)
 
         # TODO XXX : check mute Alarm
         state3 = AnchorAlarmState('ALARM_DRAGGING', 'boat outside radius', "short message",'emergency', False, {'drop_point': GPSPosition(10, 11), 'radius': 12})
