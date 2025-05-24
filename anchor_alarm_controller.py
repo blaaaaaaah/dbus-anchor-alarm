@@ -129,6 +129,18 @@ class AnchorAlarmController(object):
         self._anchor_alarm.mute_alarm()
 
 
+    def trigger_increase_tolerance(self):
+        """Delegate method called by connector when tolerance should be increased by 5m"""
+        new_tolerance = self._settings['Tolerance'] + 5
+        if new_tolerance <= 50:
+            self._settings['Tolerance'] = new_tolerance
+
+
+    def trigger_decrease_tolerance(self):
+        """Delegate method called by connector when tolerance should be decreased by 5m"""
+        new_tolerance = self._settings['Tolerance'] - 5
+        if new_tolerance >= 0:
+            self._settings['Tolerance'] = new_tolerance
 
     # called by anchor_alarm when its state changes
     def _on_state_changed(self, current_state):

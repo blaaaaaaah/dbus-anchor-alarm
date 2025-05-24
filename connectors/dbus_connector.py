@@ -135,6 +135,8 @@ class DBusConnector(AbstractConnector):
         self._dbus_service.add_path('/Triggers/ChainOut',   0, "Set 1 to trigger chain out and set radius"         , writeable=True, onchangecallback=self._on_service_changed)
         self._dbus_service.add_path('/Triggers/AnchorUp',   0, "Set 1 to trigger anchor up and disable alarm"      , writeable=True, onchangecallback=self._on_service_changed)
         self._dbus_service.add_path('/Triggers/MuteAlarm',  0, "Set 1 to mute current alarm"                       , writeable=True, onchangecallback=self._on_service_changed)
+        self._dbus_service.add_path('/Triggers/DecreaseTolerance',  0, "Set 1 to decrease tolerance by 5m"         , writeable=True, onchangecallback=self._on_service_changed)
+        self._dbus_service.add_path('/Triggers/IncreaseTolerance',  0, "Set 1 to increase tolerance by 5m"         , writeable=True, onchangecallback=self._on_service_changed)
 
         self._dbus_service.register()
 
@@ -264,8 +266,19 @@ class DBusConnector(AbstractConnector):
 
         if path == '/Triggers/MuteAlarm':
             self.controller.trigger_mute_alarm()
-            # controller update will put value back to 0 ? setTimeout 0 ? setTimeout 1000 ?
+            # controller update will put value back to 0 ?
             return False
+        
+        if path == '/Triggers/DecreaseTolerance':
+            self.controller.trigger_decrease_tolerance()
+            # controller update will put value back to 0 ?
+            return False
+
+        if path == '/Triggers/IncreaseTolerance':
+            self.controller.trigger_increase_tolerance()
+            # controller update will put value back to 0 ?
+            return False
+
 
 
     def _get_version(self):

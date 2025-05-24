@@ -40,8 +40,44 @@ class TestAnchorAlarmController(unittest.TestCase):
         model_mock.update_configuration = MagicMock()
         controller._anchor_alarm = model_mock
 
-        controller._settings['Tolerance'] = 99
-        model_mock.update_configuration.assert_called()
+        controller._settings['Tolerance'] = 10
+        model_mock.update_configuration.assert_called_once()
+
+        # 5
+        model_mock.update_configuration.reset_mock()
+        controller.trigger_decrease_tolerance()
+        model_mock.update_configuration.assert_called_once()
+
+        # 0
+        model_mock.update_configuration.reset_mock()
+        controller.trigger_decrease_tolerance()
+        model_mock.update_configuration.assert_called_once()
+
+        # can't go lower
+        model_mock.update_configuration.reset_mock()
+        controller.trigger_decrease_tolerance()
+        model_mock.update_configuration.assert_not_called()
+
+
+
+        controller._settings['Tolerance'] = 40
+        model_mock.update_configuration.assert_called_once()
+
+        # 45
+        model_mock.update_configuration.reset_mock()
+        controller.trigger_increase_tolerance()
+        model_mock.update_configuration.assert_called_once()
+
+        # 50
+        model_mock.update_configuration.reset_mock()
+        controller.trigger_increase_tolerance()
+        model_mock.update_configuration.assert_called_once()
+
+        # can't go higher
+        model_mock.update_configuration.reset_mock()
+        controller.trigger_increase_tolerance()
+        model_mock.update_configuration.assert_not_called()
+
 
 
     def test_exceptions_catched(self):

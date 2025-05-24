@@ -58,6 +58,12 @@ class NMEADSConnector(AbstractConnector):
             "MuteAlarmChannel":                 ["/Settings/AnchorAlarm/NMEA/DigitalSwitching/MuteAlarmChannel", 4, 0, 28],
 
 
+            # Digital Switching Channel to use to decrease tolerance by 5m. Set 0 to disable. Only change it if conflicts with existing configuration
+            "DecreaseToleranceChannel":                  ["/Settings/AnchorAlarm/NMEA/DigitalSwitching/DecreaseToleranceChannel", 6, 0, 28],
+
+             # Digital Switching Channel to use to increase tolerance by 5m. Set 0 to disable. Only change it if conflicts with existing configuration
+            "IncreaseToleranceChannel":                  ["/Settings/AnchorAlarm/NMEA/DigitalSwitching/IncreaseToleranceChannel", 7, 0, 28],
+
             #
             # Feedback channels. They won't listen on inputs but will show current anchor alamr state
             #
@@ -141,6 +147,18 @@ class NMEADSConnector(AbstractConnector):
                 logger.info("Received On command for channel "+ mute_alarm_switch+ ", calling trigger_mute_alarm")
                 self._update_switch_status(self._settings['MuteAlarmChannel'], True)
                 self.controller.trigger_mute_alarm()
+
+            decrease_tolerance_switch = "Switch"+ str(self._settings['DecreaseToleranceChannel'])
+            if decrease_tolerance_switch in nmea_message['fields'] and nmea_message['fields'][decrease_tolerance_switch] == 'On':
+                logger.info("Received On command for channel "+ decrease_tolerance_switch+ ", calling trigger_decrease_tolerance")
+                self._update_switch_status(self._settings['DecreaseToleranceChannel'], True)
+                self.controller.trigger_decrease_tolerance()
+
+            increase_tolerance_switch = "Switch"+ str(self._settings['IncreaseToleranceChannel'])
+            if increase_tolerance_switch in nmea_message['fields'] and nmea_message['fields'][increase_tolerance_switch] == 'On':
+                logger.info("Received On command for channel "+ increase_tolerance_switch+ ", calling trigger_increase_tolerance")
+                self._update_switch_status(self._settings['IncreaseToleranceChannel'], True)
+                self.controller.trigger_increase_tolerance()
 
             # advertise the switch change
             self._advertise_ds()

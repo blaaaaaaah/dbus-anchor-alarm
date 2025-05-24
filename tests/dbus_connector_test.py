@@ -378,6 +378,8 @@ class TestDBusConnector(unittest.TestCase):
         controller.trigger_anchor_up    = MagicMock()
         controller.trigger_chain_out    = MagicMock()
         controller.trigger_mute_alarm   = MagicMock()
+        controller.trigger_decrease_tolerance   = MagicMock()
+        controller.trigger_increase_tolerance   = MagicMock()
 
         connector = MockDBusConnector(lambda: timer_provider, lambda settings, cb: MockSettingsDevice(settings, cb))
         connector.set_controller(controller)
@@ -398,6 +400,8 @@ class TestDBusConnector(unittest.TestCase):
             controller.trigger_anchor_up.assert_not_called()
             controller.trigger_anchor_chain_out.assert_not_called()
             controller.trigger_mute_alarm.assert_not_called()
+            controller.trigger_decrease_tolerance.assert_not_called()
+            controller.trigger_increase_tolerance.assert_not_called()
 
         _check_all_not_called()
 
@@ -428,6 +432,16 @@ class TestDBusConnector(unittest.TestCase):
         service.set_value('/Triggers/MuteAlarm', '1')
         controller.trigger_mute_alarm.assert_called_once()
         controller.trigger_mute_alarm.reset_mock()
+        _check_all_not_called()
+
+        service.set_value('/Triggers/DecreaseTolerance', '1')
+        controller.trigger_decrease_tolerance.assert_called_once()
+        controller.trigger_decrease_tolerance.reset_mock()
+        _check_all_not_called()
+
+        service.set_value('/Triggers/IncreaseTolerance', '1')
+        controller.trigger_increase_tolerance.assert_called_once()
+        controller.trigger_increase_tolerance.reset_mock()
         _check_all_not_called()
 
 
