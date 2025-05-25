@@ -90,6 +90,7 @@ class TestNMEADSConnector(unittest.TestCase):
         connector._settings['ChainOutChannel'] = 0
         connector._settings['AnchorUpChannel'] = 0
         connector._settings['MuteAlarmChannel'] = 0
+        connector._settings['MooringModeChannel'] = 0
         connector._settings['DecreaseToleranceChannel'] = 0
         connector._settings['IncreaseToleranceChannel'] = 0
         connector._settings['DisabledFeedbackChannel'] = 0
@@ -148,6 +149,7 @@ class TestNMEADSConnector(unittest.TestCase):
         controller.trigger_chain_out       = MagicMock()
         controller.trigger_anchor_up       = MagicMock()
         controller.trigger_mute_alarm      = MagicMock()
+        controller.trigger_mooring_mode    = MagicMock()
         controller.trigger_decrease_tolerance      = MagicMock()
         controller.trigger_increase_tolerance      = MagicMock()
 
@@ -181,6 +183,7 @@ class TestNMEADSConnector(unittest.TestCase):
                 "Indicator2":"Off",
                 "Indicator3":"Off",
                 "Indicator4":"Off",
+                "Indicator5":"Off",
                 "Indicator6":"Off",
                 "Indicator7":"Off",
 
@@ -217,6 +220,7 @@ class TestNMEADSConnector(unittest.TestCase):
                 "Indicator2":"Off",
                 "Indicator3":"Off",
                 "Indicator4":"Off",
+                "Indicator5":"Off",
                 "Indicator6":"Off",
                 "Indicator7":"Off",
 
@@ -254,6 +258,7 @@ class TestNMEADSConnector(unittest.TestCase):
                 "Indicator2":"On",
                 "Indicator3":"Off",
                 "Indicator4":"Off",
+                "Indicator5":"Off",
                 "Indicator6":"Off",
                 "Indicator7":"Off",
 
@@ -290,6 +295,7 @@ class TestNMEADSConnector(unittest.TestCase):
                 "Indicator2":"Off",
                 "Indicator3":"On",
                 "Indicator4":"Off",
+                "Indicator5":"Off",
                 "Indicator6":"Off",
                 "Indicator7":"Off",
 
@@ -326,6 +332,7 @@ class TestNMEADSConnector(unittest.TestCase):
                 "Indicator2":"Off",
                 "Indicator3":"Off",
                 "Indicator4":"On",
+                "Indicator5":"Off",
                 "Indicator6":"Off",
                 "Indicator7":"Off",
 
@@ -345,6 +352,43 @@ class TestNMEADSConnector(unittest.TestCase):
         test_switch_status(ds_mute_alarm, controller.trigger_mute_alarm.assert_called_once, ds_mute_alarm_status)
 
 
+        ds_mooring_mode = {
+            "pgn":127502,
+            "fields": {
+                "Instance":221,
+                "Switch5":"On",
+            },
+            "description":"Switch Bank Control"
+        }
+
+        ds_mooring_mode_status = {
+            "pgn":127501,
+            "fields": {
+                "Instance":221,
+                "Indicator1":"Off",
+                "Indicator2":"Off",
+                "Indicator3":"Off",
+                "Indicator4":"Off",
+                "Indicator5":"On",
+                "Indicator6":"Off",
+                "Indicator7":"Off",
+
+                # feedback status
+                "Indicator11":"Off",
+                "Indicator12":"Off",
+                "Indicator13":"Off",
+                "Indicator14":"Off",
+                "Indicator15":"Off",
+                "Indicator16":"Off",
+                "Indicator17":"Off",
+            },
+            "description":"Binary Switch Bank Status"
+        }
+
+        
+        test_switch_status(ds_mooring_mode, controller.trigger_mooring_mode.assert_called_once, ds_mooring_mode_status)
+
+
         ds_decrease_tolerance = {
             "pgn":127502,
             "fields": {
@@ -362,6 +406,7 @@ class TestNMEADSConnector(unittest.TestCase):
                 "Indicator2":"Off",
                 "Indicator3":"Off",
                 "Indicator4":"Off",
+                "Indicator5":"Off",
                 "Indicator6":"On",
                 "Indicator7":"Off",
                 
@@ -401,6 +446,7 @@ class TestNMEADSConnector(unittest.TestCase):
                 "Indicator2":"Off",
                 "Indicator3":"Off",
                 "Indicator4":"Off",
+                "Indicator5":"Off",
                 "Indicator6":"Off",
                 "Indicator7":"On",
                 
@@ -464,6 +510,7 @@ class TestNMEADSConnector(unittest.TestCase):
                     "Indicator2":"Off",
                     "Indicator3":"Off",
                     "Indicator4":"Off",
+                    "Indicator5":"Off",
                     "Indicator6":"Off",
                     "Indicator7":"Off",
 
@@ -532,6 +579,7 @@ class TestNMEADSConnector(unittest.TestCase):
                 "Indicator2":"Off",
                 "Indicator3":"Off",
                 "Indicator4":"Off",
+                "Indicator5":"Off",
                 "Indicator6":"Off",
                 "Indicator7":"Off",
 
@@ -573,6 +621,7 @@ class TestNMEADSConnector(unittest.TestCase):
                 "Indicator2":"Off",
                 "Indicator3":"Off",
                 "Indicator4":"Off",
+                "Indicator5":"Off",
                 "Indicator6":"Off",
                 "Indicator7":"Off",
 
@@ -602,6 +651,7 @@ class TestNMEADSConnector(unittest.TestCase):
                 "Indicator2":"Off",
                 "Indicator3":"Off",
                 "Indicator4":"Off",
+                "Indicator5":"Off",
                 "Indicator6":"Off",
                 "Indicator7":"Off",
 
@@ -625,6 +675,7 @@ class TestNMEADSConnector(unittest.TestCase):
                 "Indicator2":"Off",
                 "Indicator3":"Off",
                 "Indicator4":"Off",
+                "Indicator5":"Off",
                 "Indicator6":"Off",
                 "Indicator7":"Off",
 

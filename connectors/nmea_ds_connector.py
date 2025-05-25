@@ -57,6 +57,9 @@ class NMEADSConnector(AbstractConnector):
             # Digital Switching Channel to use to receive command to mute anchor alarm. Set 0 to disable. Only change it if conflicts with existing configuration
             "MuteAlarmChannel":                 ["/Settings/AnchorAlarm/NMEA/DigitalSwitching/MuteAlarmChannel", 4, 0, 28],
 
+            # Digital Switching Channel to use to receive command to enable mooring mode. Set 0 to disable. Only change it if conflicts with existing configuration
+            "MooringModeChannel":               ["/Settings/AnchorAlarm/NMEA/DigitalSwitching/MooringModeChannel", 5, 0, 28],
+
 
             # Digital Switching Channel to use to decrease tolerance by 5m. Set 0 to disable. Only change it if conflicts with existing configuration
             "DecreaseToleranceChannel":                  ["/Settings/AnchorAlarm/NMEA/DigitalSwitching/DecreaseToleranceChannel", 6, 0, 28],
@@ -147,6 +150,12 @@ class NMEADSConnector(AbstractConnector):
                 logger.info("Received On command for channel "+ mute_alarm_switch+ ", calling trigger_mute_alarm")
                 self._update_switch_status(self._settings['MuteAlarmChannel'], True)
                 self.controller.trigger_mute_alarm()
+
+            mooring_mode_switch = "Switch"+ str(self._settings['MooringModeChannel'])
+            if mooring_mode_switch in nmea_message['fields'] and nmea_message['fields'][mooring_mode_switch] == 'On':
+                logger.info("Received On command for channel "+ mooring_mode_switch+ ", calling trigger_mooring_mode")
+                self._update_switch_status(self._settings['MooringModeChannel'], True)
+                self.controller.trigger_mooring_mode()
 
             decrease_tolerance_switch = "Switch"+ str(self._settings['DecreaseToleranceChannel'])
             if decrease_tolerance_switch in nmea_message['fields'] and nmea_message['fields'][decrease_tolerance_switch] == 'On':
@@ -291,6 +300,10 @@ if __name__ == '__main__':
         print("trigger chain out")
         nmea_ds_connector.on_state_changed(state_in_radius)
 
+    def _mooring_mode():
+        print("trigger mooring mode")
+        nmea_ds_connector.on_state_changed(state_in_radius)
+
     def _mute_alarm():
         print("trigger mute alarm")
         nmea_ds_connector.on_state_changed(state_dragging_muted)
@@ -304,6 +317,7 @@ if __name__ == '__main__':
     controller.trigger_anchor_up    = MagicMock(side_effect=_anchor_up)
     controller.trigger_mute_alarm   = MagicMock(side_effect=_mute_alarm)
     controller.trigger_chain_out    = MagicMock(side_effect=_chain_out)
+    controller.trigger_mooring_mode = MagicMock(side_effect=_mooring_mode)
     nmea_ds_connector.set_controller(controller)
 
     print("NMEA DS connector test program.\nType:\ndisabled to simulate DISABLED state\ndrop to simulate DROP_POINT_SET\nradius to simulate IN_RADIUS\ndragging to simulate ALARM_DRAGGING\ndragging_muted to simulate ALARM_DRAGING_MUTED\nnogps to simulate ALARM_NO_GPS\nnogps_muted to simulate ALARM_NO_GPS_MUTED\nexit to exit\nWill display trigger_xxx when appropriate DS command is sent and change state accordingly")
