@@ -69,8 +69,17 @@ class DBusConnector(AbstractConnector):
             # Enable the digital input on the Cerbo in Settings/IO/Digital inputs/Digital input [0-4] and set "Bilge pump"
             "MuteAlarmDigitalInputNumber":      ["/Settings/AnchorAlarm/DigitalInputs/MuteAlarm/DigitalInputNumber", 0, 0, 4],
 
-            # Duration for which the digital input must be activated before triggering an Anchor Up event. 
+            # Duration for which the digital input must be activated before triggering an Mute alarm event. 
             "MuteAlarmDigitalInputDuration":    ["/Settings/AnchorAlarm/DigitalInputs/MuteAlarm/DigitalInputDuration", 0, 0, 30], 
+
+
+            # Digital input number for Mooring ball mode trigger. 
+            # You can wire a button but this event is usually handled by the NMEA bus. Use "0" to disable.
+            # Enable the digital input on the Cerbo in Settings/IO/Digital inputs/Digital input [0-4] and set "Bilge pump"
+            "MooringModeDigitalInputNumber":      ["/Settings/AnchorAlarm/DigitalInputs/MooringMode/DigitalInputNumber", 0, 0, 4],
+
+            # Duration for which the digital input must be activated before triggering an Mooring mode event. 
+            "MooringModeDigitalInputDuration":    ["/Settings/AnchorAlarm/DigitalInputs/MooringMode/DigitalInputDuration", 0, 0, 30], 
 
 
             # Digital input number to use to show feedback and handle notifications on the Cerbo
@@ -145,6 +154,7 @@ class DBusConnector(AbstractConnector):
         self._dbus_service.add_path('/Triggers/ChainOut',   0, "Set 1 to trigger chain out and set radius"         , writeable=True, onchangecallback=self._on_service_changed)
         self._dbus_service.add_path('/Triggers/AnchorUp',   0, "Set 1 to trigger anchor up and disable alarm"      , writeable=True, onchangecallback=self._on_service_changed)
         self._dbus_service.add_path('/Triggers/MuteAlarm',  0, "Set 1 to mute current alarm"                       , writeable=True, onchangecallback=self._on_service_changed)
+        self._dbus_service.add_path('/Triggers/MooringMode',0, "Set 1 to enable mooring mode"                      , writeable=True, onchangecallback=self._on_service_changed)
         self._dbus_service.add_path('/Triggers/DecreaseTolerance',  0, "Set 1 to decrease tolerance by 5m"         , writeable=True, onchangecallback=self._on_service_changed)
         self._dbus_service.add_path('/Triggers/IncreaseTolerance',  0, "Set 1 to increase tolerance by 5m"         , writeable=True, onchangecallback=self._on_service_changed)
 
@@ -203,6 +213,7 @@ class DBusConnector(AbstractConnector):
         self._chain_out_digital_input   = 'com.victronenergy.digitalinput.input0' + str(self._settings['ChainOutDigitalInputNumber'])
         self._anchor_up_digital_input   = 'com.victronenergy.digitalinput.input0' + str(self._settings['AnchorUpDigitalInputNumber'])
         self._mute_alarm_digital_input  = 'com.victronenergy.digitalinput.input0' + str(self._settings['MuteAlarmDigitalInputNumber'])
+        self._mooring_mode_digital_input= 'com.victronenergy.digitalinput.input0' + str(self._settings['MooringModeDigitalInputNumber'])
         self._feedback_digital_input    = 'com.victronenergy.digitalinput.input0' + str(self._settings['FeedbackDigitaInputNumber'])
 
 
@@ -223,6 +234,7 @@ class DBusConnector(AbstractConnector):
                 and self._dbus_service['/State'] in ['ALARM_DRAGGING', 'ALARM_NO_GPS']):
 
             self.controller.trigger_mute_alarm()
+
 
         # anchor_down digital input trigger
         if ( dbusServiceName == self._anchor_down_digital_input
@@ -263,6 +275,17 @@ class DBusConnector(AbstractConnector):
                 self._add_timer('mute_alarm', self.controller.trigger_mute_alarm, int(self._settings['MuteAlarmDigitalInputDuration'])*1000)
             else:
                 self._remove_timer('mute_alarm')
+
+        # mooring mode digital input trigger
+        if ( dbusServiceName == self._mooring_mode_digital_input
+                and dbusPath == '/State' ):
+            
+            if ( changes['Value'] % 2 == 1 ):
+                self._add_timer('mooring_mode', self.controller.trigger_mooring_mode, int(self._settings['MooringModeDigitalInputDuration'])*1000)
+            else:
+                self._remove_timer('mooring_mode')
+
+
     # WARNING : triggering '/Triggers/AnchorDown' etc by setting 1 in dbus-spy will only work the first time
     # since dbus-spy doesn't interpret return False to reject the change correctly.
     # Use dbus -y com.victronenergy.anchoralarm /Triggers/AnchorDown SetValue %1   instead
@@ -285,6 +308,11 @@ class DBusConnector(AbstractConnector):
 
         if path == '/Triggers/MuteAlarm':
             self.controller.trigger_mute_alarm()
+            # controller update will put value back to 0 ?
+            return False
+        
+        if path == '/Triggers/MooringMode':
+            self.controller.trigger_mooring_mode()
             # controller update will put value back to 0 ?
             return False
         

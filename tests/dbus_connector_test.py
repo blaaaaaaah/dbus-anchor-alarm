@@ -356,6 +356,17 @@ class TestDBusConnector(unittest.TestCase):
 
         check_sequence('com.victronenergy.digitalinput.input04', _check_input_04)
 
+
+        def _check_input_mooring():
+            timer_provider.tick()
+            controller.trigger_mooring_mode.assert_called()
+            controller.trigger_mooring_mode.reset_mock()
+
+        connector._settings['MuteAlarmDigitalInputNumber'] = 0
+        connector._settings['MooringModeDigitalInputNumber'] = 4
+
+        check_sequence('com.victronenergy.digitalinput.input04', _check_input_mooring)
+
         # TODO XXX : check mute Alarm
         state3 = AnchorAlarmState('ALARM_DRAGGING', 'boat outside radius', "short message",'emergency', False, {'drop_point': GPSPosition(10, 11), 'radius': 12})
         connector.on_state_changed(state3)
@@ -392,6 +403,7 @@ class TestDBusConnector(unittest.TestCase):
         controller.trigger_anchor_up    = MagicMock()
         controller.trigger_chain_out    = MagicMock()
         controller.trigger_mute_alarm   = MagicMock()
+        controller.trigger_mooring_mode = MagicMock()
         controller.trigger_decrease_tolerance   = MagicMock()
         controller.trigger_increase_tolerance   = MagicMock()
 
@@ -414,6 +426,7 @@ class TestDBusConnector(unittest.TestCase):
             controller.trigger_anchor_up.assert_not_called()
             controller.trigger_anchor_chain_out.assert_not_called()
             controller.trigger_mute_alarm.assert_not_called()
+            controller.trigger_mooring_mode.assert_not_called()
             controller.trigger_decrease_tolerance.assert_not_called()
             controller.trigger_increase_tolerance.assert_not_called()
 
@@ -447,6 +460,12 @@ class TestDBusConnector(unittest.TestCase):
         controller.trigger_mute_alarm.assert_called_once()
         controller.trigger_mute_alarm.reset_mock()
         _check_all_not_called()
+
+        service.set_value('/Triggers/MooringMode', '1')
+        controller.trigger_mooring_mode.assert_called_once()
+        controller.trigger_mooring_mode.reset_mock()
+        _check_all_not_called()
+
 
         service.set_value('/Triggers/DecreaseTolerance', '1')
         controller.trigger_decrease_tolerance.assert_called_once()
