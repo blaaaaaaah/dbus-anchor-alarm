@@ -20,7 +20,7 @@ from nmea_alert_connector import NMEAAlertConnector
 from nmea_ydab_connector import NMEAYDABConnector
 from nmea_sog_rpm_connector import NMEASOGRPMConnector
 from nmea_ds_connector import NMEADSConnector
-
+from dbus_relay_connector import DBusRelayConnector
 
 from anchor_alarm_controller import AnchorAlarmController
 from nmea_bridge import NMEABridge
@@ -52,6 +52,7 @@ class DbusAnchorAlarmService(object):
         nmea_ydab_connector = NMEAYDABConnector(lambda: GLib, lambda settings, cb: SettingsDevice(bus, settings, cb), self._nmea_bridge)
         nmea_sog_rpm_connector = NMEASOGRPMConnector(lambda: GLib, lambda settings, cb: SettingsDevice(bus, settings, cb), self._nmea_bridge)
         nmea_ds_connector = NMEADSConnector(lambda: GLib, lambda settings, cb: SettingsDevice(bus, settings, cb), self._nmea_bridge)
+        dbus_relay_connector = DBusRelayConnector(lambda: GLib, lambda settings, cb: SettingsDevice(bus, settings, cb))
 
         # TODO XXX move registration of connectors elsewhere ? 
         self._alarm_controller.register_connector(dbus_connector)
@@ -59,6 +60,7 @@ class DbusAnchorAlarmService(object):
         self._alarm_controller.register_connector(nmea_ydab_connector)
         self._alarm_controller.register_connector(nmea_sog_rpm_connector)
         self._alarm_controller.register_connector(nmea_ds_connector)
+        self._alarm_controller.register_connector(dbus_relay_connector)
 
 
 
