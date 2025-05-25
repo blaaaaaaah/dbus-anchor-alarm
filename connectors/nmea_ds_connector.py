@@ -194,19 +194,7 @@ class NMEADSConnector(AbstractConnector):
         """Called by controller when state changed"""
         logger.info("On state changed "+ current_state.state)
 
-        state_to_channel_mapping = {
-            'DISABLED':             self._settings['DisabledFeedbackChannel'],
-            'DROP_POINT_SET':       self._settings['DropPointSetFeedbackChannel'],
-            'IN_RADIUS':            self._settings['InRadiusFeedbackChannel'],
-            'ALARM_DRAGGING':       self._settings['AlarmDraggingFeedbackChannel'],
-            'ALARM_DRAGGING_MUTED': self._settings['AlarmDraggingMutedFeedbackChannel'],
-            'ALARM_NO_GPS':         self._settings['AlarmNoGPSFeedbackChannel'],
-            'ALARM_NO_GPS_MUTED':   self._settings['AlarmNoGPSMutedFeedbackChannel'],
-        }
-
-        for state in state_to_channel_mapping:
-            channel = state_to_channel_mapping[state]
-            self._update_switch_status(channel, state == current_state.state, None)
+        self.update_state(current_state)
 
         # advertise the state change
         self._advertise_ds()
@@ -243,8 +231,20 @@ class NMEADSConnector(AbstractConnector):
     # called every second to update state
     def update_state(self, current_state:AnchorAlarmState):
         """Called by controller every second with updated state"""
-        # nothing to do
-        pass
+        
+        state_to_channel_mapping = {
+            'DISABLED':             self._settings['DisabledFeedbackChannel'],
+            'DROP_POINT_SET':       self._settings['DropPointSetFeedbackChannel'],
+            'IN_RADIUS':            self._settings['InRadiusFeedbackChannel'],
+            'ALARM_DRAGGING':       self._settings['AlarmDraggingFeedbackChannel'],
+            'ALARM_DRAGGING_MUTED': self._settings['AlarmDraggingMutedFeedbackChannel'],
+            'ALARM_NO_GPS':         self._settings['AlarmNoGPSFeedbackChannel'],
+            'ALARM_NO_GPS_MUTED':   self._settings['AlarmNoGPSMutedFeedbackChannel'],
+        }
+
+        for state in state_to_channel_mapping:
+            channel = state_to_channel_mapping[state]
+            self._update_switch_status(channel, state == current_state.state, None)
 
 
     def _timer_provider(self):
