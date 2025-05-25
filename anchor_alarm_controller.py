@@ -45,6 +45,9 @@ class AnchorAlarmController(object):
             # Number of seconds the alarm will be muted for when the alarm is acknowledged
             "MuteDuration":         ["/Settings/Anchoralarm/MuteDuration", 30, 0, 300], 
 
+            # Safe radius to use when activating mooring ball mode
+            "MooringRadius":        ["/Settings/AnchorAlarm/MooringRadius", 15, 0, 256],
+
             # Last saved latitude where anchor was dropped. Used when device reboots or to set a specific location arbitrary
             "Latitude":             ["/Settings/AnchorAlarm/Last/Position/Latitude", 0.0, -90.0, 90],
 
@@ -141,6 +144,12 @@ class AnchorAlarmController(object):
         new_tolerance = self._settings['Tolerance'] - 5
         if new_tolerance >= 0:
             self._settings['Tolerance'] = new_tolerance
+
+
+    def trigger_mooring_mode(self):
+        """Delegate method called by connector when mooring mode should be enabled"""
+        position = self.gps_provider.get_gps_position()
+        self.reset_state(position, self._settings["MooringRadius"])
 
     # called by anchor_alarm when its state changes
     def _on_state_changed(self, current_state):

@@ -272,5 +272,48 @@ class TestAnchorAlarmController(unittest.TestCase):
 
 
 
+    def test_mooring_mode(self):
+        gps_provider = MagicMock()
+        gps_provider.get_gps_position = MagicMock(return_value=None)
+
+
+        def _create_settings_active(settingsList, onSettingsChanged):
+            settings = MockSettingsDevice(settingsList, onSettingsChanged)
+            settings['Latitude'] = 10
+            settings['Longitude'] = 11
+            settings['Radius'] = 20
+            settings['Active'] = 1
+            return settings
+
+        controller = AnchorAlarmController(lambda: timer_provider, _create_settings_active, gps_provider)
+        connector = MagicMock()
+        connector.on_state_changed =  MagicMock(return_value=None)
+        connector.update_state =  MagicMock(return_value=None)
+
+        mock_state_in_radius = AnchorAlarmState('IN_RADIUS', ANY, ANY, ANY, ANY, ANY)
+        controller.register_connector(connector)
+        connector.on_state_changed.assert_called_with(mock_state_in_radius)
+
+        gps_provider.get_gps_position = MagicMock(return_value=GPSPosition(20,21))
+
+        # should not happen because it only works when DISABLED
+        controller.trigger_mooring_mode()
+        mock_state_in_radius = AnchorAlarmState('IN_RADIUS', ANY, ANY, ANY, ANY, ANY)
+
+        controller.trigger_anchor_up()
+        mock_state_in_radius = AnchorAlarmState('DISABLED', ANY, ANY, ANY, ANY, ANY)
+
+        controller.trigger_mooring_mode()
+        mock_state_in_radius = AnchorAlarmState('IN_RADIUS', ANY, ANY, ANY, ANY, ANY)
+
+        self.assertEqual(controller._settings['Latitude'],  20)
+        self.assertEqual(controller._settings['Longitude'], 21)
+        self.assertEqual(controller._settings['Radius'],    15)
+        self.assertEqual(controller._settings['Active'],    1)
+
+
+
+
+
 if __name__ == '__main__':
     unittest.main()
