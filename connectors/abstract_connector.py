@@ -35,6 +35,9 @@ class AbstractConnector:
         """Called by controller every second with updated state"""
         pass
 
+    def show_message(self, level, message):
+        """Called by controller to show a specific error or info message"""
+        pass
 
     def _add_timer(self, timer_name, cb, duration, once=True):
         self._remove_timer(timer_name)

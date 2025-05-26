@@ -275,6 +275,7 @@ class TestNMEAYDABConnector(unittest.TestCase):
 
         controller = MagicMock()
         controller.trigger_mute_alarm   = MagicMock()
+        controller.trigger_show_message = MagicMock()
         connector.set_controller(controller)
 
         connector._settings['NMEAAddress'] = 99
@@ -345,7 +346,7 @@ class TestNMEAYDABConnector(unittest.TestCase):
         self.assertEqual(connector._settings['StartConfiguration'], 0)
         self.assertIsNone(connector._queued_config_commands)
 
-        # TODO XXX : test that we had an error feedback ?
+        controller.trigger_show_message.assert_called_once()
 
         mock_bridge.send_nmea.reset_mock()
 

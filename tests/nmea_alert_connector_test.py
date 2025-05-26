@@ -423,6 +423,104 @@ class TestNMEAAlertConnector(unittest.TestCase):
                 call(alarm_nmea_message_normal), call(alert_nmea_message_active), call(text_nmea_message_disabled)
                 ])
         
+    def test_show_message(self):
+        mock_bridge = MagicMock()
+        mock_bridge.add_pgn_handler = MagicMock()
+        mock_bridge.send_nmea = MagicMock()
+
+        connector = NMEAAlertConnector(lambda: timer_provider, MockSettingsDevice,  mock_bridge)
+        connector._settings['AutoAcknowledgeInterval'] = 3
+
+        controller = MagicMock()
+        controller.trigger_mute_alarm   = MagicMock()
+        connector.set_controller(controller)
+
+
+        caution_nmea_message_active = {
+            "pgn": 126983,
+            "Alert ID": connector._ALERT_ID,
+            "Alert Type": "Caution",
+            "Alert State": "Active",
+            "Alert Category": "Technical",
+            "Alert System": 5,
+            "Alert Sub-System": 0,
+            "Data Source Network ID NAME": connector._ALERT_ID,
+            "Data Source Instance": 0,
+            "Data Source Index-Source": 0,
+            "Alert Occurrence Number": 0,
+            "Temporary Silence Status": 0,
+            "Acknowledge Status": 0,
+            "Escalation Status": 0,
+            "Temporary Silence Support": 0,
+            "Acknowledge Support": 1,
+            "Escalation Support": 0,
+            "Trigger Condition": 2,
+            "Threshold Status": 1,
+            "Alert Priority": 0
+        }
+
+        text_nmea_message = {
+            "pgn": 126985,
+            "Alert ID": connector._ALERT_ID,
+            "Alert Type": "Caution",
+            "Alert Category": "Technical",
+            "Alert System": 5,
+            "Alert Sub-System": 0,
+            "Data Source Network ID NAME": connector._ALERT_ID,
+            "Data Source Instance": 0,
+            "Data Source Index-Source": 0,
+            "Alert Occurrence Number": 0,
+            "Language ID": 0,
+            "Alert Text Description": "some message"
+        }
+
+        connector.show_message("info", "some message")
+
+        mock_bridge.send_nmea.assert_has_calls([call(caution_nmea_message_active), call(text_nmea_message)])
+
+        error_nmea_message_active = {
+            "pgn": 126983,
+            "Alert ID": connector._ALERT_ID,
+            "Alert Type": "Alarm",
+            "Alert State": "Active",
+            "Alert Category": "Technical",
+            "Alert System": 5,
+            "Alert Sub-System": 0,
+            "Data Source Network ID NAME": connector._ALERT_ID,
+            "Data Source Instance": 0,
+            "Data Source Index-Source": 0,
+            "Alert Occurrence Number": 0,
+            "Temporary Silence Status": 0,
+            "Acknowledge Status": 0,
+            "Escalation Status": 0,
+            "Temporary Silence Support": 0,
+            "Acknowledge Support": 1,
+            "Escalation Support": 0,
+            "Trigger Condition": 2,
+            "Threshold Status": 1,
+            "Alert Priority": 0
+        }
+
+        error_text_nmea_message = {
+            "pgn": 126985,
+            "Alert ID": connector._ALERT_ID,
+            "Alert Type": "Alarm",
+            "Alert Category": "Technical",
+            "Alert System": 5,
+            "Alert Sub-System": 0,
+            "Data Source Network ID NAME": connector._ALERT_ID,
+            "Data Source Instance": 0,
+            "Data Source Index-Source": 0,
+            "Alert Occurrence Number": 0,
+            "Language ID": 0,
+            "Alert Text Description": "some message"
+        }
+
+        connector.show_message("error", "some message")
+        mock_bridge.send_nmea.assert_has_calls([call(caution_nmea_message_active), call(text_nmea_message),
+                                                call(error_nmea_message_active), call(error_text_nmea_message)])
+
+
 
 
 

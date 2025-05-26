@@ -278,8 +278,8 @@ class NMEAYDABConnector(AbstractConnector):
             logger.error("Unexpected acked command "+ acknowledged_command + ", expecting "+ expected_command +", stopping config process")
             self._queued_config_commands = None
             self._settings['StartConfiguration'] = 0
-
-            # TODO XXX : yield error in whatever way
+            
+            self.controller.trigger_show_message("error", "Unexpected response from YDAB-01.")
 
         
     def _on_config_command_timeout(self):
@@ -287,7 +287,8 @@ class NMEAYDABConnector(AbstractConnector):
         logger.error("_on_config_command_timeout")
         self._queued_config_commands = None
         self._settings['StartConfiguration'] = 0
-        # TODO XXX : yield error in whatever way
+
+        self.controller.trigger_show_message("error", "Unable to complete YDAB-01 configuration. Wrong NMEA address ?")
 
     def _send_config_finished_feedback(self):
         # send sound

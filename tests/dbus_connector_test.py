@@ -478,5 +478,49 @@ class TestDBusConnector(unittest.TestCase):
         _check_all_not_called()
 
 
+    def test_show_message(self):
+        controller = MagicMock()
+        controller.trigger_anchor_down  = MagicMock()
+        controller.trigger_anchor_up    = MagicMock()
+        controller.trigger_chain_out    = MagicMock()
+        controller.trigger_mute_alarm   = MagicMock()
+
+        connector = MockDBusConnector(lambda: timer_provider, lambda settings, cb: MockSettingsDevice(settings, cb))
+        connector.set_controller(controller)
+        monitor = connector.mock_monitor()
+        monitor.add_service('com.victronenergy.digitalinput.input01',
+			values={
+				'/ProductName': "qwe",
+				'/CustomName': "qwe",
+                '/DeviceInstance': 0
+			})
+        
+        monitor.add_service('com.victronenergy.settings',
+			values={
+                '/Settings/DigitalInput/1/AlarmSetting': 0,
+                '/Settings/DigitalInput/1/InvertAlarm': 0,
+                '/Settings/SystemSetup/SystemName': 'system name'
+			})
+        
+        monitor.add_service('com.victronenergy.platform',
+			values={
+                '/Notifications/Alarm': 0
+			})
+
+        # dbus doesn't show info messages
+        connector.show_message("info", "something")
+        self.assertEqual(monitor.get_value("com.victronenergy.settings", '/Settings/DigitalInput/1/AlarmSetting'), False)
+        self.assertEqual(monitor.get_value("com.victronenergy.settings", '/Settings/DigitalInput/1/InvertAlarm'), False)
+
+
+
+        message = "something terrible happened"
+        connector.show_message("error", message)
+
+        self.assertEqual(monitor.get_value('com.victronenergy.digitalinput.input01', '/CustomName'), message)
+        self.assertEqual(monitor.get_value('com.victronenergy.digitalinput.input01', '/ProductName'), message)
+        self.assertEqual(monitor.get_value("com.victronenergy.settings", '/Settings/DigitalInput/1/AlarmSetting'), True)
+        self.assertEqual(monitor.get_value("com.victronenergy.settings", '/Settings/DigitalInput/1/InvertAlarm'), True)
+
 if __name__ == '__main__':
     unittest.main()

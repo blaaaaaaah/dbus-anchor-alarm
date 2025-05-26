@@ -9,6 +9,8 @@ from collections import namedtuple
 import unittest
 from unittest.mock import ANY
 from unittest.mock import MagicMock
+from unittest.mock import call
+
 
 # TODO XXX : move that import somewhere
 GPSPosition = namedtuple('GPSPosition', ['latitude', 'longitude'])
@@ -40,43 +42,64 @@ class TestAnchorAlarmController(unittest.TestCase):
         model_mock.update_configuration = MagicMock()
         controller._anchor_alarm = model_mock
 
+        connector = MagicMock()
+        connector.on_state_changed =  MagicMock(return_value=None)
+        connector.show_message     =  MagicMock(return_value=None)
+        controller.register_connector(connector)
+
+
         controller._settings['Tolerance'] = 10
         model_mock.update_configuration.assert_called_once()
 
         # 5
         model_mock.update_configuration.reset_mock()
+        connector.show_message.reset_mock()
         controller.trigger_decrease_tolerance()
         model_mock.update_configuration.assert_called_once()
+        connector.show_message.assert_called_once()
 
         # 0
         model_mock.update_configuration.reset_mock()
+        connector.show_message.reset_mock()
         controller.trigger_decrease_tolerance()
         model_mock.update_configuration.assert_called_once()
+        connector.show_message.assert_called_once()
+
 
         # can't go lower
         model_mock.update_configuration.reset_mock()
+        connector.show_message.reset_mock()
         controller.trigger_decrease_tolerance()
         model_mock.update_configuration.assert_not_called()
+        connector.show_message.assert_not_called()
 
 
-
+        connector.show_message.reset_mock()
         controller._settings['Tolerance'] = 40
         model_mock.update_configuration.assert_called_once()
+        connector.show_message.assert_not_called()
 
         # 45
         model_mock.update_configuration.reset_mock()
+        connector.show_message.reset_mock()
         controller.trigger_increase_tolerance()
         model_mock.update_configuration.assert_called_once()
+        connector.show_message.assert_called_once()
 
         # 50
         model_mock.update_configuration.reset_mock()
+        connector.show_message.reset_mock()
         controller.trigger_increase_tolerance()
         model_mock.update_configuration.assert_called_once()
+        connector.show_message.assert_called_once()
+
 
         # can't go higher
         model_mock.update_configuration.reset_mock()
+        connector.show_message.reset_mock()
         controller.trigger_increase_tolerance()
         model_mock.update_configuration.assert_not_called()
+        connector.show_message.assert_not_called()
 
 
 
@@ -168,12 +191,13 @@ class TestAnchorAlarmController(unittest.TestCase):
         connector = MagicMock()
         connector.on_state_changed =  MagicMock(return_value=None)
         connector.update_state =  MagicMock(return_value=None)
+        connector.show_error =  MagicMock(return_value=None)
 
         mock_state_disabled = AnchorAlarmState('DISABLED', ANY, ANY, ANY, ANY, ANY)
 
         controller.register_connector(connector)
         connector.on_state_changed.assert_called_with(mock_state_disabled)
-
+        connector.show_error.assert_not_called()
 
 
 
@@ -196,11 +220,13 @@ class TestAnchorAlarmController(unittest.TestCase):
         connector = MagicMock()
         connector.on_state_changed =  MagicMock(return_value=None)
         connector.update_state =  MagicMock(return_value=None)
+        connector.show_error =  MagicMock(return_value=None)
 
         mock_state_in_radius = AnchorAlarmState('IN_RADIUS', ANY, ANY, ANY, ANY, ANY)
 
         controller.register_connector(connector)
         connector.on_state_changed.assert_called_with(mock_state_in_radius)
+        connector.show_error.assert_not_called()
 
 
         # test that settings change watch is working
@@ -210,6 +236,15 @@ class TestAnchorAlarmController(unittest.TestCase):
         controller._settings['Active'] = 1
         connector.on_state_changed.assert_called_with(mock_state_in_radius)
 
+        connector.on_state_changed.reset_mock()
+        connector.show_error.assert_not_called()
+
+        # try to reset state when not in DISABLED state
+        controller.reset_state(GPSPosition(20,21), 15)
+        connector.on_state_changed.assert_not_called()
+
+        # not implemented (yet)
+        #connector.show_error.assert_called_once()
 
 
     def test_connector_mock(self):
@@ -289,6 +324,7 @@ class TestAnchorAlarmController(unittest.TestCase):
         connector = MagicMock()
         connector.on_state_changed =  MagicMock(return_value=None)
         connector.update_state =  MagicMock(return_value=None)
+        connector.show_message = MagicMock(return_value=None)
 
         mock_state_in_radius = AnchorAlarmState('IN_RADIUS', ANY, ANY, ANY, ANY, ANY)
         controller.register_connector(connector)
@@ -299,6 +335,7 @@ class TestAnchorAlarmController(unittest.TestCase):
         # should not happen because it only works when DISABLED
         controller.trigger_mooring_mode()
         mock_state_in_radius = AnchorAlarmState('IN_RADIUS', ANY, ANY, ANY, ANY, ANY)
+        connector.show_message.assert_called_once()
 
         controller.trigger_anchor_up()
         mock_state_in_radius = AnchorAlarmState('DISABLED', ANY, ANY, ANY, ANY, ANY)

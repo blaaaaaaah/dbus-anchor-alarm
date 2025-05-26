@@ -201,6 +201,18 @@ class DBusConnector(AbstractConnector):
             self._alarm_monitor.set_value('com.victronenergy.settings', '/Settings/SystemSetup/SystemName', current_state.short_message)
 
 
+    def show_message(self, level, message):
+        if level != "error":
+            return  # only support error message
+        
+        if self._settings['FeedbackDigitaInputNumber'] != 0:
+            self._alarm_monitor.set_value(self._feedback_digital_input, '/CustomName', message)
+            self._alarm_monitor.set_value(self._feedback_digital_input, '/ProductName', message)
+            self._alarm_monitor.set_value("com.victronenergy.settings", '/Settings/DigitalInput/'+ str(self._settings['FeedbackDigitaInputNumber']) +'/AlarmSetting', 1)
+            self._alarm_monitor.set_value("com.victronenergy.settings", '/Settings/DigitalInput/'+ str(self._settings['FeedbackDigitaInputNumber']) +'/InvertAlarm', 1)
+
+
+
     def _on_setting_changed(self, path, old_value, new_value):
         # just recompute all names
         self._update_digital_input_names()

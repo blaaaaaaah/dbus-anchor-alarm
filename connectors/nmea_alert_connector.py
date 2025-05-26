@@ -71,7 +71,7 @@ class NMEAAlertConnector(AbstractConnector):
         logger.info("On state changed "+ current_state.state)
 
         #"Alert Type"" = "Emergency Alarm" | "Alarm" | "Warning" | "Caution"
-        type = self._type_for_alarm_state(current_state)
+        type = self._type_for_alarm_state(current_state.level)
 
 
         # new type, we want to clear old messages
@@ -101,11 +101,22 @@ class NMEAAlertConnector(AbstractConnector):
         """Called by controller every second with updated state"""
        
        # TODO XXX : do not send a message every second when nothing is happening
-        type = self._type_for_alarm_state(current_state)
+        type = self._type_for_alarm_state(current_state.level)
         self._send_alert_text_message(type, current_state.message)
 
 
-    def _type_for_alarm_state(self, current_state):
+    # shows a specific message. Will be auto acknowledged
+    def show_message(self, level, message):
+        type = self._type_for_alarm_state(level)
+        
+        self._send_alert_payload(type, "Active")
+        self._send_alert_text_message(type, message)
+
+        if type == "Caution":
+            self._add_timer('Caution', lambda: self._send_alert_payload("Caution", "Normal"), self._settings['AutoAcknowledgeInterval']*1000)
+
+
+    def _type_for_alarm_state(self, current_state_level):
         # level = info | warning | error | emergency
         mapping = {
             "emergency": "Emergency Alarm",
@@ -114,7 +125,7 @@ class NMEAAlertConnector(AbstractConnector):
             "info": "Caution"
         }
 
-        return mapping.get(current_state.level, "Caution")
+        return mapping.get(current_state_level, "Caution")
 
     def _clear_alerts_except(self, type):
         for t in self._types_states:            

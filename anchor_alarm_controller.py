@@ -137,6 +137,7 @@ class AnchorAlarmController(object):
         new_tolerance = self._settings['Tolerance'] + 5
         if new_tolerance <= 50:
             self._settings['Tolerance'] = new_tolerance
+            self.trigger_show_message("info", "Increased tolerance to "+ str(self._settings['Tolerance'])+ " meters")
 
 
     def trigger_decrease_tolerance(self):
@@ -144,12 +145,28 @@ class AnchorAlarmController(object):
         new_tolerance = self._settings['Tolerance'] - 5
         if new_tolerance >= 0:
             self._settings['Tolerance'] = new_tolerance
+            self.trigger_show_message("info", "Decreased tolerance to "+ str(self._settings['Tolerance'])+ " meters")
+
 
 
     def trigger_mooring_mode(self):
         """Delegate method called by connector when mooring mode should be enabled"""
         position = self.gps_provider.get_gps_position()
-        self.reset_state(position, self._settings["MooringRadius"])
+        try:
+            self._anchor_alarm.reset_state(position, self._settings["MooringRadius"])
+        except Exception as e:
+            self.trigger_show_message("error", "Unable to activate mooring ball mode when anchor alarm is already enabled")
+
+
+    def trigger_show_message(self, level, message):
+        # notify connectors
+        for connector in self._connectors:
+            try:
+                connector.show_message(level, message)
+            except Exception:
+                pass # TODO XXX     
+
+
 
     # called by anchor_alarm when its state changes
     def _on_state_changed(self, current_state):
