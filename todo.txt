@@ -1,5 +1,20 @@
 // TODO
 
+trigger_XXX should return True/False if they did something
+
+Errors :
+reset_state from trigger when not in DISABLED state
+mooring_mode when not in DISABLED state
+YDAB configuration not working : need trigger_error as well
+
+Message :
+Tolerance increased
+Tolerance decreased
+
+
+
+add switching button for reset_state with last. How to give feedback ?
+
 https://github.com/victronenergy/venus/wiki/howto-add-a-driver-to-Venus
 
 scp -r * root@victron.matsu:~/dbus-anchor-alarm
@@ -7,15 +22,40 @@ scp -r * root@victron.matsu:~/dbus-anchor-alarm
 Check NotificationCenter / Alarms
 => change input 1 to alarm and input 2 to general current feedback
 
-add ydab button support
-
-add tolerance settings change support
 
 Check MQTT
 Create settings UI
 Create MainScreen UI
 Create Alarm control UI
 Package
+
+root@victron:~# dbus -y com.victronenergy.settings /Settings RemoveSettings '%["Settings/AnchorAlarm/Configuration/NMEA/Alert/AutoAcknowledgeInterval"]'
+
+dbus -y com.victronenergy.settings /Settings/AnchorAlarm/Configuration/NMEA/SOGRPM RemoveSettings '%["Duration", "RPM", "SOG", "NumberOfEngines"]'
+
+dbus -y com.victronenergy.settings /Settings/AnchorAlarm/Configuration/NMEA/YDAB RemoveSettings '%["AlarmSoundID", "AlarmVolume", "DSAlarmChannel", "DSAlarmMutedChannel", "DSBank", "DSDropPointSetChannel", "NMEAAddress", "StartConfiguration"]'
+
+dbus -y com.victronenergy.settings /Settings/AnchorAlarm/Configuration RemoveSettings '%["MuteDuration", "NoGPSCountThreshold", "RadiusTolerance"]'
+
+dbus -y com.victronenergy.anchoralarm2 /Triggers/AnchorDown SetValue %1
+
+Settings/AnchorAlarm/Configuration/NMEA/YDAB/AlarmSoundID                                                                                 15
+Settings/AnchorAlarm/Configuration/NMEA/YDAB/AlarmVolume                                                                                 100
+Settings/AnchorAlarm/Configuration/NMEA/YDAB/DSAlarmChannel                                                                               11
+Settings/AnchorAlarm/Configuration/NMEA/YDAB/DSAlarmMutedChannel                                                                          12
+Settings/AnchorAlarm/Configuration/NMEA/YDAB/DSBank                                                                                      222
+Settings/AnchorAlarm/Configuration/NMEA/YDAB/DSDropPointSetChannel                                                                        10
+Settings/AnchorAlarm/Configuration/NMEA/YDAB/NMEAAddress                                                                                  67
+Settings/AnchorAlarm/Configuration/NMEA/YDAB/StartConfiguration    
+
+
+
+
+
+{'canId': 233967124, 'prio': 3, 'src': 20, 'dst': 255, 'pgn': 127502, 'timestamp': '2025-05-19T22:08:57.407Z', 'fields': {'Instance': 222, 'Switch2': 'Off'}, 'description': 'Switch Bank Control'}
+{'canId': 233967124, 'prio': 3, 'src': 20, 'dst': 255, 'pgn': 127502, 'timestamp': '2025-05-19T22:08:10.254Z', 'fields': {'Instance': 0, 'Switch2': 'On'}, 'description': 'Switch Bank Control'}
+
+
 
 
 
@@ -88,6 +128,11 @@ nmea messages for button feedback. Big mess ahead
 }
 
 
+48v BMS :
+{'canId': 233966890, 'prio': 3, 'src': 42, 'dst': 255, 'pgn': 127501, 'timestamp': '2025-05-19T22:13:23.134Z', 'fields': {'Instance': 0, 'Indicator1': 'On', 'Indicator2': 'Off', 'Indicator3': 'Off', 'Indicator4': 'Off', 'Indicator5': 'Off'}, 'description': 'Binary Switch Bank Status'}
+
+
+{'canId': 233966915, 'prio': 3, 'src': 67, 'dst': 255, 'pgn': 127501, 'timestamp': '2025-05-19T22:13:24.574Z', 'fields': {'Instance': 222, 'Indicator1': 'Off', 'Indicator2': 'Off', 'Indicator3': 'Off', 'Indicator4': 'Off', 'Indicator5': 'Off', 'Indicator6': 'Off', 'Indicator7': 'Off', 'Indicator8': 'Off', 'Indicator9': 'Off', 'Indicator10': 'Off', 'Indicator11': 'Off', 'Indicator12': 'Off', 'Indicator13': 'Off', 'Indicator14': 'Off', 'Indicator15': 'Off', 'Indicator16': 'Off', 'Indicator17': 'Off', 'Indicator18': 'Off', 'Indicator19': 'Off', 'Indicator20': 'Off', 'Indicator21': 'Off', 'Indicator22': 'Off', 'Indicator23': 'Off', 'Indicator24': 'Off', 'Indicator25': 'Off', 'Indicator26': 'Off', 'Indicator27': 'Off', 'Indicator28': 'Off'}, 'description': 'Binary Switch Bank Status'}
 
 
 
@@ -97,41 +142,4 @@ docker run --platform linux/amd64 --name cerbo -p 80:80 -p 1883:1883 -p 3000:300
 ./start_services.sh
 ./simulate.sh BCT
 
-
-
-com.victronenergy.settings
-//Saved state
-/Settings/AnchorAlarm/Position/Latitude
-/Settings/AnchorAlarm/Position/Longitude
-/Settings/AnchorAlarm/Radius
-
-// Windlass UP
-/Settings/AnchorAlarm/Triggers/Disable/DigitalInput
-/Settings/AnchorAlarm/Triggers/Disable/DigitalInputDuration
-
-// Windlass DOWN
-/Settings/AnchorAlarm/Triggers/Enable/DigitalInput
-/Settings/AnchorAlarm/Triggers/Enable/DigitalInputDuration
-
-// Chain OUT
-/Settings/AnchorAlarm/Triggers/Enable/DigitalInput
-/Settings/AnchorAlarm/Triggers/Enable/DigitalInputDuration
-
-
-
-
-com.victronenergy.anchoralarm
-/AnchorAlarm/State                  // READONLY
-/AnchorAlarm/CurrentRadius          // READONLY
-/AnchorAlarm/RadiusLeft             // READONLY
-/AnchorAlarm/AdditionalDescription
-
-
-/AnchorAlarm/Triggers/Disable
-/AnchorAlarm/Triggers/Enable
-/AnchorAlarm/Triggers/SetRadius
-
-/AnchorAlarm/Alarm/Type             // Warn | Alarm
-/AnchorAlarm/Alarm/Description    
-/AnchorAlarm/Alarm/Aknowledged
 
