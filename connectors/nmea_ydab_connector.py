@@ -52,7 +52,7 @@ class NMEAYDABConnector(AbstractConnector):
         settingsList = {
             # NMEA Address of the YDAB-01 device. 
             # You can find it by going on the Cerbo in Settings/Services/VE.Can port/Devices/YDAB-01/Network Address
-            "NMEAAddress":          ["/Settings/AnchorAlarm/NMEA/YDAB/NMEAAddress", 67, 0, 254],
+            "NMEAAddress":          ["/Settings/AnchorAlarm/NMEA/YDAB/NMEAAddress", 0, 0, 254],
 
             # Sound ID to be played when the alarm is activated
             "AlarmSoundID":         ["/Settings/AnchorAlarm/NMEA/YDAB/AlarmSoundID", 15, 1, 28],
