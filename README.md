@@ -30,6 +30,10 @@ It monitors your anchor position, integrates with NMEA 2000 and Cerbo’s digita
 ![Cerbo Main screen](/doc/main-combined.png)
 
 
+---
+
+> **Disclaimer:**  
+> This anchor alarm is provided as an aid for monitoring your boat's position, but it is **not** a substitute for proper seamanship or safe mooring practices. **Never rely solely on this alarm for the safety of your vessel, crew, or others.** The authors and contributors of this project cannot be held responsible for any loss, damage, or injury resulting from the use of this software. Always use multiple means to ensure your vessel is safely moored.
 
 ---
 
