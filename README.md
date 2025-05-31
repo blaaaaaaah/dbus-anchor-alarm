@@ -2,17 +2,40 @@
 
 A comprehensive boat anchor watch alarm for Victron Cerbo, with deep integration via D-Bus, NMEA 2000, digital inputs, relays, and more.
 
+**dbus-anchor-alarm** runs as a Python service for Victron Cerbo GX running Venus OS.  
+It monitors your anchor position, integrates with NMEA 2000 and Cerbo’s digital inputs/relays, provides alarms and notifications, and is highly configurable.
+
 ---
 
-![Cerbo Main screen](/doc/cerbo-main-screen.png)
-![Cerbo Main with Alarm](/doc/cerbo-main-screen-dragging.png)
-![Cerbo Notification](/doc/cerbo-alarm-notification.png)
+## Features
+
+- Native Python service for Victron Cerbo
+- Supports:
+  - Anchoring mode and mooring ball mode
+  - Digital inputs (anchor up/down, set radius, mute alarm, mooring ball mode)
+  - Cerbo relays for buzzers/alarms
+  - Alarm/notification on Cerbo GX
+  - Feedback on Cerbo’s main screen (using system name)
+  - NMEA 2000 digital switching triggers and feedback
+  - Engine RPM and Speed Over Ground PGN for auto safe radius
+  - YachtDevice YDAB-01 NMEA Alarm Button support
+  - MQTT and Node-RED via D-Bus
+  - Settings management via MQTT, dbus-spy, or Node-RED
+  - Out-of-radius, no-GPS, muting, and radius tolerance adjustment
+
+---
+
+
+
+![Cerbo Main screen](/doc/main-combined.png)
+
+
 
 ---
 
 ## Table of Contents
 
-- [Overview](#overview)
+- [Overview](#dbus-anchor-alarm)
 - [Features](#features)
 - [Anchoring Mode](#anchoring-mode)
 - [Mooring Mode](#mooring-mode)
@@ -36,32 +59,10 @@ A comprehensive boat anchor watch alarm for Victron Cerbo, with deep integration
   - [Overview](#technical-overview)
   - [GPS](#gps)
   - [DBUS Paths](#dbus-paths)
+- [Garmin GPSMAP 1243 Digital Switching integration](#garmin-gpsmap-1243-digital-switching-integration)
+  - [Setting up Digital Switches](#setting-up-digital-switches)
+  - [Setting up Anchoring Screen](#setting-up-anchoring-screen)
 - [License](#license)
-
----
-
-## Overview
-
-**dbus-anchor-alarm** is a Python service for Victron Cerbo GX running Venus OS.  
-It monitors your anchor position, integrates with NMEA 2000 and Cerbo’s digital inputs/relays, provides alarms and notifications, and is highly configurable.
-
----
-
-## Features
-
-- Native Python service for Victron Cerbo
-- Supports:
-  - Anchoring mode and mooring ball mode
-  - Digital inputs (anchor up/down, set radius, mute alarm, mooring ball mode)
-  - Cerbo relays for buzzers/alarms
-  - Alarm/notification on Cerbo GX
-  - Feedback on Cerbo’s main screen (using system name)
-  - NMEA 2000 digital switching triggers and feedback
-  - Engine RPM and Speed Over Ground PGN for auto safe radius
-  - YachtDevice YDAB-01 NMEA Alarm Button support
-  - MQTT and Node-RED via D-Bus
-  - Settings management via MQTT, dbus-spy, or Node-RED
-  - Out-of-radius, no-GPS, muting, and radius tolerance adjustment
 
 ---
 
@@ -269,10 +270,6 @@ You may need an additional T-connector if your NMEA backbone does not have a fre
 | Settings/AnchorAlarm/NMEA/DigitalSwitching/AlarmNoGPSFeedbackChannel | 16 | Feedback channel: alarm no GPS (no input) |
 | Settings/AnchorAlarm/NMEA/DigitalSwitching/AlarmNoGPSMutedFeedbackChannel | 17 | Feedback channel: alarm no GPS muted (no input) |
 
-**Garmin Chartplotter Setup:**  
-On Garmin chartplotters, switches have a default name:  
-`"Switch <bank id>*28+<channel>"` (e.g., Anchor Down: `Switch 6189`).  
-**TODO:** Add screenshots and setup steps.
 
 ---
 
@@ -437,6 +434,36 @@ Allows the anchor alarm to drive a physical relay for a buzzer, alarm, or extern
 > ```
 > dbus -y com.victronenergy.anchoralarm /Triggers/AnchorDown SetValue %1
 > ```
+
+---
+
+# Garmin GPSMAP 1243 Digital Switching integration
+
+## Setting up Digital Switches
+
+On a Garmin GPSMAP 1243, to configure Digital Switching go to "Vessel" then "Switching", then "Setup".
+
+![garmin-step-1](/doc/garmin-switching.png)
+
+![garmin-step-2](/doc/garmin-switch-setup.png)
+
+`dbus-anchor-alarm` switches will labeled `"Switch <bank id>*28+<channel>"` (e.g., Anchor Down: `Switch 6189`).
+
+Use the "Configuration Switch" button to rename all appropriate buttons. The 7 first switches will be input buttons. The following will be status buttons to show the current state of the alarm. Refer to [NMEA 2000 & Digital Switching](#nmea-2000--digital-switching).
+
+
+## Setting up Anchoring Screen
+
+Once the switches names are configured, you can regroup the ones you would use the most in a Page.
+Under SmartMode, create a new Layout, select 2 columns layout : 
+ - Left column could be charts or camera, as big as possible
+ - Right column would be switching page, as small as possbile. Select the page with your Anchor alarm control buttons
+ - Overlay could be "Top" with SOG and Depth, on the left side to not be hidden by NMEA Alerts
+
+
+![garmin-step-3](/doc/garmin-layout.png)
+
+
 
 ---
 
