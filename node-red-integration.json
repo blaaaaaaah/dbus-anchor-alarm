@@ -1,0 +1,636 @@
+[
+    {
+        "id": "deadf7191ce84970",
+        "type": "tab",
+        "label": "dbus-anchor-alarm controls",
+        "disabled": false,
+        "info": "",
+        "env": []
+    },
+    {
+        "id": "088e90ec78e3bae8",
+        "type": "inject",
+        "z": "deadf7191ce84970",
+        "name": "Anchor Down",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "1",
+        "payloadType": "num",
+        "x": 210,
+        "y": 220,
+        "wires": [
+            [
+                "25e8d34fc5940b8b"
+            ]
+        ]
+    },
+    {
+        "id": "25e8d34fc5940b8b",
+        "type": "victron-output-custom",
+        "z": "deadf7191ce84970",
+        "service": "com.victronenergy.anchoralarm/0",
+        "path": "/Triggers/AnchorDown",
+        "serviceObj": {
+            "service": "com.victronenergy.anchoralarm/0",
+            "name": "Anchor Alarm (0)"
+        },
+        "pathObj": {
+            "path": "/Triggers/AnchorDown",
+            "name": "/Triggers/AnchorDown",
+            "type": "number"
+        },
+        "name": "",
+        "onlyChanges": false,
+        "x": 640,
+        "y": 220,
+        "wires": []
+    },
+    {
+        "id": "b8b7c984ebdf642f",
+        "type": "victron-output-custom",
+        "z": "deadf7191ce84970",
+        "service": "com.victronenergy.anchoralarm/0",
+        "path": "/Triggers/ChainOut",
+        "serviceObj": {
+            "service": "com.victronenergy.anchoralarm/0",
+            "name": "Anchor Alarm (0)"
+        },
+        "pathObj": {
+            "path": "/Triggers/ChainOut",
+            "name": "/Triggers/ChainOut",
+            "type": "number"
+        },
+        "name": "",
+        "onlyChanges": false,
+        "x": 630,
+        "y": 280,
+        "wires": []
+    },
+    {
+        "id": "8ed0bf12315d8b24",
+        "type": "inject",
+        "z": "deadf7191ce84970",
+        "name": "Chain Out / Set Radius",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "1",
+        "payloadType": "num",
+        "x": 240,
+        "y": 280,
+        "wires": [
+            [
+                "b8b7c984ebdf642f"
+            ]
+        ]
+    },
+    {
+        "id": "57b1774d534eac0f",
+        "type": "victron-output-custom",
+        "z": "deadf7191ce84970",
+        "service": "com.victronenergy.anchoralarm/0",
+        "path": "/Triggers/ChainOut",
+        "serviceObj": {
+            "service": "com.victronenergy.anchoralarm/0",
+            "name": "Anchor Alarm (0)"
+        },
+        "pathObj": {
+            "path": "/Triggers/ChainOut",
+            "name": "/Triggers/ChainOut",
+            "type": "number"
+        },
+        "name": "",
+        "onlyChanges": false,
+        "x": 630,
+        "y": 340,
+        "wires": []
+    },
+    {
+        "id": "eecd7e87956c20b3",
+        "type": "inject",
+        "z": "deadf7191ce84970",
+        "name": "Anchor Up",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "1",
+        "payloadType": "num",
+        "x": 200,
+        "y": 340,
+        "wires": [
+            [
+                "57b1774d534eac0f"
+            ]
+        ]
+    },
+    {
+        "id": "c081aafa347eb3fd",
+        "type": "victron-output-custom",
+        "z": "deadf7191ce84970",
+        "service": "com.victronenergy.anchoralarm/0",
+        "path": "/Triggers/MuteAlarm",
+        "serviceObj": {
+            "service": "com.victronenergy.anchoralarm/0",
+            "name": "Anchor Alarm (0)"
+        },
+        "pathObj": {
+            "path": "/Triggers/MuteAlarm",
+            "name": "/Triggers/MuteAlarm",
+            "type": "number"
+        },
+        "name": "",
+        "onlyChanges": false,
+        "x": 630,
+        "y": 400,
+        "wires": []
+    },
+    {
+        "id": "9d3b469b0e5e6de0",
+        "type": "inject",
+        "z": "deadf7191ce84970",
+        "name": "Mute Alarm",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "1",
+        "payloadType": "num",
+        "x": 210,
+        "y": 400,
+        "wires": [
+            [
+                "c081aafa347eb3fd"
+            ]
+        ]
+    },
+    {
+        "id": "57e2c56070ecfb19",
+        "type": "victron-output-custom",
+        "z": "deadf7191ce84970",
+        "service": "com.victronenergy.anchoralarm/0",
+        "path": "/Triggers/DecreaseTolerance",
+        "serviceObj": {
+            "service": "com.victronenergy.anchoralarm/0",
+            "name": "Anchor Alarm (0)"
+        },
+        "pathObj": {
+            "path": "/Triggers/DecreaseTolerance",
+            "name": "/Triggers/DecreaseTolerance",
+            "type": "number"
+        },
+        "name": "",
+        "onlyChanges": false,
+        "x": 660,
+        "y": 460,
+        "wires": []
+    },
+    {
+        "id": "7e387970be274bed",
+        "type": "inject",
+        "z": "deadf7191ce84970",
+        "name": "Decrease Tolerance",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "1",
+        "payloadType": "num",
+        "x": 230,
+        "y": 460,
+        "wires": [
+            [
+                "57e2c56070ecfb19"
+            ]
+        ]
+    },
+    {
+        "id": "ccf6a288f83e63d9",
+        "type": "victron-output-custom",
+        "z": "deadf7191ce84970",
+        "service": "com.victronenergy.anchoralarm/0",
+        "path": "/Triggers/IncreaseTolerance",
+        "serviceObj": {
+            "service": "com.victronenergy.anchoralarm/0",
+            "name": "Anchor Alarm (0)"
+        },
+        "pathObj": {
+            "path": "/Triggers/IncreaseTolerance",
+            "name": "/Triggers/IncreaseTolerance",
+            "type": "number"
+        },
+        "name": "",
+        "onlyChanges": false,
+        "x": 660,
+        "y": 520,
+        "wires": []
+    },
+    {
+        "id": "e78881310f41a3aa",
+        "type": "inject",
+        "z": "deadf7191ce84970",
+        "name": "Increase Tolerance",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "1",
+        "payloadType": "num",
+        "x": 230,
+        "y": 520,
+        "wires": [
+            [
+                "ccf6a288f83e63d9"
+            ]
+        ]
+    },
+    {
+        "id": "25f69aa0770b334f",
+        "type": "victron-output-custom",
+        "z": "deadf7191ce84970",
+        "service": "com.victronenergy.anchoralarm/0",
+        "path": "/Triggers/MooringMode",
+        "serviceObj": {
+            "service": "com.victronenergy.anchoralarm/0",
+            "name": "Anchor Alarm (0)"
+        },
+        "pathObj": {
+            "path": "/Triggers/MooringMode",
+            "name": "/Triggers/MooringMode",
+            "type": "number"
+        },
+        "name": "",
+        "onlyChanges": false,
+        "x": 640,
+        "y": 580,
+        "wires": []
+    },
+    {
+        "id": "a694e4a84a33716c",
+        "type": "inject",
+        "z": "deadf7191ce84970",
+        "name": "Mooring Mode",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "1",
+        "payloadType": "num",
+        "x": 220,
+        "y": 580,
+        "wires": [
+            [
+                "25f69aa0770b334f"
+            ]
+        ]
+    },
+    {
+        "id": "6c9e29720d2339d0",
+        "type": "victron-input-custom",
+        "z": "deadf7191ce84970",
+        "service": "com.victronenergy.anchoralarm/0",
+        "path": "/State",
+        "serviceObj": {
+            "service": "com.victronenergy.anchoralarm/0",
+            "name": "Anchor Alarm (0)"
+        },
+        "pathObj": {
+            "path": "/State",
+            "name": "/State",
+            "type": "string"
+        },
+        "name": "",
+        "onlyChanges": false,
+        "x": 230,
+        "y": 120,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "5778ae5c468fa4ad",
+        "type": "victron-input-custom",
+        "z": "deadf7191ce84970",
+        "service": "com.victronenergy.anchoralarm/0",
+        "path": "/Message",
+        "serviceObj": {
+            "service": "com.victronenergy.anchoralarm/0",
+            "name": "Anchor Alarm (0)"
+        },
+        "pathObj": {
+            "path": "/Message",
+            "name": "/Message",
+            "type": "string"
+        },
+        "name": "",
+        "onlyChanges": false,
+        "x": 600,
+        "y": 120,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "09cb47ef21e5f734",
+        "type": "inject",
+        "z": "deadf7191ce84970",
+        "name": "YDAB-01 NMEA Address",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "67",
+        "payloadType": "num",
+        "x": 250,
+        "y": 740,
+        "wires": [
+            [
+                "72e72eb76cf78603"
+            ]
+        ]
+    },
+    {
+        "id": "bf4723a63d1335e4",
+        "type": "comment",
+        "z": "deadf7191ce84970",
+        "name": "Define YDAB-01 as payload of the node below",
+        "info": "",
+        "x": 240,
+        "y": 700,
+        "wires": []
+    },
+    {
+        "id": "72e72eb76cf78603",
+        "type": "victron-output-custom",
+        "z": "deadf7191ce84970",
+        "service": "com.victronenergy.settings",
+        "path": "/Settings/AnchorAlarm/NMEA/YDAB/NMEAAddress",
+        "serviceObj": {
+            "service": "com.victronenergy.settings",
+            "name": "com.victronenergy.settings"
+        },
+        "pathObj": {
+            "path": "/Settings/AnchorAlarm/NMEA/YDAB/NMEAAddress",
+            "name": "/Settings/AnchorAlarm/NMEA/YDAB/NMEAAddress",
+            "type": "number"
+        },
+        "name": "",
+        "onlyChanges": false,
+        "x": 770,
+        "y": 740,
+        "wires": []
+    },
+    {
+        "id": "cc21c36c24b0b125",
+        "type": "victron-output-custom",
+        "z": "deadf7191ce84970",
+        "service": "com.victronenergy.settings",
+        "path": "/Settings/AnchorAlarm/NMEA/YDAB/StartConfiguration",
+        "serviceObj": {
+            "service": "com.victronenergy.settings",
+            "name": "com.victronenergy.settings"
+        },
+        "pathObj": {
+            "path": "/Settings/AnchorAlarm/NMEA/YDAB/StartConfiguration",
+            "name": "/Settings/AnchorAlarm/NMEA/YDAB/StartConfiguration",
+            "type": "number"
+        },
+        "name": "",
+        "onlyChanges": false,
+        "x": 780,
+        "y": 800,
+        "wires": []
+    },
+    {
+        "id": "3b6c2c1dcd99e545",
+        "type": "inject",
+        "z": "deadf7191ce84970",
+        "name": "Start YDAB-01 configuration",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "1",
+        "payloadType": "num",
+        "x": 260,
+        "y": 800,
+        "wires": [
+            [
+                "cc21c36c24b0b125"
+            ]
+        ]
+    },
+    {
+        "id": "cbab37982d1fba54",
+        "type": "comment",
+        "z": "deadf7191ce84970",
+        "name": "Change or copy nodes below to set specific configuration",
+        "info": "",
+        "x": 270,
+        "y": 920,
+        "wires": []
+    },
+    {
+        "id": "cf60934b5046cb82",
+        "type": "comment",
+        "z": "deadf7191ce84970",
+        "name": "dbus-anchor-alarm state and controls",
+        "info": "",
+        "x": 210,
+        "y": 60,
+        "wires": []
+    },
+    {
+        "id": "e621f8d9efde6ec7",
+        "type": "victron-output-custom",
+        "z": "deadf7191ce84970",
+        "service": "com.victronenergy.settings",
+        "path": "/Settings/AnchorAlarm/MooringRadius",
+        "serviceObj": {
+            "service": "com.victronenergy.settings",
+            "name": "com.victronenergy.settings"
+        },
+        "pathObj": {
+            "path": "/Settings/AnchorAlarm/MooringRadius",
+            "name": "/Settings/AnchorAlarm/MooringRadius",
+            "type": "number"
+        },
+        "name": "",
+        "onlyChanges": false,
+        "x": 720,
+        "y": 980,
+        "wires": []
+    },
+    {
+        "id": "f8c97d0e3f59faa1",
+        "type": "inject",
+        "z": "deadf7191ce84970",
+        "name": "Change default mooring radius",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "15",
+        "payloadType": "num",
+        "x": 270,
+        "y": 980,
+        "wires": [
+            [
+                "e621f8d9efde6ec7"
+            ]
+        ]
+    },
+    {
+        "id": "65e67c94d8fc75e9",
+        "type": "victron-output-custom",
+        "z": "deadf7191ce84970",
+        "service": "com.victronenergy.settings",
+        "path": "/Settings/AnchorAlarm/FeedbackUseSystemName",
+        "serviceObj": {
+            "service": "com.victronenergy.settings",
+            "name": "com.victronenergy.settings"
+        },
+        "pathObj": {
+            "path": "/Settings/AnchorAlarm/FeedbackUseSystemName",
+            "name": "/Settings/AnchorAlarm/FeedbackUseSystemName",
+            "type": "number"
+        },
+        "name": "",
+        "onlyChanges": false,
+        "x": 760,
+        "y": 1040,
+        "wires": []
+    },
+    {
+        "id": "1a3eb401833d2b31",
+        "type": "inject",
+        "z": "deadf7191ce84970",
+        "name": "Use system name for status feedback",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "1",
+        "payload": "15",
+        "payloadType": "num",
+        "x": 290,
+        "y": 1040,
+        "wires": [
+            [
+                "65e67c94d8fc75e9"
+            ]
+        ]
+    }
+]

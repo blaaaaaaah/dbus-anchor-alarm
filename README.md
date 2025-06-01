@@ -56,6 +56,7 @@ It monitors your anchor position, integrates with NMEA 2000 and Cerbo’s digita
 - [Anchor Alarm Connectors](#anchor-alarm-connectors)
   - [NMEA 2000 & Digital Switching](#nmea-2000--digital-switching)
   - [Digital Inputs (Windlass, Buttons, etc.)](#digital-inputs-windlass-buttons-etc)
+  - [Cerbo Notifications and Alarms](#cerbo-notifications-and-alarms)
   - [Engine Gateway / NMEA SOG+RPM](#engine-gateway--nmea-sogrpm)
   - [YachtDevice YDAB-01 Alarm Button](#yachtdevice-ydab-01-alarm-button)
   - [Cerbo GX Integrated Relays](#cerbo-gx-integrated-relays)
@@ -214,13 +215,14 @@ _Not implemented yet. Planned: InstallHelper or wget one-liner._
   All `dbus-anchor-alarm` settings are located under this section, typically at paths like `/Settings/AnchorAlarm/XXX`.  
   This is where you can view and modify every configuration parameter relevant to the anchor alarm.
 - **Node-RED:**  
-  Use Victron Custom Control Node with `com.victronenergy.settings` and `/Settings/AnchorAlarm/XXX`.
+  Enable Node-RED on the Cerbo in Settings, Venus OS Large Features, Node-RED and import the flow node-red-integration.json
+  or use a Victron Custom Control Node with `com.victronenergy.settings` and `/Settings/AnchorAlarm/XXX`.
 
 - **MQTT:**
   Connect to the DBUS using MQTT by enabling MQTT in the Cerbo settings and connecting to it usint MQTT Explorer or equivalent and connect on port 1883. Do not forget to publish R/<your cerbo id>/keepalive to get notified of values.
 
 ![dbus-spy](/doc/dbus-spy.png)
-![Node red](/doc/node-red.png)
+![Node red](/doc/node-red-integration.png)
 ![MQTT](/doc/mqtt.png)
 
 ---
@@ -290,6 +292,9 @@ Allows connection of windlass solenoids or physical buttons to Cerbo digital inp
   - Connect pins 85/86 in parallel to windlass solenoid input side.
   - Connect pins 30/87 to Cerbo digital input.  
     (Before connecting, verify relay operation and ensure **NO POWER** goes to pins 30/87.)
+- **Cerbo configuration**
+  - Navigate to Settings, I/O, Digital Inputs and enable appropriate Digital Inputs.
+  - Set type as **Bilge pump**
 
 **TODO:** Add wiring diagram
 
@@ -316,6 +321,30 @@ Allows connection of windlass solenoids or physical buttons to Cerbo digital inp
 Each event can have a minimal digital input duration to avoid accidental triggers.
 
 ---
+
+### Cerbo Notifications and Alarms
+
+**Description:**  
+
+Cerbo's notifications and alarms system is pretty rigid, a workaround is to use one of the Digital Input.
+Even if you are not using a Digital Inputs, navigate to Settings, I/O, Digital Inputs and enable one Digital Inputs, set type to **Bilge pump**.
+
+Upon alarm condition, the system will override the name of the Digital Input and force its alarms state. 
+The previous name of the Digital Input will not be saved or restored and will contain the current state message of the anchor alarm.
+
+**Configuration Parameters:**
+
+| Parameter | Default | Description |
+|---|---|---|
+| Settings/AnchorAlarm/DigitalInputs/AnchorDown/FeedbackDigitaInputNumber | 1 | Digital input number to use for state feedback (0=disable) |
+
+
+---
+
+
+
+
+
 
 ### Engine Gateway / NMEA SOG+RPM
 
