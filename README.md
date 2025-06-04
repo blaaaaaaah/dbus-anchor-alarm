@@ -1,9 +1,9 @@
 # dbus-anchor-alarm
 
-A comprehensive boat anchor watch alarm for Victron Cerbo, with deep integration via D-Bus, NMEA 2000, digital inputs, relays, and more.
+A comprehensive boat anchor watch alarm for Victron Cerbo, with deep integration via D-Bus, NMEA 2000, digital inputs, relays, VRM, and more.
 
 **dbus-anchor-alarm** runs as a Python service for Victron Cerbo GX running Venus OS.  
-It monitors your anchor position, integrates with NMEA 2000 and Cerbo’s digital inputs/relays, provides alarms and notifications, and is highly configurable.
+It monitors your anchor position, integrates with NMEA 2000 and Cerbo’s digital inputs/relays, VRM, provides alarms and notifications, and is highly configurable.
 
 ---
 
@@ -22,6 +22,7 @@ It monitors your anchor position, integrates with NMEA 2000 and Cerbo’s digita
   - MQTT and Node-RED via D-Bus
   - Settings management via MQTT, dbus-spy, or Node-RED
   - Out-of-radius, no-GPS, muting, and radius tolerance adjustment
+  - Push notification and remote monitoring using VRM
 
 ---
 
@@ -56,7 +57,7 @@ It monitors your anchor position, integrates with NMEA 2000 and Cerbo’s digita
 - [Anchor Alarm Connectors](#anchor-alarm-connectors)
   - [NMEA 2000 & Digital Switching](#nmea-2000--digital-switching)
   - [Digital Inputs (Windlass, Buttons, etc.)](#digital-inputs-windlass-buttons-etc)
-  - [Cerbo Notifications and Alarms](#cerbo-notifications-and-alarms)
+  - [Cerbo & VRM Notifications and Alarms](#cerbo-&-vrm-notifications-and-alarms)
   - [Engine Gateway / NMEA SOG+RPM](#engine-gateway--nmea-sogrpm)
   - [YachtDevice YDAB-01 Alarm Button](#yachtdevice-ydab-01-alarm-button)
   - [Cerbo GX Integrated Relays](#cerbo-gx-integrated-relays)
@@ -322,7 +323,7 @@ Each event can have a minimal digital input duration to avoid accidental trigger
 
 ---
 
-### Cerbo Notifications and Alarms
+### Cerbo & VRM Notifications and Alarms
 
 **Description:**  
 
@@ -331,6 +332,20 @@ Even if you are not using a Digital Inputs, navigate to Settings, I/O, Digital I
 
 Upon alarm condition, the system will override the name of the Digital Input and force its alarms state. 
 The previous name of the Digital Input will not be saved or restored and will contain the current state message of the anchor alarm.
+
+**VRM integration - Push Notifications**
+
+Digital inputs alarms are monitored by default by VRM and a push notification will be sent to your phone when an alarm state is detected : See ([Getting started with VRM]https://www.victronenergy.com/media/pg/VRM_Portal_manual/en/getting-started-with-vrm.html)
+
+Note: If you have multiple users registered in your installation, make sure to toggle the Enable switch under Settings / Alarm rules of your installation in the VRM portal.
+
+
+**VRM integration - Remote Console**
+
+In order to view anchor alarm's state remotely, activate "Remote console" on your Cerbo under Settings / Remote Console / Enable on VRM.
+
+The Cerbo console will be available in your site's side menu under "Remote Console"
+
 
 **Configuration Parameters:**
 
