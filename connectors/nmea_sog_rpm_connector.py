@@ -150,15 +150,6 @@ class NMEASOGRPMConnector(AbstractConnector):
 
 
 
-    def _timer_provider(self):
-        from gi.repository import GLib
-        return GLib
-
-
-
-
-
-
 
 if __name__ == '__main__':
 

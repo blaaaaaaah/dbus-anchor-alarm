@@ -317,13 +317,6 @@ class NMEAYDABConnector(AbstractConnector):
 
 
 
-    def _timer_provider(self):
-        from gi.repository import GLib
-        return GLib
-
-
-
-
 
 
 

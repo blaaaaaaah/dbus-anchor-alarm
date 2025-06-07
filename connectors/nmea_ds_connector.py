@@ -267,13 +267,6 @@ class NMEADSConnector(AbstractConnector):
             self._update_switch_status(channel, state == current_state.state, None)
 
 
-    def _timer_provider(self):
-        from gi.repository import GLib
-        return GLib
-
-
-
-
 
 
 

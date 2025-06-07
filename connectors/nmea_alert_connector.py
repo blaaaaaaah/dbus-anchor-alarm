@@ -207,10 +207,6 @@ class NMEAAlertConnector(AbstractConnector):
         self._bridge.send_nmea(nmea_message)
 
 
-    def _timer_provider(self):
-        from gi.repository import GLib
-        return GLib
-
 
 
 
