@@ -34,6 +34,7 @@ import os
 
 sys.path.insert(1, os.path.join(os.path.dirname(__file__), 'ext/velib_python'))
 sys.path.insert(1, os.path.join(os.path.dirname(__file__), 'connectors'))
+sys.path.insert(1, os.path.join(os.path.dirname(__file__), 'gps_providers'))
 
 
 from dbus_connector import DBusConnector
@@ -51,13 +52,13 @@ from gi.repository import GLib
 import dbus
 from settingsdevice import SettingsDevice
 
-from gps_provider import GPSProvider
+from dbus_gps_provider import DBUSGPSProvider
 
 
 class DbusAnchorAlarmService(object):
     def __init__(self):
         
-        self._gps_provider = GPSProvider()
+        self._gps_provider = DBUSGPSProvider()
         self._nmea_bridge  = NMEABridge(os.path.join(os.path.dirname(__file__), 'nmea_bridge.js'))
 
         self._initStateMachine()
@@ -75,7 +76,7 @@ class DbusAnchorAlarmService(object):
         nmea_ds_connector = NMEADSConnector(lambda: GLib, lambda settings, cb: SettingsDevice(bus, settings, cb), self._nmea_bridge)
         dbus_relay_connector = DBusRelayConnector(lambda: GLib, lambda settings, cb: SettingsDevice(bus, settings, cb))
 
-        # TODO XXX move registration of connectors elsewhere ? 
+
         self._alarm_controller.register_connector(dbus_connector)
         self._alarm_controller.register_connector(nmea_alert_connector)
         self._alarm_controller.register_connector(nmea_ydab_connector)
@@ -86,7 +87,7 @@ class DbusAnchorAlarmService(object):
 
 
 
-# TODO XXX : how to launch the service ?
+
 def main():
     from argparse import ArgumentParser
     parser = ArgumentParser(

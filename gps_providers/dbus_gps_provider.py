@@ -34,7 +34,7 @@ GPSPosition = namedtuple('GPSPosition', ['latitude', 'longitude'])
 
 logger = logging.getLogger(__name__)
 
-class GPSProvider(object):
+class DBUSGPSProvider(object):
     
     def __init__(self):
         dummy = {'code': None, 'whenToLog': 'configChange', 'accessLevel': None}
@@ -112,7 +112,7 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
     # Have a mainloop, so we can send/receive asynchronous calls to and from dbus
     DBusGMainLoop(set_as_default=True)
-    provider = GPSProvider()
+    provider = DBUSGPSProvider()
 
     from ve_utils import exit_on_error
    
