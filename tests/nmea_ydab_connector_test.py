@@ -83,7 +83,7 @@ class TestNMEAYDABConnector(unittest.TestCase):
 
 
         connector = NMEAYDABConnector(lambda: timer_provider, MockSettingsDevice,  mock_bridge)
-        #connector._settings['AutoAcknowledgeInterval'] = 3
+        connector._settings['NMEAAddress'] = self._ADDRESS
 
         controller = MagicMock()
         controller.trigger_mute_alarm   = MagicMock()
@@ -175,7 +175,8 @@ class TestNMEAYDABConnector(unittest.TestCase):
 
 
         connector = NMEAYDABConnector(lambda: timer_provider, MockSettingsDevice,  mock_bridge)
-        #connector._settings['AutoAcknowledgeInterval'] = 3
+        connector._settings['DSBank'] = 222
+        connector._settings['NMEAAddress'] = self._ADDRESS
 
         controller = MagicMock()
         controller.trigger_mute_alarm   = MagicMock()
