@@ -43,10 +43,7 @@ from nmea_sog_rpm_connector import NMEASOGRPMConnector
           
 timer_provider = GLibTimerMock()
 
-
-# TODO XXX : move that import somewhere
-from collections import namedtuple
-GPSPosition = namedtuple('GPSPosition', ['latitude', 'longitude'])
+from abstract_gps_provider import GPSPosition
 
 
 

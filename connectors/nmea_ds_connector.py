@@ -287,8 +287,7 @@ if __name__ == '__main__':
 
     logging.basicConfig(level=logging.DEBUG)
 
-    # TODO XXX : move that import somewhere
-    GPSPosition = namedtuple('GPSPosition', ['latitude', 'longitude'])
+    from abstract_gps_provider import GPSPosition
 
     bridge = NMEABridge('../nmea_bridge.js')
     DBusGMainLoop(set_as_default=True)

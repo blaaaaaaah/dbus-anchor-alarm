@@ -25,13 +25,11 @@ sys.path.insert(1, os.path.join(sys.path[0], '..'))
 from anchor_alarm_model import AnchorAlarmModel
 from anchor_alarm_model import AnchorAlarmState
 from anchor_alarm_model import AnchorAlarmConfiguration
-from collections import namedtuple
 
 import unittest
 from unittest.mock import ANY
 
-# TODO XXX : move that import somewhere
-GPSPosition = namedtuple('GPSPosition', ['latitude', 'longitude'])
+from abstract_gps_provider import GPSPosition
 
 
 class TestAnchorAlarmModel(unittest.TestCase):

@@ -20,14 +20,20 @@
 
 import sys
 import os
-sys.path.insert(1, os.path.join(sys.path[0], 'gps_providers')) 
-sys.path.insert(1, os.path.join(sys.path[0], 'connectors')) 
 
+sys.path.insert(1, os.path.join(sys.path[0], '..'))
+from utils import AbstractTimerUtils
 
-import unittest
-loader = unittest.TestLoader()
+from collections import namedtuple
+GPSPosition = namedtuple('GPSPosition', ['latitude', 'longitude'])
 
-suite = loader.discover("tests", "*_test.py")
+class AbstractGPSProvider(AbstractTimerUtils):
+    def __init__(self, timer_provider):
+        super().__init__(timer_provider)
 
-runner = unittest.TextTestRunner()
-runner.run(suite)
+    def get_gps_position(self):
+        """Returns the last verified GPS position as a GPSPosition namedtuple
+        Provider should invalidate the GPS position if it becomes outdated by returning None
+        """
+
+        return None

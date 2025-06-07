@@ -44,10 +44,7 @@ from nmea_ydab_connector import NMEAYDABConnector
 timer_provider = GLibTimerMock()
 
 
-# TODO XXX : move that import somewhere
-from collections import namedtuple
-GPSPosition = namedtuple('GPSPosition', ['latitude', 'longitude'])
-
+from abstract_gps_provider import GPSPosition
 
 
 

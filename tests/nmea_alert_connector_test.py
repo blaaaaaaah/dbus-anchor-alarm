@@ -36,9 +36,7 @@ from unittest.mock import call
 from mock_settings_device import MockSettingsDevice
 from glib_timer_mock import GLibTimerMock
 
-# TODO XXX : move that import somewhere
-from collections import namedtuple
-GPSPosition = namedtuple('GPSPosition', ['latitude', 'longitude'])
+from abstract_gps_provider import GPSPosition
 
 sys.path.insert(1, os.path.join(sys.path[0], '../connectors'))
 

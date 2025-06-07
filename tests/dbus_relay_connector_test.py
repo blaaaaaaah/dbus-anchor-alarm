@@ -46,9 +46,7 @@ from mock_settings_device import MockSettingsDevice
 
 from glib_timer_mock import GLibTimerMock
           
-# TODO XXX : move that import somewhere
-from collections import namedtuple
-GPSPosition = namedtuple('GPSPosition', ['latitude', 'longitude'])
+from abstract_gps_provider import GPSPosition
 
 class MockDBusRelayConnector(DBusRelayConnector):
     def _create_dbus_monitor(self, *args, **kwargs):

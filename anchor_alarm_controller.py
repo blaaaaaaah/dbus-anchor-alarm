@@ -23,11 +23,12 @@ from anchor_alarm_model import AnchorAlarmModel
 
 import sys
 import os
-sys.path.insert(1, os.path.join(sys.path[0], '..'))
+
 from utils import exit_on_error
 
-from collections import namedtuple
-GPSPosition = namedtuple('GPSPosition', ['latitude', 'longitude'])
+sys.path.insert(1, os.path.join(sys.path[0], 'gps_providers')) 
+from abstract_gps_provider import GPSPosition
+
 
 import logging
 logger = logging.getLogger(__name__)

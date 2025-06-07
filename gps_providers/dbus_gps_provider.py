@@ -23,22 +23,21 @@ from collections import namedtuple
 import logging
 import sys
 import os
+
 sys.path.insert(1, os.path.join(os.path.dirname(__file__), 'ext/velib_python'))
+sys.path.insert(1, os.path.join(os.path.dirname(__file__), '..'))
 
-from gi.repository import GLib
-from dbusmonitor import DbusMonitor
-from dbus.mainloop.glib import DBusGMainLoop
-import dbus
+from abstract_gps_provider import AbstractGPSProvider
+from abstract_gps_provider import GPSPosition
 
-GPSPosition = namedtuple('GPSPosition', ['latitude', 'longitude'])
 
 logger = logging.getLogger(__name__)
 
-class DBUSGPSProvider(object):
+class DBUSGPSProvider(AbstractGPSProvider):
     
     def __init__(self):
         dummy = {'code': None, 'whenToLog': 'configChange', 'accessLevel': None}
-        dbus_tree = {'com.victronenergy.gps': {
+        monitorlist = {'com.victronenergy.gps': {
                 '/DeviceInstance': dummy,
 				'/Fix': dummy,
 				'/Position/Latitude': dummy,
@@ -50,11 +49,16 @@ class DBUSGPSProvider(object):
         self._current_service = None
 
         
-        self._dbusmonitor = DbusMonitor(dbus_tree, valueChangedCallback=self._dbus_value_changed,
+        self._dbusmonitor = self._create_dbus_monitor(monitorlist, valueChangedCallback=self._dbus_value_changed,
 			deviceAddedCallback=self._device_added, deviceRemovedCallback=self._device_removed)
     
         for service, instance in self._dbusmonitor.get_service_list().items():
             self._device_added(service, instance)
+
+
+    def _create_dbus_monitor(self, *args, **kwargs):
+        from dbusmonitor import DbusMonitor
+        return DbusMonitor(*args, **kwargs)
 
     def get_gps_position(self):
         """Main public API, returns a GPSPosition namedtuple or None if no GPS is available"""
@@ -102,23 +106,25 @@ class DBUSGPSProvider(object):
 
 
 
-def log_gps_position(provider):
-    print (str(provider.get_gps_position()))
-    return True
+
 
 
 if __name__ == "__main__":
+    from dbus.mainloop.glib import DBusGMainLoop
+    from gi.repository import GLib
+    from ve_utils import exit_on_error
 
     logging.basicConfig(level=logging.DEBUG)
     # Have a mainloop, so we can send/receive asynchronous calls to and from dbus
     DBusGMainLoop(set_as_default=True)
     provider = DBUSGPSProvider()
 
-    from ve_utils import exit_on_error
+    def log_gps_position(provider):
+        print (str(provider.get_gps_position()))
+        return True
+
    
     GLib.timeout_add(1000, exit_on_error, log_gps_position, provider)
-#    GLib.timeout_add(2000, log_gps_position, provider)
-#    GLib.timeout_add(3000, log_gps_position, provider)
 
 	# Start and run the mainloop
     logger.info("Starting mainloop, responding only on events")

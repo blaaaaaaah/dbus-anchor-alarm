@@ -32,8 +32,7 @@ from unittest.mock import MagicMock
 from unittest.mock import call
 
 
-# TODO XXX : move that import somewhere
-GPSPosition = namedtuple('GPSPosition', ['latitude', 'longitude'])
+from abstract_gps_provider import GPSPosition
 
 
 from glib_timer_mock import GLibTimerMock
