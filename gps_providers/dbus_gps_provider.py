@@ -33,9 +33,11 @@ from abstract_gps_provider import GPSPosition
 
 logger = logging.getLogger(__name__)
 
-class DBUSGPSProvider(AbstractGPSProvider):
+class DBusGPSProvider(AbstractGPSProvider):
     
-    def __init__(self):
+    def __init__(self, timer_provider):
+        super().__init__(timer_provider)
+
         dummy = {'code': None, 'whenToLog': 'configChange', 'accessLevel': None}
         monitorlist = {'com.victronenergy.gps': {
                 '/DeviceInstance': dummy,
@@ -117,7 +119,7 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
     # Have a mainloop, so we can send/receive asynchronous calls to and from dbus
     DBusGMainLoop(set_as_default=True)
-    provider = DBUSGPSProvider()
+    provider = DBusGPSProvider(lambda: GLib)
 
     def log_gps_position(provider):
         print (str(provider.get_gps_position()))

@@ -52,13 +52,13 @@ from gi.repository import GLib
 import dbus
 from settingsdevice import SettingsDevice
 
-from dbus_gps_provider import DBUSGPSProvider
+from dbus_gps_provider import DBusGPSProvider
 
 
 class DbusAnchorAlarmService(object):
     def __init__(self):
         
-        self._gps_provider = DBUSGPSProvider()
+        self._gps_provider = DBusGPSProvider(lambda: GLib)
         self._nmea_bridge  = NMEABridge(os.path.join(os.path.dirname(__file__), 'nmea_bridge.js'))
 
         self._initStateMachine()
