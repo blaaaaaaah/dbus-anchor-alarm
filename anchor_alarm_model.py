@@ -228,8 +228,6 @@ class AnchorAlarmModel(object):
                     if self.state != "IN_RADIUS":
                         self.on_in_radius()
 
-                #if last_state in ["ALARM_NO_GPS", "ALARM_NO_GPS_MUTED"]: 
-                # TODO XXX how to get feedback that boat is safe again ?
 
 
             
@@ -376,7 +374,11 @@ class AnchorAlarmModel(object):
         if current_position is None or drop_point is None:
             return None
         
-        distance = geodesic((drop_point.latitude, drop_point.longitude), 
+        try:
+            distance = geodesic((drop_point.latitude, drop_point.longitude), 
                           (current_position.latitude, current_position.longitude)).meters
+        except:
+            distance = 999
+
         return distance
 

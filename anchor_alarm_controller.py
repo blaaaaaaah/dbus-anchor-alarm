@@ -122,10 +122,18 @@ class AnchorAlarmController(object):
     def get_gps_position(self):
         logger.debug("Got "+str(len(self._gps_providers))+" gps providers")
         for gps_provider in self._gps_providers:
-            position = gps_provider.get_gps_position()
-            if position is not None:
-                logger.debug("Returning GPSPosition: "+ str(position))
-                return position
+            gps_position = gps_provider.get_gps_position()
+
+            if gps_position is not None:
+                if type(gps_position).__name__ != "GPSPosition":
+                    raise TypeError("gps_position must be a GPSPosition namedtuple")
+        
+                if gps_position.latitude < -90 or gps_position.latitude > 90:
+                    logger.error("Got a invalid latitude, ignoring")
+                    return None
+            
+                logger.debug("Returning GPSPosition: "+ str(gps_position))
+                return gps_position
             else:
                 logger.debug("Provider "+ str(gps_provider) + " didn't return a GPS position")
         

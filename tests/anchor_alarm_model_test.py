@@ -21,6 +21,7 @@
 import sys
 import os
 sys.path.insert(1, os.path.join(sys.path[0], '..'))
+sys.path.insert(1, os.path.join(sys.path[0], '../gps_providers'))
 
 from anchor_alarm_model import AnchorAlarmModel
 from anchor_alarm_model import AnchorAlarmState
@@ -831,6 +832,16 @@ class TestAnchorAlarmModel(unittest.TestCase):
 
 
 
+    def test_wrong_coordinates(self):
+        anchor_alarm =  AnchorAlarmModel(self._update_last_state)
+        self.assertState(anchor_alarm, None, AnchorAlarmState('DISABLED', ANY, ANY, "info", False, ANY))
+
+        anchor_alarm.reset_state(self.gps_position_anchor_down, 21)
+        self.assertState(anchor_alarm, "IN_RADIUS", AnchorAlarmState('IN_RADIUS', ANY, ANY, "info", False, ANY))
+
+        # anchor down
+        anchor_alarm.on_timer_tick(GPSPosition("-60", "10"))
+        anchor_alarm.on_timer_tick(GPSPosition("-160", "10"))
 
         # test that when mute_duration is decreased in MUTE state, state goes back to alarm
 
