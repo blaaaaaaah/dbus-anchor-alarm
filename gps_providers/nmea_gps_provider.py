@@ -36,6 +36,8 @@ class NMEAGPSProvider(AbstractGPSProvider):
     def __init__(self, timer_provider, nmea_bridge):
         super().__init__(timer_provider)
 
+        self._INVALIDATE_DURATION = 2000
+
         self._timer_ids = {
             'invalidate': None
         }
@@ -80,7 +82,7 @@ class NMEAGPSProvider(AbstractGPSProvider):
 
         if has_fix:
             self._gps_positions[nmea_message['src']] = GPSPosition(nmea_message["fields"]["Latitude"], nmea_message["fields"]["Longitude"])
-            self._add_timer('invalidate_'+ str(nmea_message['src']), lambda: self._gps_positions.pop(nmea_message['src'], None), 1000)
+            self._add_timer('invalidate_'+ str(nmea_message['src']), lambda: self._gps_positions.pop(nmea_message['src'], None), self._INVALIDATE_DURATION)
         else:
             self._gps_positions.pop(nmea_message['src'], None)
 
@@ -114,10 +116,13 @@ if __name__ == '__main__':
     from gi.repository import GLib
     import dbus
     sys.path.insert(1, os.path.join(os.path.dirname(__file__), '../ext/velib_python'))
+    sys.path.insert(1, os.path.join(os.path.dirname(__file__), '../ext/'))
 
     from settingsdevice import SettingsDevice
     from unittest.mock import MagicMock
     from dbus.mainloop.glib import DBusGMainLoop
+
+    from geopy.distance import geodesic
 
     bridge = NMEABridge('../nmea_bridge.js')
     DBusGMainLoop(set_as_default=True)
@@ -127,6 +132,24 @@ if __name__ == '__main__':
 
     def log_gps_position(provider):
         print (str(provider.get_gps_position()))
+
+        msg = "got "+ str(len(provider._gps_positions)) + " positions ("
+        for src in sorted(provider._gps_positions):
+            msg = msg + " "+ str(src)
+        msg = msg + ") "
+
+        first_pos = None
+        for src in sorted(provider._gps_positions):
+            position = provider._gps_positions[src]
+            if first_pos is None:
+                first_pos = position
+            else:
+                distance = geodesic((first_pos.latitude, first_pos.longitude), 
+                          (position.latitude, position.longitude)).meters
+                msg = msg + ", "+ str(round(distance, 1)) + "m apart (NMEA "+ str(src) +")"
+
+        print(msg)
+
         return True
 
     GLib.timeout_add(1000, exit_on_error, log_gps_position, provider)

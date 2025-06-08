@@ -88,6 +88,7 @@ class TestNMEAGPSProvider(unittest.TestCase):
         self.assertEqual(provider.get_gps_position(), GPSPosition(1, 1))
 
         timer_provider.tick()
+        timer_provider.tick()
         self.assertIsNone(provider.get_gps_position())
 
         handler(get_fix_message(1, 2, 2))
@@ -112,6 +113,7 @@ class TestNMEAGPSProvider(unittest.TestCase):
         handler(get_fix_message(20, 20, 20))
         self.assertEqual(provider.get_gps_position(), GPSPosition(20, 20))
 
+        timer_provider.tick()
         timer_provider.tick()
         self.assertIsNone(provider.get_gps_position())
 
