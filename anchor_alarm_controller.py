@@ -64,7 +64,7 @@ class AnchorAlarmController(object):
             "NoGPSCountThreshold":  ["/Settings/Anchoralarm/NoGPSCountThreshold", 30, 0, 300],
 
             # Number of seconds the alarm will be muted for when the alarm is acknowledged
-            "MuteDuration":         ["/Settings/Anchoralarm/MuteDuration", 30, 0, 300], 
+            "MuteDuration":         ["/Settings/Anchoralarm/MuteDuration", 120, 0, 600], 
 
             # Safe radius to use when activating mooring ball mode
             "MooringRadius":        ["/Settings/AnchorAlarm/MooringRadius", 15, 0, 256],
