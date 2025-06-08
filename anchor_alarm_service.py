@@ -53,12 +53,12 @@ import dbus
 from settingsdevice import SettingsDevice
 
 from dbus_gps_provider import DBusGPSProvider
+from nmea_gps_provider import NMEAGPSProvider
 
 
 class DbusAnchorAlarmService(object):
     def __init__(self):
         
-        self._gps_provider = DBusGPSProvider(lambda: GLib)
         self._nmea_bridge  = NMEABridge(os.path.join(os.path.dirname(__file__), 'nmea_bridge.js'))
 
         self._initStateMachine()
@@ -67,7 +67,13 @@ class DbusAnchorAlarmService(object):
     def _initStateMachine(self):
         bus = dbus.SessionBus() if 'DBUS_SESSION_BUS_ADDRESS' in os.environ else dbus.SystemBus()
 
-        self._alarm_controller = AnchorAlarmController(lambda: GLib, lambda settings, cb: SettingsDevice(bus, settings, cb), self._gps_provider)
+        self._alarm_controller = AnchorAlarmController(lambda: GLib, lambda settings, cb: SettingsDevice(bus, settings, cb))
+
+        dbus_gps_provider = DBusGPSProvider(lambda: GLib)
+        nmea_gps_provider = NMEAGPSProvider(lambda: GLib, self._nmea_bridge)
+
+        self._alarm_controller.register_gps_provider(nmea_gps_provider)
+        self._alarm_controller.register_gps_provider(dbus_gps_provider)
 
         dbus_connector = DBusConnector(lambda: GLib, lambda settings, cb: SettingsDevice(bus, settings, cb))
         nmea_alert_connector = NMEAAlertConnector(lambda: GLib, lambda settings, cb: SettingsDevice(bus, settings, cb), self._nmea_bridge)

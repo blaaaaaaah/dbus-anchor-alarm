@@ -26,7 +26,7 @@ import os
 
 from utils import exit_on_error
 
-sys.path.insert(1, os.path.join(sys.path[0], 'gps_providers')) 
+sys.path.insert(1, os.path.join(os.path.dirname(__file__), 'gps_providers'))
 from abstract_gps_provider import GPSPosition
 
 
@@ -35,12 +35,12 @@ logger = logging.getLogger(__name__)
 
 class AnchorAlarmController(object):
 
-    def __init__(self, timer_provider, settings_provider, gps_provider):
+    def __init__(self, timer_provider, settings_provider):
         self._settings_provider = settings_provider
 
 
         self._anchor_alarm = AnchorAlarmModel(self._on_state_changed)
-        self.gps_provider = gps_provider
+        self._gps_providers = []
 
         self._connectors = []
 
@@ -116,6 +116,22 @@ class AnchorAlarmController(object):
         except Exception as e:
             logger.error(e) 
 
+    def register_gps_provider(self, gps_provider):
+        self._gps_providers.append(gps_provider)
+
+    def get_gps_position(self):
+        logger.debug("Got "+str(len(self._gps_providers))+" gps providers")
+        for gps_provider in self._gps_providers:
+            position = gps_provider.get_gps_position()
+            if position is not None:
+                logger.debug("Returning GPSPosition: "+ str(position))
+                return position
+            else:
+                logger.debug("Provider "+ str(gps_provider) + " didn't return a GPS position")
+        
+        return None
+        
+
     def register_connector(self, connector):
         """Registers an external connector to interface with DBUS or MTTQ triggers"""
         connector.controller = self
@@ -130,16 +146,14 @@ class AnchorAlarmController(object):
     def trigger_anchor_down(self):
         """Delegate method called by connector when setting anchor"""
         try:
-            position = self.gps_provider.get_gps_position()
-            self._anchor_alarm.anchor_down(position)
+            self._anchor_alarm.anchor_down(self.get_gps_position())
         except Exception as e:
             return e
 
     def trigger_chain_out(self):
         """Delegate method called by connector when chain is out and anchor alarm needs to be armed"""
         try:
-            position = self.gps_provider.get_gps_position()
-            self._anchor_alarm.chain_out(position)
+            self._anchor_alarm.chain_out(self.get_gps_position())
         except Exception as e:
             return e
 
@@ -172,9 +186,8 @@ class AnchorAlarmController(object):
 
     def trigger_mooring_mode(self):
         """Delegate method called by connector when mooring mode should be enabled"""
-        position = self.gps_provider.get_gps_position()
         try:
-            self._anchor_alarm.reset_state(position, self._settings["MooringRadius"])
+            self._anchor_alarm.reset_state(self.get_gps_position(), self._settings["MooringRadius"])
         except Exception as e:
             self.trigger_show_message("error", "Unable to activate mooring ball mode when anchor alarm is already enabled")
 
@@ -213,7 +226,7 @@ class AnchorAlarmController(object):
     def _on_timer_tick(self):
         current_state = self._anchor_alarm.get_current_state()
         if current_state.state != 'DISABLED':
-            self._anchor_alarm.on_timer_tick(self.gps_provider.get_gps_position())
+            self._anchor_alarm.on_timer_tick(self.get_gps_position())
 
         # notify connectors
         for connector in self._connectors:

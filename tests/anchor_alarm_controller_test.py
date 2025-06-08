@@ -31,7 +31,7 @@ from unittest.mock import ANY
 from unittest.mock import MagicMock
 from unittest.mock import call
 
-
+sys.path.insert(1, os.path.join(os.path.dirname(__file__), '../gps_providers'))
 from abstract_gps_provider import GPSPosition
 
 
@@ -56,7 +56,8 @@ class TestAnchorAlarmController(unittest.TestCase):
         gps_provider = MagicMock()
         gps_provider.get_gps_position = MagicMock(return_value=None)
 
-        controller = AnchorAlarmController(lambda: timer_provider, MockSettingsDevice, gps_provider)
+        controller = AnchorAlarmController(lambda: timer_provider, MockSettingsDevice)
+        controller.register_gps_provider(gps_provider)
         model_mock =  MagicMock()
         model_mock.update_configuration = MagicMock()
         controller._anchor_alarm = model_mock
@@ -126,7 +127,9 @@ class TestAnchorAlarmController(unittest.TestCase):
         gps_provider = MagicMock()
         gps_provider.get_gps_position = MagicMock(return_value=None)
 
-        controller = AnchorAlarmController(lambda: timer_provider, MockSettingsDevice, gps_provider)
+        controller = AnchorAlarmController(lambda: timer_provider, MockSettingsDevice)
+        controller.register_gps_provider(gps_provider)
+
 
         gps_provider.get_gps_position = MagicMock(return_value=None)
         self.assertIsInstance(controller.trigger_anchor_down(), RuntimeError)
@@ -152,7 +155,9 @@ class TestAnchorAlarmController(unittest.TestCase):
         gps_provider = MagicMock()
         gps_provider.get_gps_position = MagicMock(return_value=None)
 
-        controller = AnchorAlarmController(lambda: timer_provider, MockSettingsDevice, gps_provider)
+        controller = AnchorAlarmController(lambda: timer_provider, MockSettingsDevice)
+        controller.register_gps_provider(gps_provider)
+
         self.assertEqual(controller._settings['Latitude'],  0)
         self.assertEqual(controller._settings['Longitude'], 0)
         self.assertEqual(controller._settings['Radius'],    0)
@@ -201,7 +206,9 @@ class TestAnchorAlarmController(unittest.TestCase):
             settings['Active'] = 0
             return settings
 
-        controller = AnchorAlarmController(lambda: timer_provider, _create_settings_inactive, gps_provider)
+        controller = AnchorAlarmController(lambda: timer_provider, _create_settings_inactive)
+        controller.register_gps_provider(gps_provider)
+
         self.assertEqual(controller._settings['Latitude'],  10)
         self.assertEqual(controller._settings['Longitude'], 11)
         self.assertEqual(controller._settings['Radius'],    20)
@@ -230,7 +237,9 @@ class TestAnchorAlarmController(unittest.TestCase):
             settings['Active'] = 1
             return settings
 
-        controller = AnchorAlarmController(lambda: timer_provider, _create_settings_active, gps_provider)
+        controller = AnchorAlarmController(lambda: timer_provider, _create_settings_active)
+        controller.register_gps_provider(gps_provider)
+
         self.assertEqual(controller._settings['Latitude'],  10)
         self.assertEqual(controller._settings['Longitude'], 11)
         self.assertEqual(controller._settings['Radius'],    20)
@@ -283,7 +292,8 @@ class TestAnchorAlarmController(unittest.TestCase):
         connector2.update_state =  MagicMock(return_value=None)
 
     
-        controller = AnchorAlarmController(lambda: timer_provider, MockSettingsDevice, gps_provider)
+        controller = AnchorAlarmController(lambda: timer_provider, MockSettingsDevice)
+        controller.register_gps_provider(gps_provider)
 
         controller.register_connector(connector)
         connector.on_state_changed.assert_called_with(mock_state_disabled)
@@ -339,7 +349,9 @@ class TestAnchorAlarmController(unittest.TestCase):
             settings['Active'] = 1
             return settings
 
-        controller = AnchorAlarmController(lambda: timer_provider, _create_settings_active, gps_provider)
+        controller = AnchorAlarmController(lambda: timer_provider, _create_settings_active)
+        controller.register_gps_provider(gps_provider)
+
         connector = MagicMock()
         connector.on_state_changed =  MagicMock(return_value=None)
         connector.update_state =  MagicMock(return_value=None)
@@ -368,7 +380,32 @@ class TestAnchorAlarmController(unittest.TestCase):
         self.assertEqual(controller._settings['Active'],    1)
 
 
+    def test_multiple_gps_providers(self):
+        gps_provider_1 = MagicMock()
+        gps_provider_1.get_gps_position = MagicMock(return_value=None)
 
+        controller = AnchorAlarmController(lambda: timer_provider, MockSettingsDevice)
+        self.assertIsNone(controller.get_gps_position())
+
+        controller.register_gps_provider(gps_provider_1)
+        self.assertIsNone(controller.get_gps_position())
+
+        gps_provider_1.get_gps_position = MagicMock(return_value=self.gps_position_anchor_down)
+        self.assertEqual(controller.get_gps_position(), self.gps_position_anchor_down)
+
+        gps_provider_1.get_gps_position = MagicMock(return_value=None)
+        self.assertIsNone(controller.get_gps_position())
+
+        gps_provider_1.get_gps_position = MagicMock(return_value=self.gps_position_anchor_down)
+        self.assertEqual(controller.get_gps_position(), self.gps_position_anchor_down)
+
+        gps_provider_2 = MagicMock()
+        gps_provider_2.get_gps_position = MagicMock(return_value=self.gps_position_16m)
+        controller.register_gps_provider(gps_provider_2)
+        self.assertEqual(controller.get_gps_position(), self.gps_position_anchor_down)
+
+        gps_provider_1.get_gps_position = MagicMock(return_value=None)
+        self.assertEqual(controller.get_gps_position(), self.gps_position_16m)
 
 
 if __name__ == '__main__':

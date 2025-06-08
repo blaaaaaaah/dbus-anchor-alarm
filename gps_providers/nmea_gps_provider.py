@@ -88,14 +88,17 @@ class NMEAGPSProvider(AbstractGPSProvider):
 
     def get_gps_position(self):
         if len(self._gps_positions) == 0:
+            logger.info("No 129029 PGN source with Fix")
             return None
 
         # if we started returning a position from a source, keep this source to avoid bouncing effect
         # between multiple slightly different gps coordinates, eg when antennas are not in the same place
         if self._current_gps_src and self._current_gps_src in self._gps_positions:
+            logger.debug("Returning position from preferred source "+ str(self._current_gps_src))
             return self._gps_positions[self._current_gps_src]
 
         self._current_gps_src = next(iter(self._gps_positions))
+        logger.info("Updated new preferred source to "+ str(self._current_gps_src))
         return self._gps_positions[self._current_gps_src]
 
 
