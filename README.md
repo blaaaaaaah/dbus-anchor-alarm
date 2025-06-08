@@ -449,9 +449,15 @@ Allows the anchor alarm to drive a physical relay for a buzzer, alarm, or extern
 
 ### GPS
 
-- The GPS position is fetched by monitoring the com.victronenergy.gps dbus service. 
+- The GPS position is fetched by monitoring the com.victronenergy.gps dbus service, fallbacking to any 129029 PGN on the NMEA network. 
 - The Victron Cerbo is responsible of creating and populating this service from NMEA 2000 source, physically connected GPS USB device, ... 
-- Once one of the GPS service instance will get a GPS fix, the anchor alarm will use this service. If there's not GPS position available for more than 30 seconds, the anchor alarm will trigger an alarm.
+- Once one of the GPS service instance will get a GPS fix, the anchor alarm will use this service. 
+- If no GPS service is available on the victron (or if they come unavailable), it will fallback on 129029 PGNs sent on the NMEA network (getting positions from AIS devices for instance).
+- If there's not GPS position available for more than 30 seconds, the anchor alarm will trigger an alarm.
+
+**Note:** The victronenergy.gps dbus service will only get NMEA GPS sources if Class Device is 60 and Function is 145, meaning it will not pickup all GPS PGNs on the NMEA network and will ignore AIS GPS sources for instance. (see https://communityarchive.victronenergy.com/questions/114224/cerbo-gx-nmea-2000-device-config-in-out%EF%B9%96childToView=114971.html#comment-114971). 
+
+**Warning:** There might be susbstantial differences of GPS positions between sources, up to 12m between Garmin AIS 800 and Garmin GPS 24xd installed 15cm apart.
 
 ### DBUS Paths
 

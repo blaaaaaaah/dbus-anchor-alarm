@@ -7,5 +7,5 @@ echo "$git_revision" > VERSION
 rsync -vr --exclude=".*" * root@victron.matsu:/data/dbus-anchor-alarm
 
 # run by doing :
-# cd /opt/victronenergy/services
+# cd /opt/victronenergy/service/
 # svc -u dbus-anchor-alarm
