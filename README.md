@@ -49,7 +49,8 @@ It monitors your anchor position, integrates with NMEA 2000 and Cerbo’s digita
   - [Extended Hardware Setup](#extended-hardware-setup)
   - [Minimal Hardware Setup](#minimal-hardware-setup)
 - [Installation](#installation)
-  - [Manual Installation](#manual-installation)
+  - [From sources](#from-sources)
+  - [From release](#from-release)
   - [Automatic Installation](#automatic-installation)
 - [Configuration](#configuration)
   - [How to Change Configuration Values](#how-to-change-configuration-values)
@@ -171,7 +172,7 @@ It monitors your anchor position, integrates with NMEA 2000 and Cerbo’s digita
 
 ## Installation
 
-### Manual Installation
+### From sources
 
 1. **Enable SSH on Cerbo:**  
    [Enable root access](https://www.victronenergy.com/live/ccgx:root_access)
@@ -199,9 +200,20 @@ It monitors your anchor position, integrates with NMEA 2000 and Cerbo’s digita
    ```
    - Stop: `svc -d dbus-anchor-alarm`
 
+
+### From release
+1. **Enable SSH on Cerbo:**  
+   [Enable root access](https://www.victronenergy.com/live/ccgx:root_access)
+
+2. **SSH into Cerbo and run :**
+    ```bash
+    wget -qO- https://github.com/blaaaaaaah/dbus-anchor-alarm/raw/master/remote-install.sh | bash
+    ```
+
+
 ### Automatic Installation
 
-_Not implemented yet. Planned: InstallHelper or wget one-liner._
+_Not implemented yet. Planned: InstallHelper._
 
 ---
 
@@ -520,6 +532,26 @@ Under SmartMode, create a new Layout, select 2 columns layout :
 
 
 ---
+
+# Uninstall
+
+To uninstall the anchor alarm you need to :
+``` bash
+
+# remove service
+cd /opt/victronenergy/service
+svc -d dbus-anchor-alarm
+rm dbus-anchor-alarm
+
+# remove from rc.local the 2 symlink lines :
+# ln -s /data/dbus-anchor-alarm/service /opt/victronenergy/service/dbus-anchor-alarm
+# ln -s /usr/lib/node_modules/signalk-server/node_modules/ /data/dbus-anchor-alarm/node_modules
+# OR remove rc.local
+cd /data
+vi rc.local
+#rm rc.local
+
+rm -rf /data/dbus-anchor-alarm
 
 ## License
 
