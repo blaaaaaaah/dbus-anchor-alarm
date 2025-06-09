@@ -69,6 +69,7 @@ It monitors your anchor position, integrates with NMEA 2000 and Cerbo’s digita
 - [Garmin GPSMAP 1243 Digital Switching integration](#garmin-gpsmap-1243-digital-switching-integration)
   - [Setting up Digital Switches](#setting-up-digital-switches)
   - [Setting up Anchoring Screen](#setting-up-anchoring-screen)
+- [Uninstall](#uninstall)
 - [License](#license)
 
 ---
@@ -194,9 +195,13 @@ It monitors your anchor position, integrates with NMEA 2000 and Cerbo’s digita
    - Creates symlinks for service and dependencies
    - Updates `/data/rc.local` for persistence
 5. **Start the service:**
+    - Reboot or copy service files in /service for immediate service start
    ```bash
-   cd /opt/victronenergy/services
-   svc -u dbus-anchor-alarm
+    # svc only monitors /service but gets overwritten at boot time by /opt/victronenergy/service
+    ln -s /data/dbus-anchor-alarm/service /service/dbus-anchor-alarm
+    cd /service
+    # if svc returns a file not found error, wait a bit for it to rescan /service folder
+    svc -u dbus-anchor-alarm
    ```
    - Stop: `svc -d dbus-anchor-alarm`
 
@@ -533,7 +538,7 @@ Under SmartMode, create a new Layout, select 2 columns layout :
 
 ---
 
-# Uninstall
+## Uninstall
 
 To uninstall the anchor alarm you need to :
 ``` bash
@@ -541,6 +546,9 @@ To uninstall the anchor alarm you need to :
 # remove service
 cd /opt/victronenergy/service
 svc -d dbus-anchor-alarm
+rm dbus-anchor-alarm
+
+cd /service
 rm dbus-anchor-alarm
 
 # remove from rc.local the 2 symlink lines :
@@ -552,7 +560,8 @@ vi rc.local
 #rm rc.local
 
 rm -rf /data/dbus-anchor-alarm
-
+```
+---
 ## License
 
 MIT
