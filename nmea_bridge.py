@@ -27,11 +27,14 @@ import logging
 logger = logging.getLogger(__name__)
 
 from utils import exit_on_error, handle_stdin
-
+import os
 
 class NMEABridge:
 
-    def __init__(self, js_gateway_path="nmea_bridge.js", max_restart_attempts=5):
+    def __init__(self, js_gateway_path=None, max_restart_attempts=5):
+        if js_gateway_path is None:
+            js_gateway_path = os.path.join(os.path.dirname(__file__), 'nmea_bridge.js') # assume same folder
+            
         self._js_gateway_path = js_gateway_path
         self._max_restart_attempts = max_restart_attempts
 
@@ -230,7 +233,7 @@ if __name__ == '__main__':
 
     
 
-    print("NMEA Bridge test program. Enter show:text to send Alert PGN.\nhide to hide message.\nyd:command to send YDAB command\nds:BankInstance,BankChannel,On|Off to send a DigitalSwitching command\nfilter:<PGN> to filter and print received PGNS\nkill to kill the underlying nodeJS program\nexit to exit\n")
+    print("NMEA Bridge test program. Enter show:text to send Alert PGN.\nhide to hide message.\nyd:command to send YDAB command\nds:BankInstance,BankChannel,On|Off to send a DigitalSwitching command\nfilter:<PGN> to filter and print received PGNS\nraw:{JSON object with at least pgn and fields parameter} to send a raw message\nkill to kill the underlying nodeJS program\nexit to exit\n")
 
     def handle_command(command, text):
         mapping = {
@@ -357,6 +360,16 @@ if __name__ == '__main__':
                 },
                 "description":"Switch Bank Control"
             })
+
+        elif command == "raw":
+            if len(text) == 0:
+                print("No arguments for raw: command. 'pgn' and 'fields' params need to be in the JSON stringified object")
+                return True
+            try:
+                nmea_message = json.loads(text)
+                bridge.send_nmea(nmea_message)
+            except Exception as e:
+                print("Unable to decode JSON", e)
 
         elif command == "filter":
             bridge.add_pgn_handler(int(text), print)

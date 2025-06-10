@@ -59,7 +59,7 @@ from nmea_gps_provider import NMEAGPSProvider
 class DbusAnchorAlarmService(object):
     def __init__(self):
         
-        self._nmea_bridge  = NMEABridge(os.path.join(os.path.dirname(__file__), 'nmea_bridge.js'))
+        self._nmea_bridge  = NMEABridge()
 
         self._initStateMachine()
 

@@ -338,7 +338,7 @@ if __name__ == '__main__':
     from abstract_gps_provider import GPSPosition
 
 
-    bridge = NMEABridge('../nmea_bridge.js')
+    bridge = NMEABridge()
     DBusGMainLoop(set_as_default=True)
 
     bus = dbus.SessionBus() if 'DBUS_SESSION_BUS_ADDRESS' in os.environ else dbus.SystemBus()
