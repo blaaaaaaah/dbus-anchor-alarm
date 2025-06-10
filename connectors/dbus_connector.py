@@ -46,8 +46,12 @@ class DBusConnector(AbstractConnector):
             'anchor_up': None,
             'anchor_down': None,
             'chain_out': None,
-            'mute_alarm': None
+            'mute_alarm': None,
+
+            'show_error_timeout': None
         }
+
+        self._previous_system_name = None
 
         self._init_settings()
         
@@ -108,7 +112,7 @@ class DBusConnector(AbstractConnector):
             # of the digital input. Use "0" to disable.
             # Cerbo's Alarm/Notifications system is very hard coded, so abusing the Digital input system is a 
             # good compromise.
-            "FeedbackDigitaInputNumber"  :      ["/Settings/AnchorAlarm/DigitalInputs/Feedback/DigitalInputNumber", 1, 0, 4],
+            "FeedbackDigitalInputNumber"  :      ["/Settings/AnchorAlarm/DigitalInputs/Feedback/DigitalInputNumber", 1, 0, 4],
 
             # Use or not the custom System Name of the system to show messages on the main top middle tile
             # Will override any custom name and will not save the previous one so write it down if needed
@@ -201,9 +205,9 @@ class DBusConnector(AbstractConnector):
         # toggle alarm state
         # we can't simply change the /Alarm path on the digital_input dbus. We need to workaround using settings and creating
         # an alarm condition by setting Alarm to True and invert Alarm to True as well 
-        if self._settings['FeedbackDigitaInputNumber'] != 0:
-            self._alarm_monitor.set_value("com.victronenergy.settings", '/Settings/DigitalInput/'+ str(self._settings['FeedbackDigitaInputNumber']) +'/AlarmSetting', alarm_state)
-            self._alarm_monitor.set_value("com.victronenergy.settings", '/Settings/DigitalInput/'+ str(self._settings['FeedbackDigitaInputNumber']) +'/InvertAlarm', alarm_state)
+        if self._settings['FeedbackDigitalInputNumber'] != 0:
+            self._alarm_monitor.set_value("com.victronenergy.settings", '/Settings/DigitalInput/'+ str(self._settings['FeedbackDigitalInputNumber']) +'/AlarmSetting', alarm_state)
+            self._alarm_monitor.set_value("com.victronenergy.settings", '/Settings/DigitalInput/'+ str(self._settings['FeedbackDigitalInputNumber']) +'/InvertAlarm', alarm_state)
 
 
     def update_state(self, current_state:AnchorAlarmState):
@@ -214,11 +218,12 @@ class DBusConnector(AbstractConnector):
         self._dbus_service['/Muted']    = 1 if current_state.muted else 0
         self._dbus_service['/Params']   = json.dumps(current_state.params)
 
-        if self._settings['FeedbackDigitaInputNumber'] != 0:
+        if self._settings['FeedbackDigitalInputNumber'] != 0:
             self._alarm_monitor.set_value(self._feedback_digital_input, '/CustomName', current_state.message)
             self._alarm_monitor.set_value(self._feedback_digital_input, '/ProductName', current_state.message)
 
-        if self._settings['FeedbackUseSystemName'] != 0:
+        # do not update system name if currently showing an error
+        if self._settings['FeedbackUseSystemName'] != 0 and self._previous_system_name is None:
             self._alarm_monitor.set_value('com.victronenergy.settings', '/Settings/SystemSetup/SystemName', current_state.short_message)
 
 
@@ -226,12 +231,25 @@ class DBusConnector(AbstractConnector):
         if level != "error":
             return  # only support error message
         
-        if self._settings['FeedbackDigitaInputNumber'] != 0:
+        # make sure the FeedbackDigitalInputNumber digital input actually exists so we can fallback on system name
+        if self._settings['FeedbackDigitalInputNumber'] != 0 and self._alarm_monitor.exists(self._feedback_digital_input, '/CustomName'):
             self._alarm_monitor.set_value(self._feedback_digital_input, '/CustomName', message)
             self._alarm_monitor.set_value(self._feedback_digital_input, '/ProductName', message)
-            self._alarm_monitor.set_value("com.victronenergy.settings", '/Settings/DigitalInput/'+ str(self._settings['FeedbackDigitaInputNumber']) +'/AlarmSetting', 1)
-            self._alarm_monitor.set_value("com.victronenergy.settings", '/Settings/DigitalInput/'+ str(self._settings['FeedbackDigitaInputNumber']) +'/InvertAlarm', 1)
+            self._alarm_monitor.set_value("com.victronenergy.settings", '/Settings/DigitalInput/'+ str(self._settings['FeedbackDigitalInputNumber']) +'/AlarmSetting', 1)
+            self._alarm_monitor.set_value("com.victronenergy.settings", '/Settings/DigitalInput/'+ str(self._settings['FeedbackDigitalInputNumber']) +'/InvertAlarm', 1)
 
+        # if feedback digital input number is not set, use system name 
+        else:
+            # save previous system name to restore it afterwards
+            if self._previous_system_name is None:
+                self._previous_system_name =  self._alarm_monitor.get_value('com.victronenergy.settings', '/Settings/SystemSetup/SystemName')
+
+            self._alarm_monitor.set_value('com.victronenergy.settings', '/Settings/SystemSetup/SystemName', message)
+
+            def _restore_system_name():
+                self._alarm_monitor.set_value('com.victronenergy.settings', '/Settings/SystemSetup/SystemName', self._previous_system_name)
+            
+            self._add_timer('show_error_timeout', _restore_system_name, 5000)
 
 
     def _on_setting_changed(self, path, old_value, new_value):
@@ -247,7 +265,7 @@ class DBusConnector(AbstractConnector):
         self._anchor_up_digital_input   = 'com.victronenergy.digitalinput.input0' + str(self._settings['AnchorUpDigitalInputNumber'])
         self._mute_alarm_digital_input  = 'com.victronenergy.digitalinput.input0' + str(self._settings['MuteAlarmDigitalInputNumber'])
         self._mooring_mode_digital_input= 'com.victronenergy.digitalinput.input0' + str(self._settings['MooringModeDigitalInputNumber'])
-        self._feedback_digital_input    = 'com.victronenergy.digitalinput.input0' + str(self._settings['FeedbackDigitaInputNumber'])
+        self._feedback_digital_input    = 'com.victronenergy.digitalinput.input0' + str(self._settings['FeedbackDigitalInputNumber'])
 
 
     def _on_digitalinput_service_changed(self, dbusServiceName, dbusPath, dict, changes, deviceInstance):

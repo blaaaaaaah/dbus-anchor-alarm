@@ -496,7 +496,7 @@ class TestDBusConnector(unittest.TestCase):
         _check_all_not_called()
 
 
-    def test_show_message(self):
+    def test_show_message_on_feedback_digital_input(self):
         controller = MagicMock()
         controller.trigger_anchor_down  = MagicMock()
         controller.trigger_anchor_up    = MagicMock()
@@ -529,6 +529,7 @@ class TestDBusConnector(unittest.TestCase):
         connector.show_message("info", "something")
         self.assertEqual(monitor.get_value("com.victronenergy.settings", '/Settings/DigitalInput/1/AlarmSetting'), False)
         self.assertEqual(monitor.get_value("com.victronenergy.settings", '/Settings/DigitalInput/1/InvertAlarm'), False)
+        self.assertEqual(monitor.get_value("com.victronenergy.settings", '/Settings/SystemSetup/SystemName'), 'system name')
 
 
 
@@ -539,6 +540,147 @@ class TestDBusConnector(unittest.TestCase):
         self.assertEqual(monitor.get_value('com.victronenergy.digitalinput.input01', '/ProductName'), message)
         self.assertEqual(monitor.get_value("com.victronenergy.settings", '/Settings/DigitalInput/1/AlarmSetting'), True)
         self.assertEqual(monitor.get_value("com.victronenergy.settings", '/Settings/DigitalInput/1/InvertAlarm'), True)
+
+
+
+
+
+    def test_show_message_on_nonexistent_feedback_digital_input(self):
+        controller = MagicMock()
+        controller.trigger_anchor_down  = MagicMock()
+        controller.trigger_anchor_up    = MagicMock()
+        controller.trigger_chain_out    = MagicMock()
+        controller.trigger_mute_alarm   = MagicMock()
+
+        connector = MockDBusConnector(lambda: timer_provider, lambda settings, cb: MockSettingsDevice(settings, cb))
+        connector.set_controller(controller)
+        monitor = connector.mock_monitor()
+        monitor.add_service('com.victronenergy.digitalinput.input01',
+			values={
+				'/ProductName': "qwe",
+				'/CustomName': "qwe",
+                '/DeviceInstance': 0
+			})
+        
+        monitor.add_service('com.victronenergy.settings',
+			values={
+                '/Settings/DigitalInput/1/AlarmSetting': 0,
+                '/Settings/DigitalInput/1/InvertAlarm': 0,
+                '/Settings/SystemSetup/SystemName': 'system name'
+			})
+        
+        monitor.add_service('com.victronenergy.platform',
+			values={
+                '/Notifications/Alarm': 0
+			})
+        connector._settings['FeedbackDigitalInputNumber'] = 4
+
+        # dbus doesn't show info messages
+        connector.show_message("info", "something")
+        self.assertEqual(monitor.get_value("com.victronenergy.settings", '/Settings/DigitalInput/1/AlarmSetting'), False)
+        self.assertEqual(monitor.get_value("com.victronenergy.settings", '/Settings/DigitalInput/1/InvertAlarm'), False)
+        self.assertEqual(monitor.get_value("com.victronenergy.settings", '/Settings/SystemSetup/SystemName'), 'system name')
+
+
+
+        message = "something terrible happened"
+        connector.show_message("error", message)
+
+        self.assertEqual(monitor.get_value('com.victronenergy.digitalinput.input01', '/CustomName'), "qwe")
+        self.assertEqual(monitor.get_value('com.victronenergy.digitalinput.input01', '/ProductName'), "qwe")
+        self.assertEqual(monitor.get_value("com.victronenergy.settings", '/Settings/DigitalInput/1/AlarmSetting'), False)
+        self.assertEqual(monitor.get_value("com.victronenergy.settings", '/Settings/DigitalInput/1/InvertAlarm'), False)
+
+        self.assertEqual(monitor.get_value("com.victronenergy.settings", '/Settings/SystemSetup/SystemName'), message)
+        timer_provider.tick()
+        timer_provider.tick()
+        self.assertEqual(monitor.get_value("com.victronenergy.settings", '/Settings/SystemSetup/SystemName'), message)
+        timer_provider.tick()
+        timer_provider.tick()
+        timer_provider.tick()
+        self.assertEqual(monitor.get_value("com.victronenergy.settings", '/Settings/SystemSetup/SystemName'), 'system name')
+
+
+    def test_show_message_on_system_name(self):
+        controller = MagicMock()
+        controller.trigger_anchor_down  = MagicMock()
+        controller.trigger_anchor_up    = MagicMock()
+        controller.trigger_chain_out    = MagicMock()
+        controller.trigger_mute_alarm   = MagicMock()
+
+        connector = MockDBusConnector(lambda: timer_provider, lambda settings, cb: MockSettingsDevice(settings, cb))
+        connector.set_controller(controller)
+        monitor = connector.mock_monitor()
+        monitor.add_service('com.victronenergy.digitalinput.input01',
+			values={
+				'/ProductName': "qwe",
+				'/CustomName': "qwe",
+                '/DeviceInstance': 0
+			})
+        
+        monitor.add_service('com.victronenergy.settings',
+			values={
+                '/Settings/DigitalInput/1/AlarmSetting': 0,
+                '/Settings/DigitalInput/1/InvertAlarm': 0,
+                '/Settings/SystemSetup/SystemName': 'system name'
+			})
+        
+        monitor.add_service('com.victronenergy.platform',
+			values={
+                '/Notifications/Alarm': 0
+			})
+        
+        connector._settings['FeedbackDigitalInputNumber'] = 0
+
+
+        # dbus doesn't show info messages
+        connector.show_message("info", "something")
+        self.assertEqual(monitor.get_value("com.victronenergy.settings", '/Settings/DigitalInput/1/AlarmSetting'), False)
+        self.assertEqual(monitor.get_value("com.victronenergy.settings", '/Settings/DigitalInput/1/InvertAlarm'), False)
+        self.assertEqual(monitor.get_value("com.victronenergy.settings", '/Settings/SystemSetup/SystemName'), 'system name')
+
+
+
+        message = "something terrible happened"
+        connector.show_message("error", message)
+
+        self.assertEqual(monitor.get_value('com.victronenergy.digitalinput.input01', '/CustomName'), "qwe")
+        self.assertEqual(monitor.get_value('com.victronenergy.digitalinput.input01', '/ProductName'), "qwe")
+        self.assertEqual(monitor.get_value("com.victronenergy.settings", '/Settings/DigitalInput/1/AlarmSetting'), False)
+        self.assertEqual(monitor.get_value("com.victronenergy.settings", '/Settings/DigitalInput/1/InvertAlarm'), False)
+
+        self.assertEqual(monitor.get_value("com.victronenergy.settings", '/Settings/SystemSetup/SystemName'), message)
+        timer_provider.tick()
+        timer_provider.tick()
+        self.assertEqual(monitor.get_value("com.victronenergy.settings", '/Settings/SystemSetup/SystemName'), message)
+        timer_provider.tick()
+        timer_provider.tick()
+        timer_provider.tick()
+        self.assertEqual(monitor.get_value("com.victronenergy.settings", '/Settings/SystemSetup/SystemName'), 'system name')
+
+
+
+
+        # test multiple errors during timer
+        message2 = "something terrible happened again"
+
+        connector.show_message("error", message)
+
+        self.assertEqual(monitor.get_value("com.victronenergy.settings", '/Settings/SystemSetup/SystemName'), message)
+        timer_provider.tick()
+        self.assertEqual(monitor.get_value("com.victronenergy.settings", '/Settings/SystemSetup/SystemName'), message)
+        timer_provider.tick()
+
+        connector.show_message("error", message2)
+        self.assertEqual(monitor.get_value("com.victronenergy.settings", '/Settings/SystemSetup/SystemName'), message2)
+        timer_provider.tick()
+        timer_provider.tick()
+        self.assertEqual(monitor.get_value("com.victronenergy.settings", '/Settings/SystemSetup/SystemName'), message2)
+        timer_provider.tick()
+        timer_provider.tick()
+        timer_provider.tick()
+        self.assertEqual(monitor.get_value("com.victronenergy.settings", '/Settings/SystemSetup/SystemName'), 'system name')
+
 
 if __name__ == '__main__':
     unittest.main()
