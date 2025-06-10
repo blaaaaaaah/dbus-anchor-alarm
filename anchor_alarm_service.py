@@ -68,6 +68,8 @@ class DbusAnchorAlarmService(object):
         bus = dbus.SessionBus() if 'DBUS_SESSION_BUS_ADDRESS' in os.environ else dbus.SystemBus()
 
         self._alarm_controller = AnchorAlarmController(lambda: GLib, lambda settings, cb: SettingsDevice(bus, settings, cb))
+        
+        self._nmea_bridge.error_handler = lambda msg: self._alarm_controller.trigger_show_message("error", msg)
 
         dbus_gps_provider = DBusGPSProvider(lambda: GLib)
         nmea_gps_provider = NMEAGPSProvider(lambda: GLib, self._nmea_bridge)

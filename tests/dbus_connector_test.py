@@ -505,6 +505,8 @@ class TestDBusConnector(unittest.TestCase):
 
         connector = MockDBusConnector(lambda: timer_provider, lambda settings, cb: MockSettingsDevice(settings, cb))
         connector.set_controller(controller)
+        connector._system_name_error_duration = 5000
+
         monitor = connector.mock_monitor()
         monitor.add_service('com.victronenergy.digitalinput.input01',
 			values={
@@ -554,6 +556,8 @@ class TestDBusConnector(unittest.TestCase):
 
         connector = MockDBusConnector(lambda: timer_provider, lambda settings, cb: MockSettingsDevice(settings, cb))
         connector.set_controller(controller)
+        connector._system_name_error_duration = 5000
+
         monitor = connector.mock_monitor()
         monitor.add_service('com.victronenergy.digitalinput.input01',
 			values={
@@ -610,6 +614,8 @@ class TestDBusConnector(unittest.TestCase):
 
         connector = MockDBusConnector(lambda: timer_provider, lambda settings, cb: MockSettingsDevice(settings, cb))
         connector.set_controller(controller)
+        connector._system_name_error_duration = 5000
+
         monitor = connector.mock_monitor()
         monitor.add_service('com.victronenergy.digitalinput.input01',
 			values={

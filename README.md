@@ -70,6 +70,7 @@ It monitors your anchor position, integrates with NMEA 2000 and Cerbo’s digita
   - [Setting up Digital Switches](#setting-up-digital-switches)
   - [Setting up Anchoring Screen](#setting-up-anchoring-screen)
 - [Uninstall](#uninstall)
+- [Known issues](#known-issues)
 - [License](#license)
 
 ---
@@ -562,6 +563,15 @@ vi rc.local
 rm -rf /data/dbus-anchor-alarm
 ```
 ---
+
+## Known issues
+
+* VRM notification might not show the most updated message, however Remote Console will
+
+
+
+---
+
 ## License
 
 MIT

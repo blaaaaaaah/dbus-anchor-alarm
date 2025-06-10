@@ -52,6 +52,7 @@ class DBusConnector(AbstractConnector):
         }
 
         self._previous_system_name = None
+        self._system_name_error_duration = 15000
 
         self._init_settings()
         
@@ -249,7 +250,7 @@ class DBusConnector(AbstractConnector):
             def _restore_system_name():
                 self._alarm_monitor.set_value('com.victronenergy.settings', '/Settings/SystemSetup/SystemName', self._previous_system_name)
             
-            self._add_timer('show_error_timeout', _restore_system_name, 5000)
+            self._add_timer('show_error_timeout', _restore_system_name, self._system_name_error_duration)
 
 
     def _on_setting_changed(self, path, old_value, new_value):
