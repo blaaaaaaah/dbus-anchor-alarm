@@ -31,10 +31,12 @@ import os
 
 class NMEABridge:
 
-    def __init__(self, js_gateway_path=None, max_restart_attempts=5):
+    def __init__(self, can_id = "can0", js_gateway_path=None, max_restart_attempts=3):
         if js_gateway_path is None:
             js_gateway_path = os.path.join(os.path.dirname(__file__), 'nmea_bridge.js') # assume same folder
-            
+
+        self._can_id = can_id
+
         self._js_gateway_path = js_gateway_path
         self._max_restart_attempts = max_restart_attempts
 
@@ -47,6 +49,10 @@ class NMEABridge:
         self._queue = []
 
         self._handlers = {}
+
+        self.error_handler = None
+        self._unrecoverable_error = False
+        self._was_once_ready = False
 
         self._start_nodejs_process()
         GLib.timeout_add_seconds(1, exit_on_error, self._check_process_status)
@@ -82,8 +88,24 @@ class NMEABridge:
             self._send_command(command)
 
 
-    
+    def _init_can(self, can_id):
+        command = {
+                "id": str(uuid.uuid4()),
+                "command": "initCAN",
+                "canId": can_id
+            }
+        self._send_command(command, True)
 
+
+    def _on_init_can(self, can_id, error):
+        if error is None:
+            logger.info("Found CAN device "+ can_id)
+        else:
+            logger.error(error)
+            self._unrecoverable_error = True
+            self._stop_nodejs_process()
+            if self.error_handler is not None:
+                self.error_handler("Unable to start NMEA bridge (initCAN)")
 
     # process and communication handling
 
@@ -109,10 +131,17 @@ class NMEABridge:
             self._err_id = GLib.io_add_watch(self._nodejs_process.stderr, GLib.IO_IN, self._on_stderr_data)
 
             logger.info("Node.js process started, waiting for ready")
-            self._send_filters()            
+
+            self._send_filters()     
+            self._init_can(self._can_id)      
 
         except Exception as e:
             logger.info(f"Failed to start Node.js process: {e}")
+            
+            self._unrecoverable_error = True
+            if self.error_handler is not None:
+                self.error_handler("Unable to start NMEA bridge (NodeJS)")
+
             self._stop_nodejs_process()
 
     def _stop_nodejs_process(self):
@@ -154,8 +183,16 @@ class NMEABridge:
             else:
                 logger.info("Max restart attempts reached. Exiting.")
                 self._stop_nodejs_process()
-                from os import _exit as os_exit
-                os_exit(1)
+
+                self._unrecoverable_error = True
+                if self.error_handler is not None:
+                    if self._was_once_ready:
+                        self.error_handler("Lost connection to NMEA bridge")
+                    else:
+                        self.error_handler("Unable to start NMEA bridge")
+                
+                #from os import _exit as os_exit
+                #os_exit(1)
                 return False
 
         return True
@@ -166,7 +203,9 @@ class NMEABridge:
 
         try:
             data = json.loads(message)
-            if data.get("event") == "on_bridge_ready":
+            if data.get("event") == "on_initCAN":
+                self._on_init_can(data.get("canId"), data.get("error"))
+            elif data.get("event") == "on_bridge_ready":
                 self._on_bridge_ready()
             elif data.get("event") == "on_NMEA_message":
                 self._on_nmea_message(data.get("message"))
@@ -186,6 +225,11 @@ class NMEABridge:
     def _send_command(self, command, force=False):
         """Sends a command to the Node.js process."""
         self._check_process_status()
+
+        # do not accept any more commands if we're in an unrecoverable state
+        if self._unrecoverable_error:
+            logger.debug("In unrecoverable state, ignoring command "+ json.dumps(command))
+            return
 
         if self._ready or force:
             try:
@@ -215,12 +259,18 @@ class NMEABridge:
 
         # only set _ready to True after we flushed other commands to keep correct order
         self._ready = True
+        self._was_once_ready = True
 
 
 
 if __name__ == '__main__':
+
+    logging.basicConfig(level=logging.DEBUG)
+
     YDAB_ADDRESS = 67
     bridge = NMEABridge()
+
+    bridge.error_handler = lambda msg: print("error_handler: "+ msg)
 
     # alert ack pgn
     bridge.add_pgn_handler(126984, print)

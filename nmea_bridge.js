@@ -32,69 +32,65 @@ const parser = new canboatjs.FromPgn()
 // Store filters for NMEA messages
 let activeFilters = [];
 
-let simpleCan = new canboatjs.SimpleCan({
-    canDevice: 'can0',
-    preferredAddress: 66,
-    disableDefaultTransmitPGNs: true,
-    transmitPGNs: [126983, 126985],
-    app: {
-        on: function(eventName, eventData) {
-            //console.log("on:" +eventName, eventData)
+function createSimpleCan(canId) {
+  return new canboatjs.SimpleCan({
+      canDevice: canId,
+      preferredAddress: 66,
+      disableDefaultTransmitPGNs: true,
+      transmitPGNs: [126983, 126985],
+      app: {
+          on: function(eventName, eventData) {
+              //console.log("on:" +eventName, eventData)
 
-        },
-        emit: function(eventName, eventData) {
-            //console.log("emit:" +eventName, eventData)
+          },
+          emit: function(eventName, eventData) {
+              //console.log("emit:" +eventName, eventData)
 
-            if ( eventName == 'nmea2000OutAvailable' )
-                sendResponse({ event: 'on_bridge_ready', address: simpleCan.candevice.address });
-        }
-    },
-   /* addressClaim: {
-      "Unique Number": 139725,
-      "Manufacturer Code": 'Fusion Electronics',
-      "Device Function": 130,
-      "Device Class": 'Entertainment',
-      "Device Instance Lower": 0,
-      "Device Instance Upper": 0,
-      "System Instance": 0,
-      "Industry Group": 'Marine'
-    },*/
-    productInfo: {
-      "NMEA 2000 Version": 1300,
-      "Product Code": 668,
-      "Model ID": "Anchor Alarm",
-      "Software Version Code": "1.0",
-      "Model Version": "1.0",
-      "Model Serial Code": "123456",
-      "Certification Level": 0,
-      "Load Equivalency": 1
-    }
-  }, function (data) {
-    // a broadcast message or for us
-    if ( data.pgn.dst == simpleCan.candevice.address || data.pgn.dst == 255 ) {
+              if ( eventName == 'nmea2000OutAvailable' ) {
+                  sendResponse({ event: 'on_bridge_ready', address: simpleCan.candevice.address, canId: canId });
+              }
+          }
+      },
+      productInfo: {
+        "NMEA 2000 Version": 1300,
+        "Product Code": 668,
+        "Model ID": "Anchor Alarm",
+        "Software Version Code": "1.0",
+        "Model Version": "1.0",
+        "Model Serial Code": "123456",
+        "Certification Level": 0,
+        "Load Equivalency": 1
+      }
+    }, function (data) {
+      // a broadcast message or for us
+      if ( data.pgn.dst == simpleCan.candevice.address || data.pgn.dst == 255 ) {
 
-        // handle address claim and iso request
-        if ( [59904, 60928].includes(data.pgn.pgn) ) {
-            pgnData = parser.parse(data)
-            if ( pgnData ) {
-                simpleCan.candevice.n2kMessage(pgnData);
-            }
-        }
+          // handle address claim and iso request
+          if ( [59904, 60928].includes(data.pgn.pgn) ) {
+              pgnData = parser.parse(data)
+              if ( pgnData ) {
+                  simpleCan.candevice.n2kMessage(pgnData);
+              }
+          }
 
-        if ( ! activeFilters.includes(data.pgn.pgn) )
-            return; // we don't care about that message
-    
-        pgnData = parser.parse(data)
-        //console.log("received message", data, pgnData)
+          if ( ! activeFilters.includes(data.pgn.pgn) )
+              return; // we don't care about that message
+      
+          pgnData = parser.parse(data)
+          //console.log("received message", data, pgnData)
 
-        if ( pgnData ) {
-            sendResponse({ event: 'on_NMEA_message', message: pgnData });
-        }
-    }
+          if ( pgnData ) {
+              sendResponse({ event: 'on_NMEA_message', message: pgnData });
+          }
+      }
 
-})
-  
-simpleCan.start()
+  })
+}
+
+let simpleCan = null
+
+
+
 
 
 // Setting up readline to communicate via stdin and stdout
@@ -111,15 +107,34 @@ function sendResponse(response) {
 
 // Function to handle incoming commands
 function handleCommand(command) {
-  const { id, command: cmd, message, filter } = command;
+  const { id, command: cmd, message, filter, canId } = command;
 
   switch (cmd) {
+    case 'initCAN': 
+      if(canId) {
+        try {
+          simpleCan = createSimpleCan(canId)
+          simpleCan.start()
+          sendResponse({ event: 'on_initCAN', id, canId: canId });
+        } catch(e) {
+          console.error(e)
+          sendResponse({ event: 'on_initCAN', id, canId: canId, error: e.message });
+        }
+      } else {
+        sendResponse({ event: 'error', id, result: 1, error: 'canId is missing in initCAN call' });
+      }
+      break;
+    
+
     case 'sendPGN':
-      if (message) {
+      if ( ! simpleCan ) {
+        sendResponse({ event: 'error', id, result: 1, error: 'CAN device not initialized in sendPGN call' });
+      }
+      else if (message) {
         simpleCan.sendPGN(message); // Send the NMEA message to CAN bus
         sendResponse({ event: 'on_sendPGN', id, result: 0 });
       } else {
-        sendResponse({ event: 'on_sendPGN', id, result: 1, error: 'Message is missing' });
+        sendResponse({ event: 'error', id, result: 1, error: 'message is missing in sendPGN call' });
       }
       break;
 
@@ -128,7 +143,7 @@ function handleCommand(command) {
         activeFilters = filter; // Update active filters
         sendResponse({ event: 'on_filterPGN', id, filters: activeFilters });
       } else {
-        sendResponse({ event: 'on_filterPGN', id, result: 1, error: 'Invalid filter format' });
+        sendResponse({ event: 'error', id, result: 1, error: 'invalid filter format in filterPGN call' });
       }
       break;
 
