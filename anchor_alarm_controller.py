@@ -114,6 +114,7 @@ class AnchorAlarmController(object):
         try:
             self._anchor_alarm.reset_state(drop_point, radius)
         except Exception as e:
+            # TODO XXX show error ?
             logger.error(e) 
 
     def register_gps_provider(self, gps_provider):
@@ -197,7 +198,7 @@ class AnchorAlarmController(object):
         try:
             self._anchor_alarm.reset_state(self.get_gps_position(), self._settings["MooringRadius"])
         except Exception as e:
-            self.trigger_show_message("error", "Unable to activate mooring ball mode when anchor alarm is already enabled")
+            self.trigger_show_message("info", "Unable to activate mooring ball mode when anchor alarm is already enabled")
 
 
     def trigger_show_message(self, level, message):
