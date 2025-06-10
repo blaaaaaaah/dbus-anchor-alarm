@@ -26,12 +26,12 @@ from gi.repository import GLib
 import logging
 logger = logging.getLogger(__name__)
 
-from utils import exit_on_error, handle_stdin
+from utils import exit_on_error, handle_stdin, find_n2k_can
 import os
 
 class NMEABridge:
 
-    def __init__(self, can_id = "can0", js_gateway_path=None, max_restart_attempts=3):
+    def __init__(self, can_id = "can0", js_gateway_path=None, max_restart_attempts=3, ready_timeout=30):
         if js_gateway_path is None:
             js_gateway_path = os.path.join(os.path.dirname(__file__), 'nmea_bridge.js') # assume same folder
 
@@ -46,6 +46,9 @@ class NMEABridge:
         self._restart_attempts = 0
 
         self._ready = False
+        self._ready_timeout = ready_timeout
+        self._ready_timeout_id = None
+
         self._queue = []
 
         self._handlers = {}
@@ -132,7 +135,13 @@ class NMEABridge:
 
             logger.info("Node.js process started, waiting for ready")
 
-            self._send_filters()     
+            self._send_filters()   
+
+            if self._ready_timeout_id:
+                GLib.source_remove(self._ready_timeout_id)
+
+            self._ready_timeout_id = GLib.timeout_add(self._ready_timeout*1000, exit_on_error, self._on_ready_timeout)
+
             self._init_can(self._can_id)      
 
         except Exception as e:
@@ -143,6 +152,16 @@ class NMEABridge:
                 self.error_handler("Unable to start NMEA bridge (NodeJS)")
 
             self._stop_nodejs_process()
+
+    def _on_ready_timeout(self):
+        logger.error("Timeout while waiting for ready")
+        self._ready_timeout_id = None
+        
+        if self._nodejs_process:
+            self._nodejs_process.terminate()
+        
+        self._check_process_status()
+        return False
 
     def _stop_nodejs_process(self):
         """Stops the Node.js process."""
@@ -205,12 +224,19 @@ class NMEABridge:
             data = json.loads(message)
             if data.get("event") == "on_initCAN":
                 self._on_init_can(data.get("canId"), data.get("error"))
+
             elif data.get("event") == "on_bridge_ready":
+                if self._ready_timeout_id:
+                    GLib.source_remove(self._ready_timeout_id)
+
                 self._on_bridge_ready()
+
             elif data.get("event") == "on_NMEA_message":
                 self._on_nmea_message(data.get("message"))
+
             elif data.get("event") == "on_sendPGN":
                 logger.debug(f"NMEA message sent: {data}")
+
             elif data.get("event") == "on_filterPGN":
                 logger.debug(f"Filters updated: {data}")
             
@@ -267,8 +293,12 @@ if __name__ == '__main__':
 
     logging.basicConfig(level=logging.DEBUG)
 
+    import dbus
+    dbus = dbus.SessionBus() if 'DBUS_SESSION_BUS_ADDRESS' in os.environ else dbus.SystemBus()	
+    can_id = find_n2k_can(dbus)
+
     YDAB_ADDRESS = 67
-    bridge = NMEABridge()
+    bridge = NMEABridge(can_id)
 
     bridge.error_handler = lambda msg: print("error_handler: "+ msg)
 
