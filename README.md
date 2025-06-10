@@ -277,6 +277,7 @@ You may need an additional T-connector if your NMEA backbone does not have a fre
 
 | Parameter | Default | Description |
 |---|---|---|
+| Settings/AnchorAlarm/NMEA/CanDevice | auto | Physical CAN Device to use. Set can0, can1 or appropriate value if auto discovery is not working |
 | Settings/AnchorAlarm/NMEA/Alert/AutoAcknowledgeInterval | 15 | Duration before "info" NMEA feedback auto-acknowledges (seconds) |
 | Settings/AnchorAlarm/NMEA/DigitalSwitching/DSBank | 221 | Digital Switching Bank used for anchor alarm switches |
 | Settings/AnchorAlarm/NMEA/DigitalSwitching/AdvertiseInterval | 5 | Interval between NMEA switch status broadcasts (seconds) |

@@ -46,6 +46,7 @@ from dbus_relay_connector import DBusRelayConnector
 
 from anchor_alarm_controller import AnchorAlarmController
 from nmea_bridge import NMEABridge
+from utils import find_n2k_can
 
 
 from gi.repository import GLib
@@ -58,14 +59,25 @@ from nmea_gps_provider import NMEAGPSProvider
 
 class DbusAnchorAlarmService(object):
     def __init__(self):
-        
-        self._nmea_bridge  = NMEABridge()
+        # create the setting that are needed
+        settingsList = {
+            # If auto discovery of NMEA can device fails, you can force it. Reboot required
+            "NNMEACanDevice":     ["/Settings/AnchorAlarm/NMEA/CanDevice", "auto", 0, 128]
+        }
 
-        self._initStateMachine()
-
-
-    def _initStateMachine(self):
         bus = dbus.SessionBus() if 'DBUS_SESSION_BUS_ADDRESS' in os.environ else dbus.SystemBus()
+        settings = SettingsDevice(bus, settingsList, None)
+
+        can_id = settings['NNMEACanDevice']
+        if can_id == "auto":
+            can_id = find_n2k_can(bus)
+
+        self._nmea_bridge  = NMEABridge(can_id)
+
+        self._initStateMachine(bus)
+
+
+    def _initStateMachine(self, bus):
 
         self._alarm_controller = AnchorAlarmController(lambda: GLib, lambda settings, cb: SettingsDevice(bus, settings, cb))
         
