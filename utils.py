@@ -21,6 +21,9 @@
 from traceback import print_exc
 from os import _exit as os_exit
 
+import logging
+logger = logging.getLogger(__name__)
+
 # copy/paste from velib_utils. Not using velib_utils because of dependencies on dbus when testing locally
 
 # Use this function to make sure the code quits on an unexpected exception. Make sure to use it
@@ -113,3 +116,43 @@ class AbstractTimerUtils:
             return False
         
         return should_keep_trigger
+
+
+
+
+def find_n2k_can(dbus):
+	VE_INTERFACE = "com.victronenergy.BusItem"
+
+	# list all services on dbus
+	serviceNames = dbus.list_names()
+	for serviceName in serviceNames:
+		if serviceName.startswith("com.victronenergy.vecan"):
+			logger.debug("got vecan service: "+ serviceName)
+                  
+			# list all items in vecan service
+			values = dbus.call_blocking(serviceName, '/', VE_INTERFACE, 'GetItems', '', [])
+			for path in values:
+				if path.startswith('/Devices/') and path.endswith('/N2kUniqueNumber'):
+					logger.debug("found N2K device: "+ path)
+					# we found a service with at least one N2KUniqueNumber
+					can_id = serviceName.split('.')[-1]
+					logger.info("Found candevice with n2k devices "+ can_id)
+                              
+					return can_id
+                        
+	return None
+
+
+if __name__ == '__main__':
+	import os
+	import sys
+	sys.path.insert(1, os.path.join(os.path.dirname(__file__), 'ext/velib_python'))
+    
+	logging.basicConfig(level=logging.DEBUG)
+    
+
+	import dbus
+	dbus = dbus.SessionBus() if 'DBUS_SESSION_BUS_ADDRESS' in os.environ else dbus.SystemBus()	
+
+	print(find_n2k_can(dbus))
+                              

@@ -216,7 +216,7 @@ class NMEAAlertConnector(AbstractConnector):
 if __name__ == '__main__':
 
     from nmea_bridge import NMEABridge
-    from utils import handle_stdin
+    from utils import handle_stdin, find_n2k_can
     from gi.repository import GLib
     import dbus
     sys.path.insert(1, os.path.join(os.path.dirname(__file__), '../ext/velib_python'))
@@ -228,11 +228,12 @@ if __name__ == '__main__':
 
 
     from abstract_gps_provider import GPSPosition
-
-    bridge = NMEABridge()
     DBusGMainLoop(set_as_default=True)
 
     bus = dbus.SessionBus() if 'DBUS_SESSION_BUS_ADDRESS' in os.environ else dbus.SystemBus()
+    can_id = find_n2k_can(bus)
+    bridge = NMEABridge(can_id)
+
     nmea_alert_connector = NMEAAlertConnector(lambda: GLib, lambda settings, cb: SettingsDevice(bus, settings, cb), bridge)
 
     controller = MagicMock()
