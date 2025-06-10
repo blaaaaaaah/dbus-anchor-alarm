@@ -39,6 +39,7 @@ sys.path.insert(1, os.path.join(os.path.dirname(__file__), 'gps_providers'))
 
 from dbus_connector import DBusConnector
 from nmea_alert_connector import NMEAAlertConnector
+from nmea_ais_anchor_connector import NMEAAISAnchorConnector
 from nmea_ydab_connector import NMEAYDABConnector
 from nmea_sog_rpm_connector import NMEASOGRPMConnector
 from nmea_ds_connector import NMEADSConnector
@@ -91,6 +92,7 @@ class DbusAnchorAlarmService(object):
 
         dbus_connector = DBusConnector(lambda: GLib, lambda settings, cb: SettingsDevice(bus, settings, cb))
         nmea_alert_connector = NMEAAlertConnector(lambda: GLib, lambda settings, cb: SettingsDevice(bus, settings, cb), self._nmea_bridge)
+        nmea_ais_anchor_connector = NMEAAISAnchorConnector(lambda: GLib, lambda settings, cb: SettingsDevice(bus, settings, cb), self._nmea_bridge)
         nmea_ydab_connector = NMEAYDABConnector(lambda: GLib, lambda settings, cb: SettingsDevice(bus, settings, cb), self._nmea_bridge)
         nmea_sog_rpm_connector = NMEASOGRPMConnector(lambda: GLib, lambda settings, cb: SettingsDevice(bus, settings, cb), self._nmea_bridge)
         nmea_ds_connector = NMEADSConnector(lambda: GLib, lambda settings, cb: SettingsDevice(bus, settings, cb), self._nmea_bridge)
@@ -99,6 +101,7 @@ class DbusAnchorAlarmService(object):
 
         self._alarm_controller.register_connector(dbus_connector)
         self._alarm_controller.register_connector(nmea_alert_connector)
+        self._alarm_controller.register_connector(nmea_ais_anchor_connector)
         self._alarm_controller.register_connector(nmea_ydab_connector)
         self._alarm_controller.register_connector(nmea_sog_rpm_connector)
         self._alarm_controller.register_connector(nmea_ds_connector)

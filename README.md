@@ -9,11 +9,12 @@ It monitors your anchor position, integrates with NMEA 2000 and Cerbo’s digita
 
 ## Features
 
-- Native Python service for Victron Cerbo
+- Native Python service for Venus OS, Victron Cerbo or Ekrano
 - Supports:
   - Anchoring mode and mooring ball mode
   - Digital inputs (anchor up/down, set radius, mute alarm, mooring ball mode)
   - Cerbo relays for buzzers/alarms
+  - Display of anchor's position on chartplotters as AIS target
   - Alarm/notification on Cerbo GX
   - Feedback on Cerbo’s main screen (using system name)
   - NMEA 2000 digital switching triggers and feedback
@@ -61,6 +62,7 @@ It monitors your anchor position, integrates with NMEA 2000 and Cerbo’s digita
   - [Cerbo & VRM Notifications and Alarms](#cerbo-&-vrm-notifications-and-alarms)
   - [Engine Gateway / NMEA SOG+RPM](#engine-gateway--nmea-sogrpm)
   - [YachtDevice YDAB-01 Alarm Button](#yachtdevice-ydab-01-alarm-button)
+  - [Anchor position on chartplotters](#anchor-position-on-chartplotters)
   - [Cerbo GX Integrated Relays](#cerbo-gx-integrated-relays)
 - [Technical Details](#technical-details)
   - [Overview](#technical-overview)
@@ -277,7 +279,7 @@ You may need an additional T-connector if your NMEA backbone does not have a fre
 
 | Parameter | Default | Description |
 |---|---|---|
-| Settings/AnchorAlarm/NMEA/CanDevice | auto | Physical CAN Device to use. Set can0, can1 or appropriate value if auto discovery is not working |
+| Settings/AnchorAlarm/NMEA/CanDevice | auto | Physical CAN Device to use. Set can0, vecan1 or appropriate value if auto discovery is not working |
 | Settings/AnchorAlarm/NMEA/Alert/AutoAcknowledgeInterval | 15 | Duration before "info" NMEA feedback auto-acknowledges (seconds) |
 | Settings/AnchorAlarm/NMEA/DigitalSwitching/DSBank | 221 | Digital Switching Bank used for anchor alarm switches |
 | Settings/AnchorAlarm/NMEA/DigitalSwitching/AdvertiseInterval | 5 | Interval between NMEA switch status broadcasts (seconds) |
@@ -437,6 +439,23 @@ Note : To start configuration of the YDAB-01 device, write 1 in Settings/AnchorA
 
 ---
 
+### Anchor position on chartplotters
+
+**Description:**  
+Provides visual feedback of where the anchor is dropped on chartplotters. Since no manufacturer currently support the appropriate
+NMEA PGNs (see https://www.yachtd.com/news/wpl_rte_update.html), a workaround is to use an AIS target to show anchor's position.
+
+
+**Configuration Parameters:**
+
+| Parameter | Default | Description |
+|---|---|---|
+| Settings/AnchorAlarm/NMEA/AISAnchor/AdvertiseInterval | 5 | Interval at which anchor position is advertised. Use 0 to disabled |
+| Settings/AnchorAlarm/NMEA/AISAnchor/Name | Anchor | Name to be used for the anchor AIS target |
+
+
+---
+
 ### Cerbo GX Integrated Relays
 
 **Description:**  
@@ -569,6 +588,40 @@ rm -rf /data/dbus-anchor-alarm
 
 * VRM notification might not show the most updated message, however Remote Console will
 
+
+
+---
+
+## Troubleshooting
+
+You can run each component of the system independently for debugging and troubleshooting purposes.
+
+### Running Individual Components
+
+- **Connectors:**  
+  SSH into your device, navigate to `/data/dbus-anchor-alarm/connectors`, and run:
+  ```bash
+  python3 nmea_ds_connector.py
+  ```
+  This will start the connector with debug messages enabled.
+
+- **NMEA Bridge:**  
+  To launch the NMEA bridge as a standalone process, go to `/data/dbus-anchor-alarm` and execute:
+  ```bash
+  python3 nmea_bridge.py
+  ```
+
+- **Anchor Alarm Service:**  
+  To run the anchor alarm manually and view logs in the terminal:
+  ```bash
+  cd /service
+  svc -d dbus-anchor-alarm  # Stop the service if running
+
+  cd /data/dbus-anchor-alarm
+  python3 anchor_alarm_service.py
+  ```
+
+This allows you to isolate and debug issues with individual components more easily.
 
 
 ---
