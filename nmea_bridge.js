@@ -37,7 +37,8 @@ function createSimpleCan(canId) {
       canDevice: canId,
       preferredAddress: 66,
       disableDefaultTransmitPGNs: true,
-      transmitPGNs: [126983, 126985],
+      // TODO XXX make that configurable
+      transmitPGNs: [65284,65283,65290,127501,127502,130813, 126983, 126985],
       app: {
           on: function(eventName, eventData) {
               //console.log("on:" +eventName, eventData)

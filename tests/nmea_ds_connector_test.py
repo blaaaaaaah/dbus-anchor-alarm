@@ -63,7 +63,8 @@ class TestNMEADSConnector(unittest.TestCase):
         handler = None
         def _set_handler(pgn, the_handler):
             nonlocal handler
-            handler = the_handler
+            if pgn == 127502:
+                handler = the_handler
 
         mock_bridge.add_pgn_handler = MagicMock(side_effect=_set_handler)              
         mock_bridge.send_nmea = MagicMock()
@@ -98,7 +99,8 @@ class TestNMEADSConnector(unittest.TestCase):
         handler = None
         def _set_handler(pgn, the_handler):
             nonlocal handler
-            handler = the_handler
+            if pgn == 127502:
+                handler = the_handler
 
         mock_bridge.add_pgn_handler = MagicMock(side_effect=_set_handler)              
         mock_bridge.send_nmea = MagicMock()
@@ -155,7 +157,8 @@ class TestNMEADSConnector(unittest.TestCase):
         handler = None
         def _set_handler(pgn, the_handler):
             nonlocal handler
-            handler = the_handler
+            if pgn == 127502:
+                handler = the_handler
 
         mock_bridge.add_pgn_handler = MagicMock(side_effect=_set_handler)              
         mock_bridge.send_nmea = MagicMock()
@@ -495,7 +498,8 @@ class TestNMEADSConnector(unittest.TestCase):
         handler = None
         def _set_handler(pgn, the_handler):
             nonlocal handler
-            handler = the_handler
+            if pgn == 127502:
+                handler = the_handler
 
         mock_bridge.add_pgn_handler = MagicMock(side_effect=_set_handler)        
         mock_bridge.send_nmea = MagicMock()
@@ -575,7 +579,8 @@ class TestNMEADSConnector(unittest.TestCase):
         handler = None
         def _set_handler(pgn, the_handler):
             nonlocal handler
-            handler = the_handler
+            if pgn == 127502:
+                handler = the_handler
 
         mock_bridge.add_pgn_handler = MagicMock(side_effect=_set_handler)        
         mock_bridge.send_nmea = MagicMock()
