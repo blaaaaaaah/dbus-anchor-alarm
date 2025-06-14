@@ -276,9 +276,9 @@ class NMEABridge:
         pgn = message['pgn']
 
         # adding raw PGN data to the message
-        # "data":{"type":"Buffer","data":[19,153,4,5,0,0,1,0]}
-        if "data" in message and "data" in message['data']:
-            message['data'] = bytearray(message['data']['data'])
+        # "data":[19,153,4,5,0,0,1,0]
+        if "data" in message:
+            message['data'] = bytearray(message['data'])
         else:
             message['data'] = []
 
