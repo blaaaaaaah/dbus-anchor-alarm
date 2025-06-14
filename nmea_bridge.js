@@ -78,6 +78,7 @@ function createSimpleCan(canId) {
               return; // we don't care about that message
       
           pgnData = parser.parse(data)
+          pgnData.data = data.data
           //console.log("received message", data, pgnData)
 
           if ( pgnData ) {

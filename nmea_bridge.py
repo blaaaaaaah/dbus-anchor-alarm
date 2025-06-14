@@ -274,6 +274,14 @@ class NMEABridge:
 
     def _on_nmea_message(self, message):
         pgn = message['pgn']
+
+        # adding raw PGN data to the message
+        # "data":{"type":"Buffer","data":[19,153,4,5,0,0,1,0]}
+        if "data" in message and "data" in message['data']:
+            message['data'] = bytearray(message['data']['data'])
+        else:
+            message['data'] = []
+
         if pgn in self._handlers:
             for handler in self._handlers[pgn]:
                 handler(message)
