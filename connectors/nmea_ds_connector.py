@@ -38,15 +38,16 @@ class NMEARawPGN:
         self.pgn = pgn
         self.destination = destination
         self.data = []
-    def Add2ByteUInt(self, val): self.data.extend(val.to_bytes(2, byteorder='big'))
+    def Add2ByteUInt(self, val): self.data.extend(val.to_bytes(2, byteorder='little'))
     def AddByte(self, val): self.data.append(val & 0xFF)
 
     def __repr__(self): 
         bytes = ' '.join(f'{b:02x}' for b in self.data)
         return f"NMEARawPGN {self.pgn} : {bytes})"
     def __eq__(self, b):
-        return hasattr(b, 'pgn') and self.pgn == b.pgn and self.destination == b.destination and self.data == b.data
-
+        return hasattr(b, 'pgn') and self.pgn == b.pgn and self.destination == b.destination and self.data == b['data']
+    def __getitem__(self, name):
+        return getattr(self, name)
 
 
 class NMEADSConnector(AbstractConnector):
@@ -221,10 +222,10 @@ class NMEADSConnector(AbstractConnector):
     # TODO XXX : test without and see what happends
     # listens on 65284, handshake response ?
     def _on_czone_switch_heartbeat(self, nmea_message):
-        if int.from_bytes(nmea_message.data[:2], byteorder="big") != self._CZONE_MESSAGE: 
+        if int.from_bytes(nmea_message['data'][:2], byteorder="little") != self._CZONE_MESSAGE: 
             return  # not a CZone Message, ignore
         
-        if nmea_message.data[5] != self._settings['CZoneDipSwitch']:
+        if nmea_message['data'][5] != self._settings['CZoneDipSwitch']:
             return  # not our DipSwitch Message, ignore
         
         self._czone_handshake_done = True
@@ -385,16 +386,26 @@ class NMEADSConnector(AbstractConnector):
         if not self._czone_enabled:
             return 
 
-        if int.from_bytes(nmea_message.data[:2], byteorder="big") != self._CZONE_MESSAGE: 
+        bytes = ' '.join(f'{b:02x}' for b in nmea_message['data'])
+        logger.debug(f"Received 65280 : {bytes}")
+
+        if int.from_bytes(nmea_message['data'][:2], byteorder="little") != self._CZONE_MESSAGE: 
             return  # not a CZone Message, ignore
         
-        if nmea_message.data[5] != self._settings['CZoneDipSwitch']:
+        logger.debug("We have a CZone message")
+
+        if nmea_message['data'][5] != self._settings['CZoneDipSwitch']:
             return  # not our DipSwitch Message, ignore
 
-        # nmea_message.data[2] will be the channel number, starting at 0x05 (5) to 0x0c (12)
-        # nmea_message.data[6] will be the switch value 0xf1 for one, 0xf2 for off, 0x04 for toggle
-        channel = nmea_message.data[2] - 5
-        switch_value = nmea_message.data[6]
+        logger.debug("Dipswitch OK")
+
+
+        # nmea_message['data'][2] will be the channel number, starting at 0x05 (5) to 0x0c (12)
+        # nmea_message['data'][6] will be the switch value 0xf1 for one, 0xf2 for off, 0x04 for toggle
+        channel = nmea_message['data'][2] - 5
+        switch_value = nmea_message['data'][6]
+
+        logger.debug("Channel is "+ str(channel) + ", switch value is "+ str(switch_value))
 
         if switch_value in (0xf1, 0xf2, 0x04): 
             new_state = True
@@ -506,13 +517,13 @@ class NMEADSConnector(AbstractConnector):
         if not self._czone_enabled():
             return 
 
-        if int.from_bytes(nmea_message.data[:2], byteorder="big") != self._CZONE_MESSAGE: 
+        if int.from_bytes(nmea_message['data'][:2], byteorder="little") != self._CZONE_MESSAGE: 
             return  # not a CZone Message, ignore
         
-        if nmea_message.data[7] != self._settings['CZoneDipSwitch']:
+        if nmea_message['data'][7] != self._settings['CZoneDipSwitch']:
             return  # not our DipSwitch Message, ignore
 
-        czone_config = nmea_message.data[2]
+        czone_config = nmea_message['data'][2]
 
         def get_auth_pgn(config_byte, serial):
             auth_nmea_message = NMEARawPGN(65290)
