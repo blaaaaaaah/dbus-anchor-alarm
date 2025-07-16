@@ -84,7 +84,7 @@ class DBusConnector(AbstractConnector):
         self._bridge.add_pgn_handler(128267, self._on_depth)
         self._bridge.add_pgn_handler(130306, self._on_wind)
         self._bridge.add_pgn_handler(127250, self._on_heading)
-        self._bridge.add_pgn_handler(129039, self._on_ais_message)
+        self._bridge.add_pgn_handler(129039, self._on_ais_message)  # 129040
 
         
     def _init_settings(self):
@@ -619,6 +619,7 @@ class DBusConnector(AbstractConnector):
 
     def _on_ais_message(self, nmea_message):
         # {"canId":301469618,"prio":4,"src":178,"dst":255,"pgn":129039,"timestamp":"2025-07-01T16:48:46.066Z","input":[],"fields":{"Message ID":"Standard Class B position report","Repeat Indicator":"Initial","User ID":9221639,"Longitude":-61.3895,"Latitude":12.5272,"Position Accuracy":"Low","RAIM":"not in use","Time Stamp":"43","COG":6.1994,"SOG":0.05,"AIS Transceiver information":"Channel B VDL reception","Heading":6.1959,"Regional Application B":0,"Unit type":"SOTDMA","Integrated Display":"No","DSC":"No","Band":"Top 525 kHz of marine band","Can handle Msg 22":"No","AIS mode":"Autonomous","AIS communication state":"SOTDMA"},"description":"AIS Class B Position Report"}}
+        # {'canId': 301469483, 'prio': 4, 'src': 43, 'dst': 255, 'pgn': 129039, 'timestamp': '2025-07-16T12:14:00.145Z', 'input': [], 'fields': {'Message ID': 'Standard Class B position report', 'Repeat Indicator': 'Initial', 'User ID': 316033362, 'Longitude': -61.7400512, 'Latitude': 12.010176, 'Position Accuracy': 'High', 'RAIM': 'in use', 'Time Stamp': '59', 'COG': 6.2383, 'SOG': 0, 'Communication State': 393222, 'AIS Transceiver information': 'Channel A VDL reception', 'Regional Application': 0, 'Regional Application B': 0, 'Unit type': 'CS', 'Integrated Display': 'No', 'DSC': 'Yes', 'Band': 'Entire marine band', 'Can handle Msg 22': 'Yes', 'AIS mode': 'Autonomous', 'AIS communication state': 'ITDMA'}, 'description': 'AIS Class B Position Report'}
 
         """Handle AIS messages to update vessels"""
         if "fields" not in nmea_message:
@@ -639,8 +640,8 @@ class DBusConnector(AbstractConnector):
         if "SOG" not in nmea_message["fields"]:
             return
 
-        if "Heading" not in nmea_message["fields"]:
-            return
+        #if "Heading" not in nmea_message["fields"]:
+        #    return
 
         if self.controller is None:
             return
@@ -665,7 +666,7 @@ class DBusConnector(AbstractConnector):
         vessel['longitude'] = longitude
         vessel['sog'] = nmea_message["fields"]["SOG"]
         vessel['cog'] = nmea_message["fields"]["COG"] * (180.0 / math.pi)  # Convert radians to degrees
-        vessel['heading'] = nmea_message["fields"]["Heading"] * (180.0 / math.pi)  # Convert radians to degrees
+        vessel['heading'] = 0 # nmea_message["fields"]["Heading"] * (180.0 / math.pi)  # Convert radians to degrees
 
 
 
