@@ -58,13 +58,13 @@ class AnchorAlarmController(object):
         # create the setting that are needed
         settingsList = {
             # Distance in meters that will be added to the safe radius
-            "Tolerance":            ["/Settings/Anchoralarm/RadiusTolerance", 15, 0, 512],
+            "Tolerance":            ["/Settings/AnchorAlarm/RadiusTolerance", 15, 0, 512],
 
             # Number of seconds the GPS can be lost before activating the alarm
-            "NoGPSCountThreshold":  ["/Settings/Anchoralarm/NoGPSCountThreshold", 30, 0, 300],
+            "NoGPSCountThreshold":  ["/Settings/AnchorAlarm/NoGPSCountThreshold", 30, 0, 300],
 
             # Number of seconds the alarm will be muted for when the alarm is acknowledged
-            "MuteDuration":         ["/Settings/Anchoralarm/MuteDuration", 120, 0, 600], 
+            "MuteDuration":         ["/Settings/AnchorAlarm/MuteDuration", 120, 0, 600], 
 
             # Safe radius to use when activating mooring ball mode
             "MooringRadius":        ["/Settings/AnchorAlarm/MooringRadius", 15, 0, 256],
@@ -230,6 +230,7 @@ class AnchorAlarmController(object):
                 connector.on_state_changed(current_state)
                 # TODO XXX maybe call update_state as well ?
             except Exception:
+                logger.error("Error in connector "+ str(connector), exc_info=True)
                 pass # TODO XXX
 
     def _on_timer_tick(self):
@@ -242,6 +243,7 @@ class AnchorAlarmController(object):
             try:
                 connector.update_state(current_state)
             except Exception:
+                logger.error("Error in connector "+ str(connector), exc_info=True)
                 pass # TODO XXX        
 
         return True
