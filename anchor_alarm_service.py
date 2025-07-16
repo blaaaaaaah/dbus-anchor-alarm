@@ -87,10 +87,10 @@ class DbusAnchorAlarmService(object):
         dbus_gps_provider = DBusGPSProvider(lambda: GLib)
         nmea_gps_provider = NMEAGPSProvider(lambda: GLib, self._nmea_bridge)
 
-        self._alarm_controller.register_gps_provider(nmea_gps_provider)
         self._alarm_controller.register_gps_provider(dbus_gps_provider)
+        self._alarm_controller.register_gps_provider(nmea_gps_provider)
 
-        dbus_connector = DBusConnector(lambda: GLib, lambda settings, cb: SettingsDevice(bus, settings, cb))
+        dbus_connector = DBusConnector(lambda: GLib, lambda settings, cb: SettingsDevice(bus, settings, cb), self._nmea_bridge)
         nmea_alert_connector = NMEAAlertConnector(lambda: GLib, lambda settings, cb: SettingsDevice(bus, settings, cb), self._nmea_bridge)
         nmea_ais_anchor_connector = NMEAAISAnchorConnector(lambda: GLib, lambda settings, cb: SettingsDevice(bus, settings, cb), self._nmea_bridge)
         nmea_ydab_connector = NMEAYDABConnector(lambda: GLib, lambda settings, cb: SettingsDevice(bus, settings, cb), self._nmea_bridge)

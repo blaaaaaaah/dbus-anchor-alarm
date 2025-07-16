@@ -21,6 +21,7 @@
 import sys
 import os
 import json
+from turtle import st
 
 sys.path.insert(1, os.path.join(sys.path[0], '..'))
 sys.path.insert(1, os.path.join(os.path.dirname(__file__), '../ext/velib_python/test'))
@@ -75,8 +76,11 @@ class TestDBusConnector(unittest.TestCase):
 
 
     def test_settings_created_and_update_callback(self):
-    
-        connector = MockDBusConnector(lambda: timer_provider, lambda settings, cb: MockSettingsDevice(settings, cb))
+        mock_bridge = MagicMock()
+        mock_bridge.add_pgn_handler = MagicMock()
+        mock_bridge.send_nmea = MagicMock()
+
+        connector = MockDBusConnector(lambda: timer_provider, lambda settings, cb: MockSettingsDevice(settings, cb), mock_bridge)
 
         self.assertEqual(connector._anchor_up_digital_input, 'com.victronenergy.digitalinput.input01')
 
@@ -90,8 +94,14 @@ class TestDBusConnector(unittest.TestCase):
         controller.trigger_anchor_up    = MagicMock()
         controller.trigger_chain_out    = MagicMock()
         controller.trigger_mute_alarm   = MagicMock()
+        controller.get_gps_position = MagicMock(return_value=GPSPosition(10, 11))
 
-        connector = MockDBusConnector(lambda: timer_provider, lambda settings, cb: MockSettingsDevice(settings, cb))
+        mock_bridge = MagicMock()
+        mock_bridge.add_pgn_handler = MagicMock()
+        mock_bridge.send_nmea = MagicMock()
+
+
+        connector = MockDBusConnector(lambda: timer_provider, lambda settings, cb: MockSettingsDevice(settings, cb), mock_bridge)
         connector.set_controller(controller)
         monitor = connector.mock_monitor()
         monitor.add_service('com.victronenergy.digitalinput.input01',
@@ -115,22 +125,42 @@ class TestDBusConnector(unittest.TestCase):
 
 
         service = connector.mock_service()
-        self.assertEqual(service['/State'], 'DISABLED')
-        self.assertEqual(service['/Message'], '')
-        self.assertEqual(service['/Level'], '')
-        self.assertEqual(service['/Muted'], False)
-        self.assertEqual(service['/Params'], '')
+        self.assertEqual(service['/Alarm/State'], 'DISABLED')
+        self.assertEqual(service['/Alarm/Message'], '')
+        self.assertEqual(service['/Alarm/Level'], '')
+        self.assertEqual(service['/Alarm/Muted'], False)
+        self.assertEqual(service['/Alarm/Alarm'], False)
+        self.assertEqual(service['/Alarm/MutedDuration'], 0)
+        self.assertEqual(service['/Alarm/NoGPSDuration'], 0)
+        self.assertEqual(service['/Alarm/OutOfRadiusDuration'], 0)
 
+        self.assertEqual(service['/Anchor/Latitude'], "")
+        self.assertEqual(service['/Anchor/Longitude'], "")
+        self.assertEqual(service['/Anchor/Radius'], "")
+        self.assertEqual(service['/Anchor/Distance'], "")
+        self.assertEqual(service['/Anchor/Tolerance'], "")
+
+  
 
         # AnchorAlarmState = namedtuple('AnchorAlarmState', ['state', 'message', 'level', 'muted', 'params'])
-        state = AnchorAlarmState('IN_RADIUS', 'boat in radius', "short in radius message", 'info', False, {'drop_point': GPSPosition(10, 11), 'radius': 12})
+        state = AnchorAlarmState('IN_RADIUS', 'boat in radius', "short in radius message", 'info', False, {'drop_point': GPSPosition(10, 11), 'radius': 12, 'current_radius':5, 'radius_tolerance': 15, 'alarm_muted_count': 0, 'no_gps_count': 0, 'out_of_radius_count': 0})
         connector.on_state_changed(state)
 
-        self.assertEqual(service['/State'], state.state)
-        self.assertEqual(service['/Message'], state.message)
-        self.assertEqual(service['/Level'], state.level)
-        self.assertEqual(service['/Muted'], state.muted)
-        self.assertEqual(service['/Params'], json.dumps(state.params))
+        self.assertEqual(service['/Alarm/State'], state.state)
+        self.assertEqual(service['/Alarm/Message'], state.message)
+        self.assertEqual(service['/Alarm/Level'], state.level)
+        self.assertEqual(service['/Alarm/Muted'], state.muted)
+
+        self.assertEqual(service['/Alarm/Alarm'], False)
+        self.assertEqual(service['/Alarm/MutedDuration'], 0)
+        self.assertEqual(service['/Alarm/NoGPSDuration'], 0)
+        self.assertEqual(service['/Alarm/OutOfRadiusDuration'], 0)
+
+        self.assertEqual(service['/Anchor/Latitude'], state.params['drop_point'].latitude)
+        self.assertEqual(service['/Anchor/Longitude'], state.params['drop_point'].longitude)
+        self.assertEqual(service['/Anchor/Radius'], state.params['radius'])
+        self.assertEqual(service['/Anchor/Distance'], state.params['current_radius'])
+        self.assertEqual(service['/Anchor/Tolerance'], state.params['radius_tolerance'])
 
         self.assertEqual(monitor.get_value('com.victronenergy.digitalinput.input01', '/CustomName'), state.message)
         self.assertEqual(monitor.get_value('com.victronenergy.digitalinput.input01', '/ProductName'), state.message)
@@ -142,15 +172,24 @@ class TestDBusConnector(unittest.TestCase):
 
         connector._settings['FeedbackUseSystemName'] = 1
 
-        state2 = AnchorAlarmState('IN_RADIUS', 'boat in radius 2',"in radius short message", 'info', False, {'drop_point': GPSPosition(110, 111), 'radius': 112})
+        state2 = AnchorAlarmState('IN_RADIUS', 'boat in radius 2',"in radius short message", 'info', False, {'drop_point': GPSPosition(110, 111), 'radius': 112, 'current_radius':12, 'radius_tolerance':15, 'alarm_muted_count': 0, 'no_gps_count': 0, 'out_of_radius_count': 0})
         connector.update_state(state2)
 
-        self.assertEqual(service['/State'], state2.state)
-        self.assertEqual(service['/Message'], state2.message)
-        self.assertEqual(service['/Level'], state2.level)
-        self.assertEqual(service['/Muted'], state2.muted)
-        self.assertEqual(service['/Params'], json.dumps(state2.params))
+        self.assertEqual(service['/Alarm/State'], state2.state)
+        self.assertEqual(service['/Alarm/Message'], state2.message)
+        self.assertEqual(service['/Alarm/Level'], state2.level)
+        self.assertEqual(service['/Alarm/Muted'], state2.muted)
+        
+        self.assertEqual(service['/Alarm/Alarm'], False)
+        self.assertEqual(service['/Alarm/MutedDuration'], 0)
+        self.assertEqual(service['/Alarm/NoGPSDuration'], 0)
+        self.assertEqual(service['/Alarm/OutOfRadiusDuration'], 0)
 
+        self.assertEqual(service['/Anchor/Latitude'], state2.params['drop_point'].latitude)
+        self.assertEqual(service['/Anchor/Longitude'], state2.params['drop_point'].longitude)
+        self.assertEqual(service['/Anchor/Radius'], state2.params['radius'])
+        self.assertEqual(service['/Anchor/Distance'], state2.params['current_radius'])
+        self.assertEqual(service['/Anchor/Tolerance'], state2.params['radius_tolerance'])
 
         # make sure alarm feedback didnt change. TODO XXX maybe change that ?
         self.assertEqual(monitor.get_value('com.victronenergy.digitalinput.input01', '/CustomName'), state2.message)
@@ -162,15 +201,24 @@ class TestDBusConnector(unittest.TestCase):
         self.assertEqual(monitor.get_value("com.victronenergy.settings", '/Settings/SystemSetup/SystemName'), state2.short_message)
 
 
-        state3 = AnchorAlarmState('ALARM_DRAGGING', 'boat outside radius', "short message",'emergency', False, {'drop_point': GPSPosition(10, 11), 'radius': 12})
+        state3 = AnchorAlarmState('ALARM_DRAGGING', 'boat outside radius', "short message",'emergency', False, {'drop_point': GPSPosition(10, 11), 'radius': 12, 'current_radius': 7, 'radius_tolerance': 15, 'alarm_muted_count': 0, 'no_gps_count': 0, 'out_of_radius_count': 1})
         connector.on_state_changed(state3)
 
-        self.assertEqual(service['/State'], state3.state)
-        self.assertEqual(service['/Message'], state3.message)
-        self.assertEqual(service['/Level'], state3.level)
-        self.assertEqual(service['/Muted'], state3.muted)
-        self.assertEqual(service['/Params'], json.dumps(state3.params))
+        self.assertEqual(service['/Alarm/State'], state3.state)
+        self.assertEqual(service['/Alarm/Message'], state3.message)
+        self.assertEqual(service['/Alarm/Level'], state3.level)
+        self.assertEqual(service['/Alarm/Muted'], state3.muted)
 
+        self.assertEqual(service['/Alarm/Alarm'], True)
+        self.assertEqual(service['/Alarm/MutedDuration'], 0)
+        self.assertEqual(service['/Alarm/NoGPSDuration'], 0)
+        self.assertEqual(service['/Alarm/OutOfRadiusDuration'], 1)
+
+        self.assertEqual(service['/Anchor/Latitude'], state3.params['drop_point'].latitude)
+        self.assertEqual(service['/Anchor/Longitude'], state3.params['drop_point'].longitude)
+        self.assertEqual(service['/Anchor/Radius'], state3.params['radius'])
+        self.assertEqual(service['/Anchor/Distance'], state3.params['current_radius'])
+        self.assertEqual(service['/Anchor/Tolerance'], state3.params['radius_tolerance'])
 
         self.assertEqual(monitor.get_value('com.victronenergy.digitalinput.input01', '/CustomName'), state3.message)
         self.assertEqual(monitor.get_value('com.victronenergy.digitalinput.input01', '/ProductName'), state3.message)
@@ -183,14 +231,25 @@ class TestDBusConnector(unittest.TestCase):
       
         controller.trigger_mute_alarm.assert_called_once()
 
-        state4 = AnchorAlarmState('ALARM_DRAGGING_MUTED', 'boat outside radius', "short message",'emergency', True, {'drop_point': GPSPosition(10, 11), 'radius': 12})
+        state4 = AnchorAlarmState('ALARM_DRAGGING_MUTED', 'boat outside radius', "short message",'emergency', True, {'drop_point': GPSPosition(10, 11), 'radius': 12, 'current_radius': 7, 'radius_tolerance': 15, 'alarm_muted_count': 1, 'no_gps_count': 0, 'out_of_radius_count': 1})
         connector.on_state_changed(state4)
 
-        self.assertEqual(service['/State'], state4.state)
-        self.assertEqual(service['/Message'], state4.message)
-        self.assertEqual(service['/Level'], state4.level)
-        self.assertEqual(service['/Muted'], state4.muted)
-        self.assertEqual(service['/Params'], json.dumps(state4.params))
+        self.assertEqual(service['/Alarm/State'], state4.state)
+        self.assertEqual(service['/Alarm/Message'], state4.message)
+        self.assertEqual(service['/Alarm/Level'], state4.level)
+        self.assertEqual(service['/Alarm/Muted'], state4.muted)
+
+        self.assertEqual(service['/Alarm/Alarm'], True)
+        self.assertEqual(service['/Alarm/MutedDuration'], 1)
+        self.assertEqual(service['/Alarm/NoGPSDuration'], 0)
+        self.assertEqual(service['/Alarm/OutOfRadiusDuration'], 1)
+
+        self.assertEqual(service['/Anchor/Latitude'], state4.params['drop_point'].latitude)
+        self.assertEqual(service['/Anchor/Longitude'], state4.params['drop_point'].longitude)
+        self.assertEqual(service['/Anchor/Radius'], state4.params['radius'])
+        self.assertEqual(service['/Anchor/Distance'], state4.params['current_radius'])
+        self.assertEqual(service['/Anchor/Tolerance'], state4.params['radius_tolerance'])
+
         self.assertEqual(monitor.get_value("com.victronenergy.settings", '/Settings/DigitalInput/1/AlarmSetting'), False)
         self.assertEqual(monitor.get_value("com.victronenergy.settings", '/Settings/DigitalInput/1/InvertAlarm'), False)  
 
@@ -206,8 +265,15 @@ class TestDBusConnector(unittest.TestCase):
         controller.trigger_anchor_up    = MagicMock()
         controller.trigger_chain_out    = MagicMock()
         controller.trigger_mute_alarm   = MagicMock()
+        controller.get_gps_position = MagicMock(return_value=GPSPosition(10, 11))
 
-        connector = MockDBusConnector(lambda: timer_provider, lambda settings, cb: MockSettingsDevice(settings, cb))
+
+        mock_bridge = MagicMock()
+        mock_bridge.add_pgn_handler = MagicMock()
+        mock_bridge.send_nmea = MagicMock()
+
+
+        connector = MockDBusConnector(lambda: timer_provider, lambda settings, cb: MockSettingsDevice(settings, cb), mock_bridge)
         connector.set_controller(controller)
         connector._settings['MuteAlarmDigitalInputNumber']=4
         connector._settings['MuteAlarmDigitalInputDuration']=3
@@ -386,25 +452,42 @@ class TestDBusConnector(unittest.TestCase):
         check_sequence('com.victronenergy.digitalinput.input04', _check_input_mooring)
 
         # TODO XXX : check mute Alarm
-        state3 = AnchorAlarmState('ALARM_DRAGGING', 'boat outside radius', "short message",'emergency', False, {'drop_point': GPSPosition(10, 11), 'radius': 12})
+        state3 = AnchorAlarmState('ALARM_DRAGGING', 'boat outside radius', "short message",'emergency', False, {'drop_point': GPSPosition(10, 11), 'radius': 12, 'current_radius': 7, 'radius_tolerance': 15, 'alarm_muted_count': 0, 'no_gps_count': 0, 'out_of_radius_count': 1})
         connector.on_state_changed(state3)
 
-        self.assertEqual(service['/State'], state3.state)
-        self.assertEqual(service['/Message'], state3.message)
-        self.assertEqual(service['/Level'], state3.level)
-        self.assertEqual(service['/Muted'], state3.muted)
-        self.assertEqual(service['/Params'], json.dumps(state3.params))
+        self.assertEqual(service['/Alarm/State'], state3.state)
+        self.assertEqual(service['/Alarm/Message'], state3.message)
+        self.assertEqual(service['/Alarm/Level'], state3.level)
+        self.assertEqual(service['/Alarm/Muted'], state3.muted)
+        self.assertEqual(service['/Alarm/Alarm'], True)
+        self.assertEqual(service['/Alarm/MutedDuration'], 0)
+        self.assertEqual(service['/Alarm/NoGPSDuration'], 0)
+        self.assertEqual(service['/Alarm/OutOfRadiusDuration'], 1)
 
+        self.assertEqual(service['/Anchor/Latitude'], state3.params['drop_point'].latitude)
+        self.assertEqual(service['/Anchor/Longitude'], state3.params['drop_point'].longitude)
+        self.assertEqual(service['/Anchor/Radius'], state3.params['radius'])
+        self.assertEqual(service['/Anchor/Distance'], state3.params['current_radius'])
+        self.assertEqual(service['/Anchor/Tolerance'], state3.params['radius_tolerance'])
 
-        state4 = AnchorAlarmState('ALARM_DRAGGING_MUTED', 'boat outside radius', "short message",'emergency', True, {'drop_point': GPSPosition(10, 11), 'radius': 12})
+        state4 = AnchorAlarmState('ALARM_DRAGGING_MUTED', 'boat outside radius', "short message",'emergency', True, {'drop_point': GPSPosition(10, 11), 'radius': 12, 'current_radius': 7, 'radius_tolerance': 15, 'alarm_muted_count': 1, 'no_gps_count': 0, 'out_of_radius_count': 1})
         connector.on_state_changed(state4)
 
-        self.assertEqual(service['/State'], state4.state)
-        self.assertEqual(service['/Message'], state4.message)
-        self.assertEqual(service['/Level'], state4.level)
-        self.assertEqual(service['/Muted'], state4.muted)
-        self.assertEqual(service['/Params'], json.dumps(state4.params))
+        self.assertEqual(service['/Alarm/State'], state4.state)
+        self.assertEqual(service['/Alarm/Message'], state4.message)
+        self.assertEqual(service['/Alarm/Level'], state4.level)
+        self.assertEqual(service['/Alarm/Muted'], state4.muted)
+        
+        self.assertEqual(service['/Alarm/Alarm'], True)
+        self.assertEqual(service['/Alarm/MutedDuration'], 1)
+        self.assertEqual(service['/Alarm/NoGPSDuration'], 0)
+        self.assertEqual(service['/Alarm/OutOfRadiusDuration'], 1)
 
+        self.assertEqual(service['/Anchor/Latitude'], state4.params['drop_point'].latitude)
+        self.assertEqual(service['/Anchor/Longitude'], state4.params['drop_point'].longitude)
+        self.assertEqual(service['/Anchor/Radius'], state4.params['radius'])
+        self.assertEqual(service['/Anchor/Distance'], state4.params['current_radius'])
+        self.assertEqual(service['/Anchor/Tolerance'], state4.params['radius_tolerance'])
 
 
 
@@ -425,7 +508,12 @@ class TestDBusConnector(unittest.TestCase):
         controller.trigger_decrease_tolerance   = MagicMock()
         controller.trigger_increase_tolerance   = MagicMock()
 
-        connector = MockDBusConnector(lambda: timer_provider, lambda settings, cb: MockSettingsDevice(settings, cb))
+        mock_bridge = MagicMock()
+        mock_bridge.add_pgn_handler = MagicMock()
+        mock_bridge.send_nmea = MagicMock()
+
+
+        connector = MockDBusConnector(lambda: timer_provider, lambda settings, cb: MockSettingsDevice(settings, cb), mock_bridge)
         connector.set_controller(controller)
 
         monitor = connector.mock_monitor()
@@ -503,7 +591,11 @@ class TestDBusConnector(unittest.TestCase):
         controller.trigger_chain_out    = MagicMock()
         controller.trigger_mute_alarm   = MagicMock()
 
-        connector = MockDBusConnector(lambda: timer_provider, lambda settings, cb: MockSettingsDevice(settings, cb))
+        mock_bridge = MagicMock()
+        mock_bridge.add_pgn_handler = MagicMock()
+        mock_bridge.send_nmea = MagicMock()
+
+        connector = MockDBusConnector(lambda: timer_provider, lambda settings, cb: MockSettingsDevice(settings, cb), mock_bridge)
         connector.set_controller(controller)
         connector._system_name_error_duration = 5000
 
@@ -554,7 +646,11 @@ class TestDBusConnector(unittest.TestCase):
         controller.trigger_chain_out    = MagicMock()
         controller.trigger_mute_alarm   = MagicMock()
 
-        connector = MockDBusConnector(lambda: timer_provider, lambda settings, cb: MockSettingsDevice(settings, cb))
+        mock_bridge = MagicMock()
+        mock_bridge.add_pgn_handler = MagicMock()
+        mock_bridge.send_nmea = MagicMock()
+
+        connector = MockDBusConnector(lambda: timer_provider, lambda settings, cb: MockSettingsDevice(settings, cb), mock_bridge)
         connector.set_controller(controller)
         connector._system_name_error_duration = 5000
 
@@ -612,7 +708,11 @@ class TestDBusConnector(unittest.TestCase):
         controller.trigger_chain_out    = MagicMock()
         controller.trigger_mute_alarm   = MagicMock()
 
-        connector = MockDBusConnector(lambda: timer_provider, lambda settings, cb: MockSettingsDevice(settings, cb))
+        mock_bridge = MagicMock()
+        mock_bridge.add_pgn_handler = MagicMock()
+        mock_bridge.send_nmea = MagicMock()
+
+        connector = MockDBusConnector(lambda: timer_provider, lambda settings, cb: MockSettingsDevice(settings, cb), mock_bridge)
         connector.set_controller(controller)
         connector._system_name_error_duration = 5000
 

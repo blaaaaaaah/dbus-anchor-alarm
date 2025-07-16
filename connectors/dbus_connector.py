@@ -19,6 +19,7 @@
 # SOFTWARE.
 
 
+from re import M
 import sys
 import os
 import json
@@ -34,12 +35,18 @@ from anchor_alarm_controller import AnchorAlarmController
 from anchor_alarm_controller import GPSPosition
 from anchor_alarm_model import AnchorAlarmState
 
+from collections import deque
+import time
+import math
+from geopy.distance import geodesic
+
+
 # our own packages
 sys.path.insert(1, os.path.join(os.path.dirname(__file__), '../ext/velib_python'))
 
 
 class DBusConnector(AbstractConnector):
-    def __init__(self, timer_provider, settings_provider, service_name="com.victronenergy.anchoralarm"):
+    def __init__(self, timer_provider, settings_provider, nmea_bridge, service_name="com.victronenergy.anchoralarm"):
         super().__init__(timer_provider, settings_provider)
 
         self._timer_ids = {
@@ -48,11 +55,22 @@ class DBusConnector(AbstractConnector):
             'chain_out': None,
             'mute_alarm': None,
 
-            'show_error_timeout': None
+            'show_error_timeout': None,
+
+            'extended_status': None
         }
 
         self._previous_system_name = None
         self._system_name_error_duration = 15000
+
+        self._vessels = {}
+
+        # environment
+        self._last_depth = None 
+        self._last_awa = None
+        self._last_aws = None
+
+        self._bridge = nmea_bridge
 
         self._init_settings()
         
@@ -60,6 +78,14 @@ class DBusConnector(AbstractConnector):
 
         self._init_dbus_monitor()
         self._init_dbus_service(service_name)
+        self._create_vessel('self')
+
+        self._bridge.add_pgn_handler(129026, self._on_sog)
+        self._bridge.add_pgn_handler(128267, self._on_depth)
+        self._bridge.add_pgn_handler(130306, self._on_wind)
+        self._bridge.add_pgn_handler(127250, self._on_heading)
+        self._bridge.add_pgn_handler(129039, self._on_ais_message)
+
         
     def _init_settings(self):
         # create the setting that are needed
@@ -119,6 +145,19 @@ class DBusConnector(AbstractConnector):
             # Will override any custom name and will not save the previous one so write it down if needed
             "FeedbackUseSystemName":            ["/Settings/AnchorAlarm/FeedbackUseSystemName", 0, 0, 1],
 
+
+            # Number of tracks to keep for each vessel
+            "NumberOfTracks":            ["/Settings/AnchorAlarm/Vessels/NumberOfTracks", 100, 0, 1000],
+
+            # Interval in seconds to add a track point for each vessel
+            "TracksInterval":            ["/Settings/AnchorAlarm/Vessels/TracksInterval", 30, 0, 1000],
+
+            # Interval in seconds to prune old tracks for each vessel
+            "PruneInterval":             ["/Settings/AnchorAlarm/Vessels/PruneInterval", 180, 0, 3600],
+
+            # Distance to vessels to keep track of
+            "DistanceToVessel":            ["/Settings/AnchorAlarm/Vessels/DistanceToVessel", 400, 0, 2000],
+
         }
 
         self._settings = self._settings_provider(settingsList, self._on_setting_changed)
@@ -167,13 +206,29 @@ class DBusConnector(AbstractConnector):
 
         self._dbus_service.add_mandatory_paths(sys.argv[0], self._get_version(), None, 0, 0, 'Anchor Alarm', 0, 0, 1)
 
-        # publish data on the service for other people to consume (MTTQ, ..)
-        self._dbus_service.add_path('/State', 'DISABLED', "State of the anchor alarm")
-        self._dbus_service.add_path('/Message', '', "Description of the state")
-        self._dbus_service.add_path('/Level', '', "Info, Warning, Alarm or Emergency")
-        self._dbus_service.add_path('/Muted', 0, "Is alarm muted")
-        self._dbus_service.add_path('/Alarm', 0, "Is alarm on")
-        self._dbus_service.add_path('/Params', '', "Various params (radius, current radius, tolerance, ..)")
+            # Alarm Information
+        self._dbus_service.add_path('/Alarm/State', 'DISABLED', "Current alarm state")
+        self._dbus_service.add_path('/Alarm/Message', '', "Current alarm message")
+        self._dbus_service.add_path('/Alarm/Level', '', "Info, Warning, Alarm, or Emergency")
+        self._dbus_service.add_path('/Alarm/Alarm', 0, "Is in alarm state")
+        self._dbus_service.add_path('/Alarm/Muted', 0, "Is alarm muted")
+        self._dbus_service.add_path('/Alarm/Active', 0, "Is alarm currently on")
+        self._dbus_service.add_path('/Alarm/MutedDuration', 0, "Seconds alarm has been muted")
+        self._dbus_service.add_path('/Alarm/NoGPSDuration', 0, "Seconds without GPS")
+        self._dbus_service.add_path('/Alarm/OutOfRadiusDuration', 0, "Seconds outside radius")
+
+        # Anchor Info
+        self._dbus_service.add_path('/Anchor/Latitude', "", "Anchor latitude", writeable=False)
+        self._dbus_service.add_path('/Anchor/Longitude', "", "Anchor longitude", writeable=False)
+        self._dbus_service.add_path('/Anchor/Radius', "", "Safe radius (m)", writeable=False)
+        self._dbus_service.add_path('/Anchor/Distance', "", "Distance to anchor (m)", writeable=False)
+        self._dbus_service.add_path('/Anchor/Tolerance', "", "Tolerance (m)", writeable=False)        
+
+        # Environment Info
+        self._dbus_service.add_path('/Environment/Depth', "", "Depth (m)", writeable=False)
+        self._dbus_service.add_path('/Environment/Wind/Speed', "", "Wind speed (knots)", writeable=False)
+        self._dbus_service.add_path('/Environment/Wind/Direction', "", "Wind direction (degrees)", writeable=False)
+
 
         # create trigger points for other people to manipulate state
         self._dbus_service.add_path('/Triggers/AnchorDown', 0, "Set 1 to trigger anchor down and define drop point", writeable=True, onchangecallback=self._on_service_changed)
@@ -213,11 +268,44 @@ class DBusConnector(AbstractConnector):
 
     def update_state(self, current_state:AnchorAlarmState):
         """Called by controller every second with updated state"""
-        self._dbus_service['/State']    = current_state.state
-        self._dbus_service['/Message']  = current_state.message
-        self._dbus_service['/Level']    = current_state.level
-        self._dbus_service['/Muted']    = 1 if current_state.muted else 0
-        self._dbus_service['/Params']   = json.dumps(current_state.params)
+
+        # Alarm info
+        self._dbus_service['/Alarm/State']    = current_state.state
+        self._dbus_service['/Alarm/Message']  = current_state.message
+        self._dbus_service['/Alarm/Level']    = current_state.level
+        self._dbus_service['/Alarm/Muted']    = 1 if current_state.muted else 0
+        self._dbus_service['/Alarm/Alarm']    = 1 if current_state.state in ['ALARM_DRAGGING', 'ALARM_DRAGGING_MUTED', 'ALARM_NO_GPS', 'ALARM_NO_GPS_MUTED'] else 0
+        self._dbus_service['/Alarm/MutedDuration']          = current_state.params['alarm_muted_count']
+        self._dbus_service['/Alarm/NoGPSDuration']          = current_state.params['no_gps_count']
+        self._dbus_service['/Alarm/OutOfRadiusDuration']    = current_state.params['out_of_radius_count']
+
+
+        # Anchor info
+        self._dbus_service['/Anchor/Latitude']          = "" if current_state.params['drop_point'] is None else current_state.params['drop_point'].latitude
+        self._dbus_service['/Anchor/Longitude']         = "" if current_state.params['drop_point'] is None else current_state.params['drop_point'].longitude
+        self._dbus_service['/Anchor/Radius']            = current_state.params['radius']
+        self._dbus_service['/Anchor/Distance']          = current_state.params['current_radius']
+        self._dbus_service['/Anchor/Tolerance']         = current_state.params['radius_tolerance']
+
+
+        # Vessel info
+        if self.controller is not None:
+            gps_position = self.controller.get_gps_position()
+            if gps_position is not None:
+                self._vessels['self']['latitude'] = gps_position.latitude
+                self._vessels['self']['longitude'] = gps_position.longitude
+
+        # update vessels info
+        self._prune_vessels()
+        for mmsi in list(self._vessels.keys()):
+            self._write_vessel_info(mmsi)
+
+
+        # Environment Info
+        self._dbus_service['/Environment/Wind/Speed']       = self._last_aws if self._last_aws is not None else ""
+        self._dbus_service['/Environment/Wind/Direction']   = self._last_awa if self._last_awa is not None else ""
+        self._dbus_service['/Environment/Depth']            = self._last_depth if self._last_depth is not None else ""
+
 
         if self._settings['FeedbackDigitalInputNumber'] != 0:
             self._alarm_monitor.set_value(self._feedback_digital_input, '/CustomName', current_state.message)
@@ -283,7 +371,7 @@ class DBusConnector(AbstractConnector):
         if ( dbusServiceName == 'com.victronenergy.platform'
                 and dbusPath == '/Notifications/Alarm'
                 and changes['Value'] == 0 
-                and self._dbus_service['/State'] in ['ALARM_DRAGGING', 'ALARM_NO_GPS']):
+                and self._dbus_service['/Alarm/State'] in ['ALARM_DRAGGING', 'ALARM_NO_GPS']):
 
             self.controller.trigger_mute_alarm()
 
@@ -390,11 +478,229 @@ class DBusConnector(AbstractConnector):
             version = "unknown"
 
         return version
+    
+        
+
+
+    def _on_sog(self, nmea_message):
+        # {'canId': 167248387, 'prio': 2, 'src': 3, 'dst': 255, 'pgn': 129026, 'timestamp': '2025-05-16T13:51:59.279Z', 'fields': {'SID': 208, 'COG Reference': 'True', 'COG': 0.2787, 'SOG': 0.07}, 'description': 'COG & SOG, Rapid Update'}
+        if "fields" not in nmea_message:
+            return
+        
+        if "SOG" not in nmea_message["fields"]:
+            return  # should not happen
+
+        if "COG" not in nmea_message["fields"]:
+            return  # should not happen
+        
+        self._vessels['self']['sog'] = nmea_message["fields"]["SOG"]  * 1.94384  # Convert m/s to knots
+        self._vessels['self']['cog'] = nmea_message["fields"]["COG"]  * (180.0 / math.pi)
+
+
+    def _on_heading(self, nmea_message):
+        # {'canId': 167248387, 'prio': 2, 'src': 3, 'dst': 255, 'pgn': 129026, 'timestamp': '2025-05-16T13:51:59.279Z', 'fields': {'SID': 208, 'COG Reference': 'True', 'COG': 0.2787, 'SOG': 0.07}, 'description': 'COG & SOG, Rapid Update'}
+        if "fields" not in nmea_message:
+            return
+        
+        if "Heading" not in nmea_message["fields"]:
+            return  # should not happen
+        
+        self._vessels['self']['heading'] = nmea_message["fields"]["Heading"]  * (180.0 / math.pi)
+
+
+
+    def _on_depth(self, nmea_message):
+        # {"canId":234162979,"prio":3,"src":35,"dst":255,"pgn":128267,"timestamp":"2025-06-30T14:03:17.611Z","fields":{"Depth":6,"Offset":0,"Range":140},"description":"Water Depth","data":[255,88,2,0,0,0,0,14]}
+        if "fields" not in nmea_message:
+            return
+        
+        if "Depth" not in nmea_message["fields"]:
+            return  # should not happen
+
+        if "Offset" not in nmea_message["fields"]:
+            return  # should not happen
+        
+        # TODO XXX : test that
+        depth = float(nmea_message["fields"]["Depth"])
+        if float(nmea_message["fields"]["Offset"]) != 0:
+            depth += float(nmea_message["fields"]["Offset"])
+        
+        self._last_depth = depth
+
+
+    def _on_wind(self, nmea_message):
+        # {'canId': 167576065, 'prio': 2, 'src': 1, 'dst': 255, 'pgn': 130306, 'timestamp': '2025-06-30T19:43:50.240Z', 'fields': {'Wind Speed': 1.96, 'Wind Angle': 6.22, 'Reference': 'Apparent'}, 'description': 'Wind Data', 'data': bytearray(b'\xff\xc4\x00\xf8\xf2\xfa\xff\xff')}
+        if "fields" not in nmea_message:
+            return
+        
+        if "Reference" not in nmea_message["fields"]:
+            return  # should not happen
+
+        if "Wind Speed" not in nmea_message["fields"]:
+            return  # should not happen
+        
+        if "Wind Angle" not in nmea_message["fields"]:
+            return  # should not happen
+        
+
+        if  nmea_message["fields"]["Reference"] != "Apparent":
+            return
+
+        self._last_aws = nmea_message["fields"]["Wind Speed"] * 1.94384  # Convert m/s to knots
+        self._last_awa = nmea_message["fields"]["Wind Angle"] * (180.0 / math.pi)
+
+
+
+    def _create_vessel(self, mmsi):
+        """Create a new vessel with the given MMSI"""
+        if mmsi in self._vessels:
+            return self._vessels[mmsi]
+        
+        # Vessel Info
+        self._dbus_service.add_path('/Vessels/'+ mmsi +'/Latitude', "", "Current latitude", writeable=False)
+        self._dbus_service.add_path('/Vessels/'+ mmsi +'/Longitude', "", "Current longitude", writeable=False)
+        self._dbus_service.add_path('/Vessels/'+ mmsi +'/SOG', "", "Speed over ground (knots)", writeable=False)
+        self._dbus_service.add_path('/Vessels/'+ mmsi +'/COG', "", "Course over ground (deg)", writeable=False)
+        self._dbus_service.add_path('/Vessels/'+ mmsi +'/Heading', "", "Heading (deg)", writeable=False)
+        self._dbus_service.add_path('/Vessels/'+ mmsi +'/Tracks', "", "Tracks", writeable=False)
+        
+        vessel = {
+            'mmsi': mmsi,
+            'latitude': "",
+            'longitude': "",
+            'sog': "",
+            'cog': "",
+            'tracks': deque(maxlen=self._settings['NumberOfTracks'])  # Keep last 100 tracks
+        }
+        self._vessels[mmsi] = vessel
+        return vessel
+
+
+    def _remove_vessel(self, mmsi):
+        """Remove a vessel with the given MMSI"""
+        if mmsi in self._vessels:
+            del self._vessels[mmsi]
+            # Remove paths from dbus service
+            del self._dbus_service['/Vessels/' + mmsi + '/Latitude']
+            del self._dbus_service['/Vessels/' + mmsi + '/Longitude']
+            del self._dbus_service['/Vessels/' + mmsi + '/SOG']
+            del self._dbus_service['/Vessels/' + mmsi + '/COG']
+            del self._dbus_service['/Vessels/' + mmsi + '/Heading']
+            del self._dbus_service['/Vessels/' + mmsi + '/Tracks']
+
+
+    def _write_vessel_info(self, mmsi):
+        """Write the vessel info to the dbus service"""
+
+        if mmsi not in self._vessels:
+            return
+        
+        vessel = self._vessels[mmsi]
+
+        now = int(time.time())
+        # Only add if empty or at least 30 seconds since the last in the queue
+        tracks = vessel['tracks']
+        if not tracks or (now - tracks[-1]['timestamp'] >= self._settings['TracksInterval']):
+            entry = {
+                'latitude': vessel['latitude'],
+                'longitude': vessel['longitude'],
+                'timestamp': now
+            }
+            tracks.append(entry)
+        
+        self._dbus_service['/Vessels/' + mmsi + '/Latitude'] = vessel['latitude']
+        self._dbus_service['/Vessels/' + mmsi + '/Longitude'] = vessel['longitude']
+        self._dbus_service['/Vessels/' + mmsi + '/SOG'] = vessel['sog']
+        self._dbus_service['/Vessels/' + mmsi + '/COG'] = vessel['cog']
+        self._dbus_service['/Vessels/' + mmsi + '/Heading'] = vessel['heading'] if 'heading' in vessel else ""
+        self._dbus_service['/Vessels/' + mmsi + '/Tracks'] = json.dumps(list(vessel['tracks']))
+
+
+
+    def _on_ais_message(self, nmea_message):
+        # {"canId":301469618,"prio":4,"src":178,"dst":255,"pgn":129039,"timestamp":"2025-07-01T16:48:46.066Z","input":[],"fields":{"Message ID":"Standard Class B position report","Repeat Indicator":"Initial","User ID":9221639,"Longitude":-61.3895,"Latitude":12.5272,"Position Accuracy":"Low","RAIM":"not in use","Time Stamp":"43","COG":6.1994,"SOG":0.05,"AIS Transceiver information":"Channel B VDL reception","Heading":6.1959,"Regional Application B":0,"Unit type":"SOTDMA","Integrated Display":"No","DSC":"No","Band":"Top 525 kHz of marine band","Can handle Msg 22":"No","AIS mode":"Autonomous","AIS communication state":"SOTDMA"},"description":"AIS Class B Position Report"}}
+
+        """Handle AIS messages to update vessels"""
+        if "fields" not in nmea_message:
+            return
+        
+        if "User ID" not in nmea_message["fields"]:
+            return
+        
+        if "Longitude" not in nmea_message["fields"]:
+            return 
+        
+        if "Latitude" not in nmea_message["fields"]:
+            return
+        
+        if "COG" not in nmea_message["fields"]:
+            return
+        
+        if "SOG" not in nmea_message["fields"]:
+            return
+
+        if "Heading" not in nmea_message["fields"]:
+            return
+
+        if self.controller is None:
+            return
+        
+        gps_position = self.controller.get_gps_position()
+        if gps_position is None:
+            return
+        
+        mmsi = str(nmea_message["fields"]["User ID"])
+        longitude = nmea_message["fields"]["Longitude"]
+        latitude = nmea_message["fields"]["Latitude"]   
+
+        distance = geodesic((latitude, longitude), (gps_position.latitude, gps_position.longitude)).meters
+
+        if distance > self._settings['DistanceToVessel']:
+            logger.debug(f"Ignoring vessel {mmsi} at distance {distance} meters, too far away")
+            return  # Ignore vessels that are too far away
+            
+        # Create or update vessel info
+        vessel = self._create_vessel(mmsi)
+        vessel['latitude'] = latitude
+        vessel['longitude'] = longitude
+        vessel['sog'] = nmea_message["fields"]["SOG"]
+        vessel['cog'] = nmea_message["fields"]["COG"] * (180.0 / math.pi)  # Convert radians to degrees
+        vessel['heading'] = nmea_message["fields"]["Heading"] * (180.0 / math.pi)  # Convert radians to degrees
+
+
+
+    def _prune_vessels(self):
+        """Prune vessels that are too far away"""
+        gps_position = self.controller.get_gps_position()
+        if gps_position is None:
+            return
+
+        now = int(time.time())
+        
+        for mmsi in list(self._vessels.keys()):
+            if mmsi == 'self':
+                continue
+
+            vessel = self._vessels[mmsi]
+
+            tracks = vessel['tracks']
+            if (len(tracks) > 0 and now - tracks[-1]['timestamp'] >= self._settings['PruneInterval']):
+                # If the last track is older than the prune interval, remove the vessel
+                self._remove_vessel(mmsi)
+                continue
+
+            distance = geodesic((vessel['latitude'], vessel['longitude']), (gps_position.latitude, gps_position.longitude)).meters
+            # If the vessel is too far away, remove it
+            if distance > self._settings['DistanceToVessel']:
+                self._remove_vessel(mmsi)
 
 
 if __name__ == "__main__":
     import sys
     import os
+
+    from nmea_bridge import NMEABridge
+    from utils import find_n2k_can
 
     from gi.repository import GLib
     from dbus.mainloop.glib import DBusGMainLoop
@@ -406,10 +712,12 @@ if __name__ == "__main__":
     # Have a mainloop, so we can send/receive asynchronous calls to and from dbus
     DBusGMainLoop(set_as_default=True)
 
-    from ve_utils import exit_on_error
-   
     bus = dbus.SessionBus() if 'DBUS_SESSION_BUS_ADDRESS' in os.environ else dbus.SystemBus()
-    dbus_connector = DBusConnector(lambda: GLib, lambda settings, cb: SettingsDevice(bus, settings, cb), "com.victronenergy.anchoralarm-test")
+
+    can_id = find_n2k_can(bus)
+    bridge = NMEABridge(can_id)
+   
+    dbus_connector = DBusConnector(lambda: GLib, lambda settings, cb: SettingsDevice(bus, settings, cb), bridge, "com.victronenergy.anchoralarm-test")
 
     controller = MagicMock()
     controller.trigger_anchor_down  = MagicMock(side_effect=lambda: logger.info("Trigger anchor down"))
