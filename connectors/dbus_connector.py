@@ -620,6 +620,8 @@ class DBusConnector(AbstractConnector):
     def _on_ais_message(self, nmea_message):
         # {"canId":301469618,"prio":4,"src":178,"dst":255,"pgn":129039,"timestamp":"2025-07-01T16:48:46.066Z","input":[],"fields":{"Message ID":"Standard Class B position report","Repeat Indicator":"Initial","User ID":9221639,"Longitude":-61.3895,"Latitude":12.5272,"Position Accuracy":"Low","RAIM":"not in use","Time Stamp":"43","COG":6.1994,"SOG":0.05,"AIS Transceiver information":"Channel B VDL reception","Heading":6.1959,"Regional Application B":0,"Unit type":"SOTDMA","Integrated Display":"No","DSC":"No","Band":"Top 525 kHz of marine band","Can handle Msg 22":"No","AIS mode":"Autonomous","AIS communication state":"SOTDMA"},"description":"AIS Class B Position Report"}}
         # {'canId': 301469483, 'prio': 4, 'src': 43, 'dst': 255, 'pgn': 129039, 'timestamp': '2025-07-16T12:14:00.145Z', 'input': [], 'fields': {'Message ID': 'Standard Class B position report', 'Repeat Indicator': 'Initial', 'User ID': 316033362, 'Longitude': -61.7400512, 'Latitude': 12.010176, 'Position Accuracy': 'High', 'RAIM': 'in use', 'Time Stamp': '59', 'COG': 6.2383, 'SOG': 0, 'Communication State': 393222, 'AIS Transceiver information': 'Channel A VDL reception', 'Regional Application': 0, 'Regional Application B': 0, 'Unit type': 'CS', 'Integrated Display': 'No', 'DSC': 'Yes', 'Band': 'Entire marine band', 'Can handle Msg 22': 'Yes', 'AIS mode': 'Autonomous', 'AIS communication state': 'ITDMA'}, 'description': 'AIS Class B Position Report'}
+        # {'canId': 435884587, 'prio': 6, 'src': 43, 'dst': 255, 'pgn': 129810, 'timestamp': '2025-07-16T13:37:27.799Z', 'input': [], 'fields': {'Message ID': 'Static data report', 'Repeat Indicator': 'Initial', 'User ID': 378150000, 'Type of ship': 'Sailing', 'Vendor ID': 'FECD', 'Callsign': 'ZJL6809', 'Length': 24, 'Beam': 5, 'Position reference from Starboard': 1, 'Position reference from Bow': 9, 'Spare': 0, 'Sequence ID': 0}, 'description': 'AIS Class B static data (msg 24 Part B)'}
+        # {"canId":435884331,"prio":6,"src":43,"dst":255,"pgn":129809,"timestamp":"2025-07-16T13:37:28.565Z","input":[],"fields":{"Message ID":"Static data report","Repeat Indicator":"Initial","User ID":316038742,"Name":"LA DOLCE VITA, EH"},"description":"AIS Class B static data (msg 24 Part A)"}}
 
         """Handle AIS messages to update vessels"""
         if "fields" not in nmea_message:
@@ -666,7 +668,7 @@ class DBusConnector(AbstractConnector):
         vessel['longitude'] = longitude
         vessel['sog'] = nmea_message["fields"]["SOG"]
         vessel['cog'] = nmea_message["fields"]["COG"] * (180.0 / math.pi)  # Convert radians to degrees
-        vessel['heading'] = 0 # nmea_message["fields"]["Heading"] * (180.0 / math.pi)  # Convert radians to degrees
+        vessel['heading'] = "" # nmea_message["fields"]["Heading"] * (180.0 / math.pi)  # Convert radians to degrees
 
 
 
