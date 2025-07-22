@@ -21,6 +21,7 @@
 import sys
 import os
 import json
+import time
 from turtle import st
 
 sys.path.insert(1, os.path.join(sys.path[0], '..'))
@@ -786,6 +787,124 @@ class TestDBusConnector(unittest.TestCase):
         timer_provider.tick()
         timer_provider.tick()
         self.assertEqual(monitor.get_value("com.victronenergy.settings", '/Settings/SystemSetup/SystemName'), 'system name')
+
+
+    def test_ais_vessel_integration(self):
+        """Test AIS vessel tracking integration with DBus connector"""
+        controller = MagicMock()
+        controller.get_gps_position = MagicMock(return_value=GPSPosition(14.0829979, -60.9595577))
+
+        mock_bridge = MagicMock()
+        mock_bridge.add_pgn_handler = MagicMock()
+        mock_bridge.send_nmea = MagicMock()
+
+        connector = MockDBusConnector(lambda: timer_provider, lambda settings, cb: MockSettingsDevice(settings, cb), mock_bridge)
+        connector.set_controller(controller)
+
+        service = connector.mock_service()
+        
+        # Test AIS message processing
+        ais_message = {
+            "fields": {
+                "User ID": 368081510,
+                "Longitude": -60.9494,
+                "Latitude": 14.0756,
+                "COG": 1.7698,
+                "SOG": 5.2
+            }
+        }
+        
+        # Process AIS message
+        connector._on_ais_message(ais_message)
+        
+        # Verify vessel was created and paths exist
+        mmsi = "368081510"
+        self.assertTrue(f'/Vessels/{mmsi}/Latitude' in service)
+        self.assertTrue(f'/Vessels/{mmsi}/Longitude' in service)
+        self.assertTrue(f'/Vessels/{mmsi}/SOG' in service)
+        self.assertTrue(f'/Vessels/{mmsi}/COG' in service)
+        self.assertTrue(f'/Vessels/{mmsi}/Tracks' in service)
+        
+        # Verify vessel data in service
+        self.assertEqual(service[f'/Vessels/{mmsi}/Latitude'], 14.0756)
+        self.assertEqual(service[f'/Vessels/{mmsi}/Longitude'], -60.9494)
+        self.assertEqual(service[f'/Vessels/{mmsi}/SOG'], 5.2)
+
+
+    def test_vessel_dbus_path_management(self):
+        """Test vessel DBus path creation and removal"""
+        controller = MagicMock()
+        controller.get_gps_position = MagicMock(return_value=GPSPosition(14.0829979, -60.9595577))
+
+        mock_bridge = MagicMock()
+        mock_bridge.add_pgn_handler = MagicMock()
+        mock_bridge.send_nmea = MagicMock()
+
+        connector = MockDBusConnector(lambda: timer_provider, lambda settings, cb: MockSettingsDevice(settings, cb), mock_bridge)
+        connector.set_controller(controller)
+
+        service = connector.mock_service()
+        mmsi = "123456789"
+        
+        # Create vessel
+        vessel = connector._create_vessel(mmsi)
+        
+        # Verify all expected paths exist
+        expected_paths = [
+            f'/Vessels/{mmsi}/Latitude',
+            f'/Vessels/{mmsi}/Longitude', 
+            f'/Vessels/{mmsi}/SOG',
+            f'/Vessels/{mmsi}/COG',
+            f'/Vessels/{mmsi}/Heading',
+            f'/Vessels/{mmsi}/Tracks'
+        ]
+        
+        for path in expected_paths:
+            self.assertTrue(path in service, f"Path {path} should exist")
+        
+        # Remove vessel
+        connector._remove_vessel(mmsi)
+        
+        # Verify all paths are removed
+        for path in expected_paths:
+            self.assertFalse(path in service, f"Path {path} should be removed")
+
+
+    def test_vessel_pruning_timer_integration(self):
+        """Test vessel pruning integration with timer system"""
+        controller = MagicMock()
+        controller.get_gps_position = MagicMock(return_value=GPSPosition(14.0829979, -60.9595577))
+
+        mock_bridge = MagicMock()
+        mock_bridge.add_pgn_handler = MagicMock()
+        mock_bridge.send_nmea = MagicMock()
+
+        connector = MockDBusConnector(lambda: timer_provider, lambda settings, cb: MockSettingsDevice(settings, cb), mock_bridge)
+        connector.set_controller(controller)
+
+        # Set short prune interval for testing
+        connector._settings['PruneInterval'] = 1  # 1 second
+        
+        # Create vessel
+        mmsi = "123456789"
+        vessel = connector._create_vessel(mmsi)
+        vessel['distance'] = 100  # Within distance limit
+        
+        # Add old track
+        vessel['tracks'].append({
+            'latitude': 14.0756,
+            'longitude': -60.9494,
+            'timestamp': int(time.time()) - 10  # 10 seconds ago
+        })
+        
+        # Verify vessel exists
+        self.assertIn(mmsi, connector._vessels)
+        
+        # Prune vessels (should remove due to old track)
+        connector._prune_vessels()
+        
+        # Vessel should be removed
+        self.assertNotIn(mmsi, connector._vessels)
 
 
 if __name__ == '__main__':

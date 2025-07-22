@@ -158,6 +158,10 @@ class DBusConnector(AbstractConnector):
             # Distance to vessels to keep track of
             "DistanceToVessel":            ["/Settings/AnchorAlarm/Vessels/DistanceToVessel", 400, 0, 2000],
 
+
+            # Maximum number ofvessels to keep track of
+            "MaxVessels":                 ["/Settings/AnchorAlarm/Vessels/MaxVessels", 10, 0, 30],
+
         }
 
         self._settings = self._settings_provider(settingsList, self._on_setting_changed)
@@ -570,7 +574,8 @@ class DBusConnector(AbstractConnector):
             'longitude': "",
             'sog': "",
             'cog': "",
-            'tracks': deque(maxlen=self._settings['NumberOfTracks'])  # Keep last 100 tracks
+            'tracks': deque(maxlen=self._settings['NumberOfTracks']),  # Keep last 100 tracks
+            'distance': 0,  # Distance to anchor
         }
         self._vessels[mmsi] = vessel
         return vessel
@@ -656,11 +661,30 @@ class DBusConnector(AbstractConnector):
         longitude = nmea_message["fields"]["Longitude"]
         latitude = nmea_message["fields"]["Latitude"]   
 
-        distance = geodesic((latitude, longitude), (gps_position.latitude, gps_position.longitude)).meters
+        try:
+            distance = geodesic((latitude, longitude), (gps_position.latitude, gps_position.longitude)).meters
+        except (ValueError, Exception):
+            logger.debug(f"Invalid coordinates for vessel {mmsi}: lat={latitude}, lon={longitude}")
+            return  # Ignore vessels with invalid coordinates
 
         if distance > self._settings['DistanceToVessel']:
             logger.debug(f"Ignoring vessel {mmsi} at distance {distance} meters, too far away")
             return  # Ignore vessels that are too far away
+        
+        if len(self._vessels) > self._settings['MaxVessels']:   # > and not >= because we always have self vessel in the list 
+            # We have too many vessels, check if we need to replace one
+            farther_vessel_mmsi = max(self._vessels.keys(), key=lambda vessel_mmsi: self._vessels[vessel_mmsi]['distance'])
+            if farther_vessel_mmsi == 'self':
+                return # should never happen, but just in case
+            
+            farther_vessel = self._vessels[farther_vessel_mmsi]
+            if farther_vessel['distance'] < distance:
+                logger.debug(f"Ignoring vessel {mmsi} at distance {distance} meters, too many vessels already")
+                return   
+            else:
+                # Remove the farthest vessel to replace with this one
+                self._remove_vessel(farther_vessel['mmsi'])
+                logger.debug(f"Removed vessel {farther_vessel['mmsi']} at distance {farther_vessel['distance']} meters to add {mmsi} at distance {distance}")
             
         # Create or update vessel info
         vessel = self._create_vessel(mmsi)
@@ -669,6 +693,7 @@ class DBusConnector(AbstractConnector):
         vessel['sog'] = nmea_message["fields"]["SOG"]
         vessel['cog'] = nmea_message["fields"]["COG"] * (180.0 / math.pi)  # Convert radians to degrees
         vessel['heading'] = "" # nmea_message["fields"]["Heading"] * (180.0 / math.pi)  # Convert radians to degrees
+        vessel['distance'] = distance   # keep distance for easier pruning
 
 
 
@@ -692,9 +717,8 @@ class DBusConnector(AbstractConnector):
                 self._remove_vessel(mmsi)
                 continue
 
-            distance = geodesic((vessel['latitude'], vessel['longitude']), (gps_position.latitude, gps_position.longitude)).meters
             # If the vessel is too far away, remove it
-            if distance > self._settings['DistanceToVessel']:
+            if vessel['distance'] > self._settings['DistanceToVessel']:
                 self._remove_vessel(mmsi)
 
 
