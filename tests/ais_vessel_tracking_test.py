@@ -542,8 +542,8 @@ class TestAISVesselTracking(unittest.TestCase):
         # Verify vessel exists
         self.assertIn(mmsi, self.connector._vessels)
         vessel = self.connector._vessels[mmsi]
-        self.assertEqual(vessel['beam'], "")  # Initially empty
-        self.assertEqual(vessel['length'], "")  # Initially empty
+        self.assertEqual(vessel['beam'], "4")  # default value
+        self.assertEqual(vessel['length'], "8")  # default value
         
         # Create extended AIS message with beam and length
         extended_message = {
@@ -624,7 +624,7 @@ class TestAISVesselTracking(unittest.TestCase):
         }
         self.connector._on_ais_extended_message(no_beam_msg)
         # Beam should still be empty
-        self.assertEqual(self.connector._vessels[mmsi]['beam'], "")
+        self.assertEqual(self.connector._vessels[mmsi]['beam'], "4")
         
         # Test message without length
         no_length_msg = {
@@ -635,8 +635,8 @@ class TestAISVesselTracking(unittest.TestCase):
         }
         self.connector._on_ais_extended_message(no_length_msg)
         # Length should still be empty, beam should still be empty
-        self.assertEqual(self.connector._vessels[mmsi]['beam'], "")
-        self.assertEqual(self.connector._vessels[mmsi]['length'], "")
+        self.assertEqual(self.connector._vessels[mmsi]['beam'], "4")
+        self.assertEqual(self.connector._vessels[mmsi]['length'], "8")
 
     def test_settings_configuration(self):
         """Test vessel tracking settings"""
@@ -650,8 +650,8 @@ class TestAISVesselTracking(unittest.TestCase):
         
         # Verify self-vessel detection settings
         self.assertEqual(self.connector._settings['MMSI'], "")
-        self.assertEqual(self.connector._settings['Beam'], "")
-        self.assertEqual(self.connector._settings['Length'], "")
+        self.assertEqual(self.connector._settings['Beam'], 0)
+        self.assertEqual(self.connector._settings['Length'], 0)
 
     def test_self_mmsi_auto_detection(self):
         """Test automatic detection of self vessel MMSI"""
@@ -732,8 +732,8 @@ class TestAISVesselTracking(unittest.TestCase):
         
         # Set self MMSI and verify beam/length start empty
         self.connector._settings['MMSI'] = "368081510"
-        self.assertEqual(self.connector._settings['Beam'], "")
-        self.assertEqual(self.connector._settings['Length'], "")
+        self.assertEqual(self.connector._settings['Beam'], 0)
+        self.assertEqual(self.connector._settings['Length'], 0)
         
         # Create extended AIS message with beam and length for our vessel
         extended_message = {
@@ -1106,6 +1106,135 @@ class TestAISVesselTracking(unittest.TestCase):
         
         # Verify vessel was created (passed bounding box filter)
         self.assertIn("111111111", self.connector._vessels)
+
+
+    def test_self_vessel_settings_structure(self):
+        """Test that self vessel settings use the new reorganized path structure"""
+        # Test that all the new settings exist and are accessible
+        self.assertIsNotNone(self.connector._settings['MMSI'])
+        self.assertIsNotNone(self.connector._settings['Beam'])
+        self.assertIsNotNone(self.connector._settings['Length'])
+        self.assertIsNotNone(self.connector._settings['DefaultBeam'])
+        self.assertIsNotNone(self.connector._settings['DefaultLength'])
+
+    def test_default_beam_length_values(self):
+        """Test that default beam/length settings have correct default values"""
+        # Test default values
+        self.assertEqual(self.connector._settings['DefaultBeam'], 4)  # 4 meters default beam
+        self.assertEqual(self.connector._settings['DefaultLength'], 8)  # 8 meters default length
+        
+        # Test that Beam and Length start as 0 (fallback to defaults)
+        self.assertEqual(self.connector._settings['Beam'], 0)
+        self.assertEqual(self.connector._settings['Length'], 0)
+
+    def test_set_self_beam_length_method(self):
+        """Test the _set_self_beam_length method functionality"""
+        # Ensure self vessel exists
+        self.assertIn('self', self.connector._vessels)
+        
+        # Test with default fallback (Beam=0, Length=0)
+        self.connector._settings['Beam'] = 0
+        self.connector._settings['Length'] = 0
+        self.connector._set_self_beam_length()
+        
+        self.assertEqual(self.connector._vessels['self']['beam'], 4)  # DefaultBeam
+        self.assertEqual(self.connector._vessels['self']['length'], 8)  # DefaultLength
+        
+        # Test with custom values
+        self.connector._settings['Beam'] = 6
+        self.connector._settings['Length'] = 12
+        self.connector._set_self_beam_length()
+        
+        self.assertEqual(self.connector._vessels['self']['beam'], 6)
+        self.assertEqual(self.connector._vessels['self']['length'], 12)
+        
+        # Test fallback when self vessel doesn't exist
+        del self.connector._vessels['self']
+        self.connector._set_self_beam_length()  # Should not crash
+        self.assertNotIn('self', self.connector._vessels)
+
+    def test_vessel_creation_with_default_values(self):
+        """Test that vessel creation uses default beam/length values"""
+        mmsi = 123456789
+        
+        self.connector._settings['DistanceToVessel'] = 10000  # Large distance to allow vessel
+
+        # Create a vessel through AIS message processing
+        ais_message = {
+            "canId": 301469618,
+            "prio": 4,
+            "src": 178,
+            "dst": 255,
+            "pgn": 129039,
+            "timestamp": "2025-07-01T16:48:46.066Z",
+            "fields": {
+                "Message ID": "Standard Class B position report",
+                "User ID": mmsi,
+                "Longitude": -60.9494,
+                "Latitude": 14.0756,
+                "COG": 1.7698,
+                "SOG": 5.2
+            }
+        }
+        
+        self.connector._on_ais_message(ais_message)
+        
+        # Verify vessel was created with default dimensions
+        self.assertIn(str(mmsi), self.connector._vessels)
+        vessel = self.connector._vessels[str(mmsi)]
+        self.assertEqual(vessel['beam'], '4')  # Should use DefaultBeam as string
+        self.assertEqual(vessel['length'], '8')  # Should use DefaultLength as string
+
+    def test_settings_change_triggers_self_vessel_update(self):
+        """Test that settings changes trigger proper self-vessel updates"""
+        # Initial state
+        self.assertEqual(self.connector._vessels['self']['beam'], 4)
+        self.assertEqual(self.connector._vessels['self']['length'], 8)
+        
+        # Change Beam setting
+        self.connector._settings['Beam'] = 5
+        self.assertEqual(self.connector._vessels['self']['beam'], 5)
+        
+        # Change Length setting
+        self.connector._settings['Length'] = 10
+        self.assertEqual(self.connector._vessels['self']['length'], 10)
+        
+        # Change DefaultBeam (should affect self if Beam is 0)
+        self.connector._settings['Beam'] = 0
+        self.connector._settings['DefaultBeam'] = 3
+        self.assertEqual(self.connector._vessels['self']['beam'], 3)
+        
+        # Change DefaultLength (should affect self if Length is 0)
+        self.connector._settings['Length'] = 0
+        self.connector._settings['DefaultLength'] = 6
+        self.assertEqual(self.connector._vessels['self']['length'], 6)
+
+    def test_fallback_behavior_zero_settings(self):
+        """Test fallback behavior when beam/length settings are 0"""
+        # Test with both custom settings as 0
+        self.connector._settings['Beam'] = 0
+        self.connector._settings['Length'] = 0
+        self.connector._set_self_beam_length()
+        
+        # Should use default values
+        self.assertEqual(self.connector._vessels['self']['beam'], 4)  # DefaultBeam
+        self.assertEqual(self.connector._vessels['self']['length'], 8)  # DefaultLength
+        
+        # Test with one custom, one zero
+        self.connector._settings['Beam'] = 7
+        self.connector._settings['Length'] = 0
+        self.connector._set_self_beam_length()
+        
+        self.assertEqual(self.connector._vessels['self']['beam'], 7)  # Custom Beam
+        self.assertEqual(self.connector._vessels['self']['length'], 8)  # DefaultLength
+        
+        # Test with zero custom, one set
+        self.connector._settings['Beam'] = 0
+        self.connector._settings['Length'] = 15
+        self.connector._set_self_beam_length()
+        
+        self.assertEqual(self.connector._vessels['self']['beam'], 4)  # DefaultBeam
+        self.assertEqual(self.connector._vessels['self']['length'], 15)  # Custom Length
 
 
 if __name__ == '__main__':

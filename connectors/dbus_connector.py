@@ -81,7 +81,9 @@ class DBusConnector(AbstractConnector):
 
         self._init_dbus_monitor()
         self._init_dbus_service(service_name)
+        
         self._create_vessel('self')
+        self._set_self_beam_length()
 
         self._bridge.add_pgn_handler(129026, self._on_sog)
         self._bridge.add_pgn_handler(128267, self._on_depth)
@@ -159,21 +161,26 @@ class DBusConnector(AbstractConnector):
             # Interval in seconds to prune old tracks for each vessel
             "PruneInterval":             ["/Settings/AnchorAlarm/Vessels/PruneInterval", 180, 0, 3600],
 
-            # Distance to vessels to keep track of
+            # Distance to vessels to keep track of. Do not set it too high as it will put the Cerbo under stress
             "DistanceToVessel":            ["/Settings/AnchorAlarm/Vessels/DistanceToVessel", 400, 0, 2000],
 
-
-            # Maximum number ofvessels to keep track of
+            # Maximum number ofvessels to keep track of. Do not set it too high as it will put the Cerbo under stress
             "MaxVessels":                 ["/Settings/AnchorAlarm/Vessels/MaxVessels", 10, 0, 30],
 
-            # Self vessel MMSI - automatically detected from AIS messages close to our position
-            "MMSI":                   ["/Settings/AnchorAlarm/MMSI", "", 0, 0],
+            # MMSI of your boat. Used to strip out AIS data from your own boat and avoing showing on the map twice
+            "MMSI":                       ["/Settings/AnchorAlarm/Vessels/self/MMSI", "", 0, 0],
 
-            # Self vessel beam in meters - automatically detected from AIS extended messages
-            "Beam":                   ["/Settings/AnchorAlarm/Beam", "", 0, 0],
+            # Beam of your boat, to accurately represent your boat on the map. If 0, can be set automatically from AIS data
+            "Beam":                       ["/Settings/AnchorAlarm/Vessels/self/Beam", 0, 0, 0],
 
-            # Self vessel length in meters - automatically detected from AIS extended messages  
-            "Length":                 ["/Settings/AnchorAlarm/Length", "", 0, 0],
+            # Length of your boat, to accurately represent your boat on the map. If 0, can be set automatically from AIS data
+            "Length":                      ["/Settings/AnchorAlarm/Vessels/self/Length", 0, 0, 0],
+
+            # Default Beam to use when showing vessels on the anchor alarm map
+            "DefaultBeam":                       ["/Settings/AnchorAlarm/Vessels/DefaultBeam", 4, 2, 40],
+
+            # Default Length to use when showing vessels on the anchor alarm map
+            "DefaultLength":                      ["/Settings/AnchorAlarm/Vessels/DefaultLength", 8, 4, 200],
 
         }
 
@@ -361,6 +368,7 @@ class DBusConnector(AbstractConnector):
     def _on_setting_changed(self, path, old_value, new_value):
         # just recompute all names
         self._update_digital_input_names()
+        self._set_self_beam_length()
         
 
     def _update_digital_input_names(self):
@@ -591,13 +599,23 @@ class DBusConnector(AbstractConnector):
             'cog': "",
             'tracks': deque(maxlen=self._settings['NumberOfTracks']),  # Keep last 100 tracks
             'distance': 0,  # Distance to self vessel
-            'beam': "",
-            'length': "",
+            'beam': str(self._settings['DefaultBeam']),
+            'length': str(self._settings['DefaultLength']),
             'heading': "",
             'last_position_update': 0,  # timestamp of last position (lat/lon) update
-        }
+        }   
+
         self._vessels[mmsi] = vessel
         return vessel
+
+    def _set_self_beam_length(self):
+        """Set the beam and length of the self vessel"""
+        if 'self' not in self._vessels:
+            return
+        
+        self._vessels['self']['beam'] = self._settings['Beam'] if self._settings['Beam'] else self._settings['DefaultBeam']
+        self._vessels['self']['length'] = self._settings['Length'] if self._settings['Length'] else self._settings['DefaultLength']
+
 
 
     def _remove_vessel(self, mmsi):
@@ -803,13 +821,13 @@ class DBusConnector(AbstractConnector):
         # Auto-detect self vessel beam and length if this is our vessel and settings are empty
         if (self._settings['MMSI'] != "" and 
             self._settings['MMSI'] == mmsi and 
-            (self._settings['Beam'] == "" or self._settings['Length'] == "")):
+            ( not self._settings['Beam'] or not self._settings['Length'])):
             
-            if self._settings['Beam'] == "":
+            if not self._settings['Beam']:
                 self._settings['Beam'] = str(nmea_message["fields"]["Beam"])
                 logger.info(f"Auto-detected self vessel beam: {self._settings['Beam']}m")
             
-            if self._settings['Length'] == "":
+            if not self._settings['Length']:
                 self._settings['Length'] = str(nmea_message["fields"]["Length"])
                 logger.info(f"Auto-detected self vessel length: {self._settings['Length']}m")
         
