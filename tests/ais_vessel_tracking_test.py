@@ -647,6 +647,182 @@ class TestAISVesselTracking(unittest.TestCase):
         self.assertEqual(self.connector._settings['PruneInterval'], 180)
         self.assertEqual(self.connector._settings['DistanceToVessel'], 400)
         self.assertEqual(self.connector._settings['MaxVessels'], 10)
+        
+        # Verify self-vessel detection settings
+        self.assertEqual(self.connector._settings['MMSI'], "")
+        self.assertEqual(self.connector._settings['Beam'], "")
+        self.assertEqual(self.connector._settings['Length'], "")
+
+    def test_self_mmsi_auto_detection(self):
+        """Test automatic detection of self vessel MMSI"""
+        
+        # Verify MMSI setting starts empty
+        self.assertEqual(self.connector._settings['MMSI'], "")
+        
+        # Create AIS message for vessel very close to our position (within 5m)
+        close_ais_message = {
+            "fields": {
+                "User ID": 123456789,
+                "Longitude": -60.9595580,  # Very close to GPS position
+                "Latitude": 14.0829980,
+                "COG": 1.0,
+                "SOG": 2.0
+            }
+        }
+        
+        # Process AIS message
+        self.connector._on_ais_message(close_ais_message)
+        
+        # Verify MMSI was auto-detected and set in settings
+        self.assertEqual(self.connector._settings['MMSI'], "123456789")
+        
+        # Verify vessel was not added to tracked vessels (since it's self)
+        vessels_without_self = {k: v for k, v in self.connector._vessels.items() if k != 'self'}
+        self.assertEqual(len(vessels_without_self), 0)
+
+    def test_self_mmsi_not_overwritten_when_set(self):
+        """Test that MMSI is not overwritten if already set"""
+        
+        # Set MMSI manually
+        self.connector._settings['MMSI'] = "999888777"
+        
+        # Create AIS message for vessel very close to our position
+        close_ais_message = {
+            "fields": {
+                "User ID": 123456789,
+                "Longitude": -60.9595580,
+                "Latitude": 14.0829980,
+                "COG": 1.0,
+                "SOG": 2.0
+            }
+        }
+        
+        # Process AIS message
+        self.connector._on_ais_message(close_ais_message)
+        
+        # Verify original MMSI was not changed
+        self.assertEqual(self.connector._settings['MMSI'], "999888777")
+
+    def test_self_vessel_ignored_when_mmsi_matches(self):
+        """Test that vessels matching self MMSI are ignored"""
+        
+        # Set self MMSI
+        self.connector._settings['MMSI'] = "123456789"
+        self.connector._settings['DistanceToVessel'] = 2000  # Large distance to allow vessel
+        
+        # Create AIS message with matching MMSI
+        self_ais_message = {
+            "fields": {
+                "User ID": 123456789,
+                "Longitude": -60.9494,
+                "Latitude": 14.0756,
+                "COG": 1.7698,
+                "SOG": 5.2
+            }
+        }
+        
+        # Process AIS message
+        self.connector._on_ais_message(self_ais_message)
+        
+        # Verify vessel was not added to tracked vessels
+        self.assertNotIn("123456789", self.connector._vessels)
+
+    def test_self_beam_length_auto_detection(self):
+        """Test automatic detection of self vessel beam and length"""
+        
+        # Set self MMSI and verify beam/length start empty
+        self.connector._settings['MMSI'] = "368081510"
+        self.assertEqual(self.connector._settings['Beam'], "")
+        self.assertEqual(self.connector._settings['Length'], "")
+        
+        # Create extended AIS message with beam and length for our vessel
+        extended_message = {
+            "fields": {
+                "User ID": 368081510,
+                "Beam": 5,
+                "Length": 24
+            }
+        }
+        
+        # Process extended message
+        self.connector._on_ais_extended_message(extended_message)
+        
+        # Verify beam and length were auto-detected and set in settings
+        self.assertEqual(self.connector._settings['Beam'], "5")
+        self.assertEqual(self.connector._settings['Length'], "24")
+
+    def test_self_beam_length_partial_auto_detection(self):
+        """Test auto-detection when only beam or length is empty"""
+        
+        # Set self MMSI and beam, leave length empty
+        self.connector._settings['MMSI'] = "368081510"
+        self.connector._settings['Beam'] = "4"
+        self.connector._settings['Length'] = ""
+        
+        # Create extended AIS message
+        extended_message = {
+            "fields": {
+                "User ID": 368081510,
+                "Beam": 5,
+                "Length": 24
+            }
+        }
+        
+        # Process extended message
+        self.connector._on_ais_extended_message(extended_message)
+        
+        # Verify beam was not overwritten but length was set
+        self.assertEqual(self.connector._settings['Beam'], "4")  # Not changed
+        self.assertEqual(self.connector._settings['Length'], "24")  # Auto-detected
+
+    def test_self_beam_length_not_overwritten_when_set(self):
+        """Test that beam and length are not overwritten if already set"""
+        
+        # Set self MMSI, beam, and length
+        self.connector._settings['MMSI'] = "368081510"
+        self.connector._settings['Beam'] = "4"
+        self.connector._settings['Length'] = "20"
+        
+        # Create extended AIS message with different values
+        extended_message = {
+            "fields": {
+                "User ID": 368081510,
+                "Beam": 5,
+                "Length": 24
+            }
+        }
+        
+        # Process extended message
+        self.connector._on_ais_extended_message(extended_message)
+        
+        # Verify original values were not changed
+        self.assertEqual(self.connector._settings['Beam'], "4")
+        self.assertEqual(self.connector._settings['Length'], "20")
+
+    def test_self_beam_length_auto_detection_requires_mmsi(self):
+        """Test that beam/length auto-detection requires MMSI to be set"""
+        
+        # Leave MMSI empty, set beam/length empty
+        self.connector._settings['MMSI'] = ""
+        self.connector._settings['Beam'] = ""
+        self.connector._settings['Length'] = ""
+        
+        # Create extended AIS message
+        extended_message = {
+            "fields": {
+                "User ID": 368081510,
+                "Beam": 5,
+                "Length": 24
+            }
+        }
+        
+        # Process extended message
+        self.connector._on_ais_extended_message(extended_message)
+        
+        # Verify beam and length were not set (since MMSI is empty)
+        self.assertEqual(self.connector._settings['MMSI'], "")
+        self.assertEqual(self.connector._settings['Beam'], "")
+        self.assertEqual(self.connector._settings['Length'], "")
 
 
 if __name__ == '__main__':

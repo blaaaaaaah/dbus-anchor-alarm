@@ -164,6 +164,15 @@ class DBusConnector(AbstractConnector):
             # Maximum number ofvessels to keep track of
             "MaxVessels":                 ["/Settings/AnchorAlarm/Vessels/MaxVessels", 10, 0, 30],
 
+            # Self vessel MMSI - automatically detected from AIS messages close to our position
+            "MMSI":                   ["/Settings/AnchorAlarm/MMSI", "", 0, 0],
+
+            # Self vessel beam in meters - automatically detected from AIS extended messages
+            "Beam":                   ["/Settings/AnchorAlarm/Beam", "", 0, 0],
+
+            # Self vessel length in meters - automatically detected from AIS extended messages  
+            "Length":                 ["/Settings/AnchorAlarm/Length", "", 0, 0],
+
         }
 
         self._settings = self._settings_provider(settingsList, self._on_setting_changed)
@@ -678,9 +687,14 @@ class DBusConnector(AbstractConnector):
             logger.debug(f"Invalid coordinates for vessel {mmsi}: lat={latitude}, lon={longitude}")
             return  # Ignore vessels with invalid coordinates
 
-        if distance < self._ais_self_distance_threshold:
-            # this is self. save MMSI in settings to fetch 
-            logger.debug(f"Ignoring vessel {mmsi} at distance {distance} meters, self ?")
+        # Auto-detect self vessel MMSI if not already set and vessel is very close
+        if distance < self._ais_self_distance_threshold and self._settings['MMSI'] == "":
+            self._settings['MMSI'] = mmsi
+            logger.info(f"Auto-detected self vessel MMSI: {mmsi} (distance: {distance:.1f}m)")
+        
+        # Ignore vessels that are confirmed to be our own vessel
+        if self._settings['MMSI'] != "" and self._settings['MMSI'] == mmsi:
+            logger.debug(f"Ignoring vessel {mmsi}, confirmed self vessel")
             return
 
 
@@ -726,15 +740,28 @@ class DBusConnector(AbstractConnector):
         
         mmsi = str(nmea_message["fields"]["User ID"])
         
-        # Only process if vessel already exists in our list
-        if mmsi not in self._vessels:
-            return
-        
         # Check for required fields
         if "Beam" not in nmea_message["fields"]:
             return
         
         if "Length" not in nmea_message["fields"]:
+            return
+        
+        # Auto-detect self vessel beam and length if this is our vessel and settings are empty
+        if (self._settings['MMSI'] != "" and 
+            self._settings['MMSI'] == mmsi and 
+            (self._settings['Beam'] == "" or self._settings['Length'] == "")):
+            
+            if self._settings['Beam'] == "":
+                self._settings['Beam'] = str(nmea_message["fields"]["Beam"])
+                logger.info(f"Auto-detected self vessel beam: {self._settings['Beam']}m")
+            
+            if self._settings['Length'] == "":
+                self._settings['Length'] = str(nmea_message["fields"]["Length"])
+                logger.info(f"Auto-detected self vessel length: {self._settings['Length']}m")
+        
+        # Only process vessel data if vessel already exists in our list (not our own vessel)
+        if mmsi not in self._vessels:
             return
         
         # Update vessel with beam and length data

@@ -800,6 +800,9 @@ class TestDBusConnector(unittest.TestCase):
 
         connector = MockDBusConnector(lambda: timer_provider, lambda settings, cb: MockSettingsDevice(settings, cb), mock_bridge)
         connector.set_controller(controller)
+        
+        # Increase distance limit to allow test vessel (distance ~1369m)
+        connector._settings['DistanceToVessel'] = 2000
 
         service = connector.mock_service()
         
@@ -816,6 +819,11 @@ class TestDBusConnector(unittest.TestCase):
         
         # Process AIS message
         connector._on_ais_message(ais_message)
+        
+        # Call update_state to update DBus paths (this is normally called by timer)
+        from anchor_alarm_model import AnchorAlarmState
+        mock_state = AnchorAlarmState('IN_RADIUS', 'boat in radius', "short in radius message", 'info', False, {'drop_point': GPSPosition(10, 11), 'radius': 12, 'current_radius':5, 'radius_tolerance': 15, 'alarm_muted_count': 0, 'no_gps_count': 0, 'out_of_radius_count': 0})
+        connector.update_state(mock_state)
         
         # Verify vessel was created and paths exist
         mmsi = "368081510"
