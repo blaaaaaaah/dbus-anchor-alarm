@@ -1061,6 +1061,52 @@ class TestAISVesselTracking(unittest.TestCase):
         self.assertEqual(vessel['longitude'], -60.9494)
         self.assertEqual(vessel['last_position_update'], 1000)
 
+    def test_ais_bounding_box_filter(self):
+        """Test fast bounding box filter to discard distant vessels"""
+        
+        self.connector._settings['DistanceToVessel'] = 10000  # Large distance to allow vessel
+        
+        # Test vessel outside bounding box (more than 0.02 degrees away)
+        distant_ais_message = {
+            "fields": {
+                "User ID": 999999999,
+                "Longitude": -59.0000,  # More than 0.02 degrees from GPS position (-60.9595577)
+                "Latitude": 15.0000,   # More than 0.02 degrees from GPS position (14.0829979)
+                "COG": 1.0,
+                "SOG": 2.0
+            }
+        }
+        
+        # Process distant AIS message
+        self.connector._on_ais_message(distant_ais_message)
+        
+        # Verify vessel was NOT created (filtered out by bounding box)
+        vessels_without_self = {k: v for k, v in self.connector._vessels.items() if k != 'self'}
+        self.assertEqual(len(vessels_without_self), 0)
+        self.assertNotIn("999999999", self.connector._vessels)
+
+    def test_ais_bounding_box_allows_nearby(self):
+        """Test bounding box allows vessels within the box"""
+        
+        self.connector._settings['DistanceToVessel'] = 10000  # Large distance to allow vessel
+        
+        # Test vessel inside bounding box (within 0.02 degrees)
+        nearby_ais_message = {
+            "fields": {
+                "User ID": 111111111,
+                "Longitude": -60.9495,  # Within 0.02 degrees of GPS position
+                "Latitude": 14.0830,   # Within 0.02 degrees of GPS position
+                "COG": 1.0,
+                "SOG": 2.0
+            }
+        }
+        
+        # Process nearby AIS message
+        self.connector._on_ais_message(nearby_ais_message)
+        
+        # Verify vessel was created (passed bounding box filter)
+        self.assertIn("111111111", self.connector._vessels)
+
 
 if __name__ == '__main__':
     unittest.main()

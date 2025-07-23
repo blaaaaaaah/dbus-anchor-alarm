@@ -64,6 +64,7 @@ class DBusConnector(AbstractConnector):
         self._system_name_error_duration = 15000
         self._ais_self_distance_threshold = 5  # meters, distance below which we consider the vessel is self
         self._ais_staleness_threshold = 60  # seconds, after which we accept lower precision data or clear heading
+        self._ais_bounding_box_degrees = 0.02  # degrees, roughly 2km bounding box for fast filtering
 
         self._vessels = {}
 
@@ -691,6 +692,14 @@ class DBusConnector(AbstractConnector):
         mmsi = str(nmea_message["fields"]["User ID"])
         longitude = nmea_message["fields"]["Longitude"]
         latitude = nmea_message["fields"]["Latitude"]   
+
+        # Fast bounding box filter to discard distant vessels before expensive geodesic calculation
+        # Reject vessels more than ~2km away (0.02 degrees) to handle PredictWind over-the-horizon flooding
+        if (longitude < gps_position.longitude - self._ais_bounding_box_degrees or 
+            longitude > gps_position.longitude + self._ais_bounding_box_degrees or
+            latitude < gps_position.latitude - self._ais_bounding_box_degrees or 
+            latitude > gps_position.latitude + self._ais_bounding_box_degrees):
+            return  # Ignore vessels outside bounding box
 
         try:
             distance = geodesic((latitude, longitude), (gps_position.latitude, gps_position.longitude)).meters
