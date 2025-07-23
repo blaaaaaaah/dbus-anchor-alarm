@@ -63,6 +63,7 @@ class DBusConnector(AbstractConnector):
         self._previous_system_name = None
         self._system_name_error_duration = 15000
         self._ais_self_distance_threshold = 5  # meters, distance below which we consider the vessel is self
+        self._ais_staleness_threshold = 60  # seconds, after which we accept lower precision data or clear heading
 
         self._vessels = {}
 
@@ -592,6 +593,7 @@ class DBusConnector(AbstractConnector):
             'beam': "",
             'length': "",
             'heading': "",
+            'last_position_update': 0,  # timestamp of last position (lat/lon) update
         }
         self._vessels[mmsi] = vessel
         return vessel
@@ -641,6 +643,15 @@ class DBusConnector(AbstractConnector):
         self._dbus_service['/Vessels/' + mmsi + '/Tracks'] = json.dumps(list(vessel['tracks']))
 
 
+    def _get_coordinate_precision(self, value):
+        """Get the number of decimal places in a coordinate value"""
+        try:
+            value_str = str(value)
+            if '.' in value_str:
+                return len(value_str.split('.')[1])
+            return 0
+        except (ValueError, TypeError):
+            return 0
 
     def _on_ais_message(self, nmea_message):
         # {"canId":301469618,"prio":4,"src":178,"dst":255,"pgn":129039,"timestamp":"2025-07-01T16:48:46.066Z","input":[],"fields":{"Message ID":"Standard Class B position report","Repeat Indicator":"Initial","User ID":9221639,"Longitude":-61.3895,"Latitude":12.5272,"Position Accuracy":"Low","RAIM":"not in use","Time Stamp":"43","COG":6.1994,"SOG":0.05,"AIS Transceiver information":"Channel B VDL reception","Heading":6.1959,"Regional Application B":0,"Unit type":"SOTDMA","Integrated Display":"No","DSC":"No","Band":"Top 525 kHz of marine band","Can handle Msg 22":"No","AIS mode":"Autonomous","AIS communication state":"SOTDMA"},"description":"AIS Class B Position Report"}}
@@ -719,12 +730,39 @@ class DBusConnector(AbstractConnector):
             
         # Create or update vessel info
         vessel = self._create_vessel(mmsi)
-        vessel['latitude'] = latitude
-        vessel['longitude'] = longitude
+        
+        now = time.time()
+        
+        # Update position data (lat/lon) based on precision and staleness
+        should_update_position = False
+        position_age = now - vessel['last_position_update']
+        
+        if position_age > self._ais_staleness_threshold:
+            # Data is stale or never set (timestamp = 0)
+            should_update_position = True
+            logger.debug(f"Updating vessel {mmsi} position due to staleness ({position_age:.1f}s)")
+        else:
+            # Compare precision (only check latitude since lat/lon have same precision)
+            current_precision = self._get_coordinate_precision(latitude)
+            existing_precision = self._get_coordinate_precision(vessel['latitude'])
+            
+            if current_precision > existing_precision:
+                should_update_position = True
+                logger.debug(f"Updating vessel {mmsi} position due to higher precision ({existing_precision}→{current_precision} decimal places)")
+        
+        if should_update_position:
+            vessel['latitude'] = latitude
+            vessel['longitude'] = longitude
+            vessel['last_position_update'] = now
+        
+        # Always update SOG and COG (they come with position data)
         vessel['sog'] = nmea_message["fields"]["SOG"]
         vessel['cog'] = nmea_message["fields"]["COG"] * (180.0 / math.pi)  # Convert radians to degrees
-        vessel['heading'] = "" # nmea_message["fields"]["Heading"] * (180.0 / math.pi)  # Convert radians to degrees
         vessel['distance'] = distance   # keep distance for easier pruning
+        
+        # Update heading if available
+        if "Heading" in nmea_message["fields"]:
+            vessel['heading'] = nmea_message["fields"]["Heading"] * (180.0 / math.pi)  # Convert radians to degrees
 
 
     def _on_ais_extended_message(self, nmea_message):

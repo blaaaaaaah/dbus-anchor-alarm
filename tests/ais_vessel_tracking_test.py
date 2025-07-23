@@ -824,6 +824,243 @@ class TestAISVesselTracking(unittest.TestCase):
         self.assertEqual(self.connector._settings['Beam'], "")
         self.assertEqual(self.connector._settings['Length'], "")
 
+    def test_coordinate_precision_detection(self):
+        """Test coordinate precision detection function"""
+        
+        # Test various precision levels
+        self.assertEqual(self.connector._get_coordinate_precision(-61.3895), 4)
+        self.assertEqual(self.connector._get_coordinate_precision(-61.7400512), 7)
+        self.assertEqual(self.connector._get_coordinate_precision(12.010176), 6)
+        self.assertEqual(self.connector._get_coordinate_precision(12.5272), 4)
+        self.assertEqual(self.connector._get_coordinate_precision(14), 0)
+        self.assertEqual(self.connector._get_coordinate_precision(14.0), 1)
+        
+        # Test edge cases
+        self.assertEqual(self.connector._get_coordinate_precision("invalid"), 0)
+        self.assertEqual(self.connector._get_coordinate_precision(None), 0)
+
+    @patch('time.time')
+    def test_multi_source_ais_higher_precision_update(self, mock_time):
+        """Test position update when receiving higher precision data"""
+        
+        mock_time.return_value = 1000
+        self.connector._settings['DistanceToVessel'] = 2000
+        
+        # First message: Low precision (like PredictWind DataHub)
+        low_precision_message = {
+            "fields": {
+                "User ID": 368081510,
+                "Longitude": -60.9494,    # 4 decimal places  
+                "Latitude": 14.0756,     # 4 decimal places
+                "COG": 1.7698,
+                "SOG": 5.2,
+                "Heading": 1.4312        # Has heading
+            }
+        }
+        
+        self.connector._on_ais_message(low_precision_message)
+        vessel = self.connector._vessels["368081510"]
+        
+        # Verify initial data
+        self.assertEqual(vessel['latitude'], 14.0756)
+        self.assertEqual(vessel['longitude'], -60.9494)
+        self.assertAlmostEqual(vessel['heading'], 1.4312 * (180.0 / math.pi), places=2)
+        self.assertEqual(vessel['last_position_update'], 1000)
+        
+        # Second message: High precision (like Garmin AIS800), 10 seconds later
+        mock_time.return_value = 1010
+        high_precision_message = {
+            "fields": {
+                "User ID": 368081510,
+                "Longitude": -60.9494512,  # 7 decimal places
+                "Latitude": 14.0756176,    # 7 decimal places
+                "COG": 6.2383,
+                "SOG": 0
+                # No heading field
+            }
+        }
+        
+        self.connector._on_ais_message(high_precision_message)
+        
+        # Verify position was updated due to higher precision
+        self.assertEqual(vessel['latitude'], 14.0756176)
+        self.assertEqual(vessel['longitude'], -60.9494512)
+        self.assertEqual(vessel['last_position_update'], 1010)
+        
+        # Verify SOG/COG updated but heading preserved from previous message
+        self.assertEqual(vessel['sog'], 0)
+        self.assertAlmostEqual(vessel['cog'], 6.2383 * (180.0 / math.pi), places=2)
+        self.assertAlmostEqual(vessel['heading'], 1.4312 * (180.0 / math.pi), places=2)
+
+    @patch('time.time')
+    def test_multi_source_ais_lower_precision_ignored(self, mock_time):
+        """Test position not updated when receiving lower precision data"""
+        
+        mock_time.return_value = 1000
+        self.connector._settings['DistanceToVessel'] = 2000
+        
+        # First message: High precision (like Garmin AIS800)
+        high_precision_message = {
+            "fields": {
+                "User ID": 368081510,
+                "Longitude": -60.9494512,  # 7 decimal places
+                "Latitude": 14.0756176,    # 7 decimal places
+                "COG": 6.2383,
+                "SOG": 0
+            }
+        }
+        
+        self.connector._on_ais_message(high_precision_message)
+        vessel = self.connector._vessels["368081510"]
+        
+        # Verify initial data
+        self.assertEqual(vessel['latitude'], 14.0756176)
+        self.assertEqual(vessel['longitude'], -60.9494512)
+        self.assertEqual(vessel['last_position_update'], 1000)
+        
+        # Second message: Low precision, 10 seconds later
+        mock_time.return_value = 1010
+        low_precision_message = {
+            "fields": {
+                "User ID": 368081510,
+                "Longitude": -60.9494,    # 4 decimal places
+                "Latitude": 14.0756,     # 4 decimal places
+                "COG": 1.7698,
+                "SOG": 5.2,
+                "Heading": 1.4312
+            }
+        }
+        
+        self.connector._on_ais_message(low_precision_message)
+        
+        # Verify position was NOT updated (precision too low)
+        self.assertEqual(vessel['latitude'], 14.0756176)  # Unchanged
+        self.assertEqual(vessel['longitude'], -60.9494512)  # Unchanged
+        self.assertEqual(vessel['last_position_update'], 1000)  # Unchanged
+        
+        # Verify SOG/COG still updated and heading added
+        self.assertEqual(vessel['sog'], 5.2)
+        self.assertAlmostEqual(vessel['cog'], 1.7698 * (180.0 / math.pi), places=2)
+        self.assertAlmostEqual(vessel['heading'], 1.4312 * (180.0 / math.pi), places=2)
+
+    @patch('time.time')
+    def test_multi_source_ais_staleness_fallback(self, mock_time):
+        """Test position updated when high precision data becomes stale"""
+        
+        mock_time.return_value = 1000
+        self.connector._settings['DistanceToVessel'] = 2000
+        
+        # First message: High precision
+        high_precision_message = {
+            "fields": {
+                "User ID": 368081510,
+                "Longitude": -60.9494512,  # 7 decimal places
+                "Latitude": 14.0756176,    # 7 decimal places
+                "COG": 6.2383,
+                "SOG": 0
+            }
+        }
+        
+        self.connector._on_ais_message(high_precision_message)
+        vessel = self.connector._vessels["368081510"]
+        
+        # Verify initial data
+        self.assertEqual(vessel['latitude'], 14.0756176)
+        self.assertEqual(vessel['last_position_update'], 1000)
+        
+        # Second message: Low precision, but after staleness threshold (60+ seconds)
+        mock_time.return_value = 1070  # 70 seconds later
+        low_precision_message = {
+            "fields": {
+                "User ID": 368081510,
+                "Longitude": -60.9494,    # 4 decimal places
+                "Latitude": 14.0756,     # 4 decimal places
+                "COG": 1.7698,
+                "SOG": 5.2,
+                "Heading": 1.4312
+            }
+        }
+        
+        self.connector._on_ais_message(low_precision_message)
+        
+        # Verify position was updated due to staleness (even though precision is lower)
+        self.assertEqual(vessel['latitude'], 14.0756)
+        self.assertEqual(vessel['longitude'], -60.9494)
+        self.assertEqual(vessel['last_position_update'], 1070)
+
+    @patch('time.time')
+    def test_heading_update_behavior(self, mock_time):
+        """Test heading update behavior from different sources"""
+        
+        mock_time.return_value = 1000
+        self.connector._settings['DistanceToVessel'] = 2000
+        
+        # First message: No heading (like Garmin AIS800)
+        no_heading_message = {
+            "fields": {
+                "User ID": 368081510,
+                "Longitude": -60.9494512,
+                "Latitude": 14.0756176,
+                "COG": 6.2383,
+                "SOG": 0
+            }
+        }
+        
+        self.connector._on_ais_message(no_heading_message)
+        vessel = self.connector._vessels["368081510"]
+        
+        # Verify no heading initially
+        self.assertEqual(vessel['heading'], "")
+        
+        # Second message: With heading (like PredictWind DataHub)
+        with_heading_message = {
+            "fields": {
+                "User ID": 368081510,
+                "Longitude": -60.9494,
+                "Latitude": 14.0756,
+                "COG": 1.7698,
+                "SOG": 5.2,
+                "Heading": 1.4312
+            }
+        }
+        
+        self.connector._on_ais_message(with_heading_message)
+        
+        # Verify heading was added
+        self.assertAlmostEqual(vessel['heading'], 1.4312 * (180.0 / math.pi), places=2)
+        
+        # Third message: No heading again (back to Garmin AIS800)
+        self.connector._on_ais_message(no_heading_message)
+        
+        # Verify heading is preserved (not cleared just because current message has no heading)
+        self.assertAlmostEqual(vessel['heading'], 1.4312 * (180.0 / math.pi), places=2)
+
+    @patch('time.time')
+    def test_first_message_always_updates(self, mock_time):
+        """Test that first message always updates position regardless of precision"""
+        
+        mock_time.return_value = 1000
+        self.connector._settings['DistanceToVessel'] = 2000
+        
+        # First message: Low precision should still be accepted
+        low_precision_message = {
+            "fields": {
+                "User ID": 368081510,
+                "Longitude": -60.9494,    # 4 decimal places
+                "Latitude": 14.0756,     # 4 decimal places
+                "COG": 1.7698,
+                "SOG": 5.2
+            }
+        }
+        
+        self.connector._on_ais_message(low_precision_message)
+        vessel = self.connector._vessels["368081510"]
+        
+        # Verify position was set (since it's the first message)
+        self.assertEqual(vessel['latitude'], 14.0756)
+        self.assertEqual(vessel['longitude'], -60.9494)
+        self.assertEqual(vessel['last_position_update'], 1000)
+
 
 if __name__ == '__main__':
     unittest.main()
