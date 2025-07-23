@@ -31,6 +31,11 @@ const parser = new canboatjs.FromPgn()
 
 // Store filters for NMEA messages
 let activeFilters = [];
+let throttledPGNs = new Set();
+
+// Throttling configuration
+const THROTTLE_INTERVAL_MS = 1000; // 1 messages per second max
+const throttleState = new Map(); // pgn -> lastSentTimestamp
 
 function createSimpleCan(canId) {
   return new canboatjs.SimpleCan({
@@ -76,6 +81,11 @@ function createSimpleCan(canId) {
           if ( ! activeFilters.includes(data.pgn.pgn) )
               return; // we don't care about that message
       
+          // Check throttling before parsing
+          if (throttledPGNs.has(data.pgn.pgn) && shouldThrottlePGN(data.pgn.pgn)) {
+              return; // Message throttled
+          }
+
           pgnData = parser.parse(data)
           //console.log("received message", data, pgnData)
 
@@ -105,9 +115,21 @@ function sendResponse(response) {
   process.stdout.write(JSON.stringify(response) + '\n');
 }
 
+// Throttling logic
+function shouldThrottlePGN(pgn) {
+  const now = Date.now();
+  const lastSent = throttleState.get(pgn) || 0;
+  
+  if (now - lastSent >= THROTTLE_INTERVAL_MS) {
+    throttleState.set(pgn, now);
+    return false; // Don't throttle, allow message
+  }
+  return true; // Throttle this message
+}
+
 // Function to handle incoming commands
 function handleCommand(command) {
-  const { id, command: cmd, message, filter, canId } = command;
+  const { id, command: cmd, message, filter, canId, throttle } = command;
 
   switch (cmd) {
     case 'initCAN': 
@@ -140,8 +162,18 @@ function handleCommand(command) {
 
     case 'filterPGN':
       if (Array.isArray(filter)) {
-        activeFilters = filter; // Update active filters
-        sendResponse({ event: 'on_filterPGN', id, filters: activeFilters });
+        // Extract PGNs and throttled PGNs from filter objects
+        activeFilters = [];
+        throttledPGNs = new Set();
+        
+        filter.forEach(filterObj => {
+          activeFilters.push(filterObj.pgn);
+          if (filterObj.throttle === true) {
+            throttledPGNs.add(filterObj.pgn);
+          }
+        });
+        
+        sendResponse({ event: 'on_filterPGN', id, filters: activeFilters, throttled: Array.from(throttledPGNs) });
       } else {
         sendResponse({ event: 'error', id, result: 1, error: 'invalid filter format in filterPGN call' });
       }

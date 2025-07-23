@@ -85,12 +85,12 @@ class DBusConnector(AbstractConnector):
         self._create_vessel('self')
         self._set_self_beam_length()
 
-        self._bridge.add_pgn_handler(129026, self._on_sog)
-        self._bridge.add_pgn_handler(128267, self._on_depth)
-        self._bridge.add_pgn_handler(130306, self._on_wind)
-        self._bridge.add_pgn_handler(127250, self._on_heading)
-        self._bridge.add_pgn_handler(129039, self._on_ais_message)  # AIS Class B Position Report
-        self._bridge.add_pgn_handler(129810, self._on_ais_extended_message)  # AIS Class B static data (msg 24 Part B)
+        self._bridge.add_pgn_handler(129026, self._on_sog)  # SOG rapid update - NOT throttled (used by SOG/RPM connector)
+        self._bridge.add_pgn_handler(128267, self._on_depth, throttle=True)  # Depth
+        self._bridge.add_pgn_handler(130306, self._on_wind, throttle=True)  # Wind
+        self._bridge.add_pgn_handler(127250, self._on_heading, throttle=True)  # Heading
+        self._bridge.add_pgn_handler(129039, self._on_ais_message)  # AIS Class B Position Report (no throttling)
+        self._bridge.add_pgn_handler(129810, self._on_ais_extended_message)  # AIS Class B static data (no throttling)
 
         
     def _init_settings(self):

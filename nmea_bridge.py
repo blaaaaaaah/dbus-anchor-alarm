@@ -71,17 +71,26 @@ class NMEABridge:
         self._send_command(command)
 
 
-    def add_pgn_handler(self, pgn, handler):
+    def add_pgn_handler(self, pgn, handler, throttle=False):
         """Sets NMEA filters."""
         if pgn not in self._handlers:
-            self._handlers[pgn] = []
+            self._handlers[pgn] = {'handlers': [], 'throttle': throttle}
 
-        self._handlers[pgn].append(handler)
+        self._handlers[pgn]['handlers'].append(handler)
+        # Update throttle setting if specified
+        if throttle:
+            self._handlers[pgn]['throttle'] = True
         self._send_filters()
         
 
     def _send_filters(self):
-        filters = list(self._handlers.keys())
+        filters = []
+        for pgn, config in self._handlers.items():
+            filters.append({
+                'pgn': pgn,
+                'throttle': config['throttle']
+            })
+        
         if len(filters):
             command = {
                 "id": str(uuid.uuid4()),
@@ -275,7 +284,7 @@ class NMEABridge:
     def _on_nmea_message(self, message):
         pgn = message['pgn']
         if pgn in self._handlers:
-            for handler in self._handlers[pgn]:
+            for handler in self._handlers[pgn]['handlers']:
                 handler(message)
 
     def _on_bridge_ready(self):
@@ -303,17 +312,17 @@ if __name__ == '__main__':
     bridge.error_handler = lambda msg: print("error_handler: "+ msg)
 
     # alert ack pgn
-    bridge.add_pgn_handler(126984, print)
+    # bridge.add_pgn_handler(126984, print)
 
     # ydab config ack
-    bridge.add_pgn_handler(126998, print)
+    # bridge.add_pgn_handler(126998, print)
 
     # ydab digital switching event
-    bridge.add_pgn_handler(127502, print)
+    # bridge.add_pgn_handler(127502, print)
 
     
 
-    print("NMEA Bridge test program. Enter show:text to send Alert PGN.\nhide to hide message.\nyd:command to send YDAB command\nds:BankInstance,BankChannel,On|Off to send a DigitalSwitching command\nfilter:<PGN> to filter and print received PGNS\nraw:{JSON object with at least pgn and fields parameter} to send a raw message\nkill to kill the underlying nodeJS program\nexit to exit\n")
+    print("NMEA Bridge test program. Enter show:text to send Alert PGN.\nhide to hide message.\nyd:command to send YDAB command\nds:BankInstance,BankChannel,On|Off to send a DigitalSwitching command\nfilter:<PGN> to filter and print received PGNS (no throttling)\nthrottle:<PGN> to filter and print received PGNS (with throttling)\nraw:{JSON object with at least pgn and fields parameter} to send a raw message\nkill to kill the underlying nodeJS program\nexit to exit\n")
 
     def handle_command(command, text):
         mapping = {
@@ -453,6 +462,9 @@ if __name__ == '__main__':
 
         elif command == "filter":
             bridge.add_pgn_handler(int(text), print)
+
+        elif command == "throttle":
+            bridge.add_pgn_handler(int(text), print, True)
 
         elif command == "kill":
             bridge._nodejs_process.terminate()

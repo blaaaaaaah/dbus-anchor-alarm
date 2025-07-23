@@ -51,7 +51,7 @@ class NMEAAISAnchorConnector(AbstractConnector):
 
         self._bridge = nmea_bridge
 
-        self._bridge.add_pgn_handler(127250, self._on_heading_change)
+        self._bridge.add_pgn_handler(127250, self._on_heading_change, throttle=True)
 
     
     def _init_settings(self):
