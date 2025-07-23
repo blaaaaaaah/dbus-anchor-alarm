@@ -590,7 +590,7 @@ class DBusConnector(AbstractConnector):
             'sog': "",
             'cog': "",
             'tracks': deque(maxlen=self._settings['NumberOfTracks']),  # Keep last 100 tracks
-            'distance': 0,  # Distance to anchor
+            'distance': 0,  # Distance to self vessel
             'beam': "",
             'length': "",
             'heading': "",
@@ -634,14 +634,14 @@ class DBusConnector(AbstractConnector):
             }
             tracks.append(entry)
         
-        self._dbus_service['/Vessels/' + mmsi + '/Latitude'] = vessel['latitude']
-        self._dbus_service['/Vessels/' + mmsi + '/Longitude'] = vessel['longitude']
-        self._dbus_service['/Vessels/' + mmsi + '/SOG'] = vessel['sog']
-        self._dbus_service['/Vessels/' + mmsi + '/COG'] = vessel['cog']
-        self._dbus_service['/Vessels/' + mmsi + '/Heading'] = vessel['heading']
-        self._dbus_service['/Vessels/' + mmsi + '/Beam'] = vessel['beam']
-        self._dbus_service['/Vessels/' + mmsi + '/Length'] = vessel['length']
-        self._dbus_service['/Vessels/' + mmsi + '/Tracks'] = json.dumps(list(vessel['tracks']))
+        self._dbus_service['/Vessels/' + mmsi + '/Latitude']    = vessel['latitude']
+        self._dbus_service['/Vessels/' + mmsi + '/Longitude']   = vessel['longitude']
+        self._dbus_service['/Vessels/' + mmsi + '/SOG']         = vessel['sog']
+        self._dbus_service['/Vessels/' + mmsi + '/COG']         = vessel['cog']
+        self._dbus_service['/Vessels/' + mmsi + '/Heading']     = vessel['heading'] or ""
+        self._dbus_service['/Vessels/' + mmsi + '/Beam']        = vessel['beam'] or ""
+        self._dbus_service['/Vessels/' + mmsi + '/Length']      = vessel['length'] or ""
+        self._dbus_service['/Vessels/' + mmsi + '/Tracks']      = json.dumps(list(vessel['tracks']))
 
 
     def _get_coordinate_precision(self, value):
@@ -693,12 +693,18 @@ class DBusConnector(AbstractConnector):
         longitude = nmea_message["fields"]["Longitude"]
         latitude = nmea_message["fields"]["Latitude"]   
 
+        # _ais_bounding_box_degrees = 0.02
+        # latitude=12.0026408, longitude=-61.7243712 and 
+        # gps_position.latitude=12.00131893157959, gps_position.longitude=-61.73062515258789 
+
+
         # Fast bounding box filter to discard distant vessels before expensive geodesic calculation
-        # Reject vessels more than ~2km away (0.02 degrees) to handle PredictWind over-the-horizon flooding
+        # Reject vessels outside bounding box to handle PredictWind over-the-horizon flooding
         if (longitude < gps_position.longitude - self._ais_bounding_box_degrees or 
             longitude > gps_position.longitude + self._ais_bounding_box_degrees or
             latitude < gps_position.latitude - self._ais_bounding_box_degrees or 
             latitude > gps_position.latitude + self._ais_bounding_box_degrees):
+            logger.debug(f"Ignoring vessel {mmsi} outside bounding box: vessel lat={latitude}, lon={longitude}, GPS lat={gps_position.latitude}, lon={gps_position.longitude}, box={self._ais_bounding_box_degrees}")
             return  # Ignore vessels outside bounding box
 
         try:
@@ -859,6 +865,11 @@ if __name__ == "__main__":
     from unittest.mock import MagicMock
 
     logging.basicConfig(level=logging.DEBUG)
+    
+    # Filter out noisy nmea_bridge debug messages
+    logging.getLogger('nmea_bridge').setLevel(logging.INFO)
+    logging.getLogger('DBUSMonitor').setLevel(logging.INFO)
+    
     # Have a mainloop, so we can send/receive asynchronous calls to and from dbus
     DBusGMainLoop(set_as_default=True)
 
@@ -874,6 +885,8 @@ if __name__ == "__main__":
     controller.trigger_anchor_up    = MagicMock(side_effect=lambda: logger.info("Trigger anchor up"))
     controller.trigger_chain_out    = MagicMock(side_effect=lambda: logger.info("Trigger chain out"))
     controller.trigger_mute_alarm   = MagicMock(side_effect=lambda: logger.info("Trigger mute alarm"))
+
+    controller.get_gps_position = MagicMock(return_value=GPSPosition(12.00131893157959, -61.73062515258789))  # Mock GPS position
     dbus_connector.set_controller(controller)
 
     # code to test notifications to Cerbo
@@ -883,6 +896,15 @@ if __name__ == "__main__":
     state_dragging = AnchorAlarmState('ALARM_DRAGGING', 'Anchor dragging !',"short message", 'emergency', False, {'drop_point': GPSPosition(10, 11), 'radius': 12})
     dbus_connector.on_state_changed(state_dragging)
     """
+
+    mock_state = AnchorAlarmState('IN_RADIUS', 'boat in radius', "short in radius message", 'info', False, {'drop_point': GPSPosition(10, 11), 'radius': 12, 'current_radius':5, 'radius_tolerance': 15, 'alarm_muted_count': 0, 'no_gps_count': 0, 'out_of_radius_count': 0})
+    
+    def _update_state():
+        dbus_connector.update_state(mock_state)
+        return True
+
+    # call to write infos to the dbus
+    GLib.timeout_add(1000, _update_state)
 
 	# Start and run the mainloop
     #logger.info("Starting mainloop, responding only on events")
