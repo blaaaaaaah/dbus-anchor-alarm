@@ -62,6 +62,7 @@ class DBusConnector(AbstractConnector):
 
         self._previous_system_name = None
         self._system_name_error_duration = 15000
+        self._ais_self_distance_threshold = 5  # meters, distance below which we consider the vessel is self
 
         self._vessels = {}
 
@@ -84,7 +85,8 @@ class DBusConnector(AbstractConnector):
         self._bridge.add_pgn_handler(128267, self._on_depth)
         self._bridge.add_pgn_handler(130306, self._on_wind)
         self._bridge.add_pgn_handler(127250, self._on_heading)
-        self._bridge.add_pgn_handler(129039, self._on_ais_message)  # 129040
+        self._bridge.add_pgn_handler(129039, self._on_ais_message)  # AIS Class B Position Report
+        self._bridge.add_pgn_handler(129810, self._on_ais_extended_message)  # AIS Class B static data (msg 24 Part B)
 
         
     def _init_settings(self):
@@ -566,6 +568,8 @@ class DBusConnector(AbstractConnector):
         self._dbus_service.add_path('/Vessels/'+ mmsi +'/SOG', "", "Speed over ground (knots)", writeable=False)
         self._dbus_service.add_path('/Vessels/'+ mmsi +'/COG', "", "Course over ground (deg)", writeable=False)
         self._dbus_service.add_path('/Vessels/'+ mmsi +'/Heading', "", "Heading (deg)", writeable=False)
+        self._dbus_service.add_path('/Vessels/'+ mmsi +'/Beam', "", "Beam (m)", writeable=False)
+        self._dbus_service.add_path('/Vessels/'+ mmsi +'/Length', "", "Length (m)", writeable=False)
         self._dbus_service.add_path('/Vessels/'+ mmsi +'/Tracks', "", "Tracks", writeable=False)
         
         vessel = {
@@ -576,6 +580,9 @@ class DBusConnector(AbstractConnector):
             'cog': "",
             'tracks': deque(maxlen=self._settings['NumberOfTracks']),  # Keep last 100 tracks
             'distance': 0,  # Distance to anchor
+            'beam': "",
+            'length': "",
+            'heading': "",
         }
         self._vessels[mmsi] = vessel
         return vessel
@@ -591,6 +598,8 @@ class DBusConnector(AbstractConnector):
             del self._dbus_service['/Vessels/' + mmsi + '/SOG']
             del self._dbus_service['/Vessels/' + mmsi + '/COG']
             del self._dbus_service['/Vessels/' + mmsi + '/Heading']
+            del self._dbus_service['/Vessels/' + mmsi + '/Beam']
+            del self._dbus_service['/Vessels/' + mmsi + '/Length']
             del self._dbus_service['/Vessels/' + mmsi + '/Tracks']
 
 
@@ -617,7 +626,9 @@ class DBusConnector(AbstractConnector):
         self._dbus_service['/Vessels/' + mmsi + '/Longitude'] = vessel['longitude']
         self._dbus_service['/Vessels/' + mmsi + '/SOG'] = vessel['sog']
         self._dbus_service['/Vessels/' + mmsi + '/COG'] = vessel['cog']
-        self._dbus_service['/Vessels/' + mmsi + '/Heading'] = vessel['heading'] if 'heading' in vessel else ""
+        self._dbus_service['/Vessels/' + mmsi + '/Heading'] = vessel['heading']
+        self._dbus_service['/Vessels/' + mmsi + '/Beam'] = vessel['beam']
+        self._dbus_service['/Vessels/' + mmsi + '/Length'] = vessel['length']
         self._dbus_service['/Vessels/' + mmsi + '/Tracks'] = json.dumps(list(vessel['tracks']))
 
 
@@ -667,6 +678,12 @@ class DBusConnector(AbstractConnector):
             logger.debug(f"Invalid coordinates for vessel {mmsi}: lat={latitude}, lon={longitude}")
             return  # Ignore vessels with invalid coordinates
 
+        if distance < self._ais_self_distance_threshold:
+            # this is self. save MMSI in settings to fetch 
+            logger.debug(f"Ignoring vessel {mmsi} at distance {distance} meters, self ?")
+            return
+
+
         if distance > self._settings['DistanceToVessel']:
             logger.debug(f"Ignoring vessel {mmsi} at distance {distance} meters, too far away")
             return  # Ignore vessels that are too far away
@@ -694,6 +711,38 @@ class DBusConnector(AbstractConnector):
         vessel['cog'] = nmea_message["fields"]["COG"] * (180.0 / math.pi)  # Convert radians to degrees
         vessel['heading'] = "" # nmea_message["fields"]["Heading"] * (180.0 / math.pi)  # Convert radians to degrees
         vessel['distance'] = distance   # keep distance for easier pruning
+
+
+    def _on_ais_extended_message(self, nmea_message):
+        # PGN 129810: AIS Class B static data (msg 24 Part B)
+        # {'canId': 435884587, 'prio': 6, 'src': 43, 'dst': 255, 'pgn': 129810, 'timestamp': '2025-07-16T13:37:27.799Z', 'input': [], 'fields': {'Message ID': 'Static data report', 'Repeat Indicator': 'Initial', 'User ID': 378150000, 'Type of ship': 'Sailing', 'Vendor ID': 'FECD', 'Callsign': 'ZJL6809', 'Length': 24, 'Beam': 5, 'Position reference from Starboard': 1, 'Position reference from Bow': 9, 'Spare': 0, 'Sequence ID': 0}, 'description': 'AIS Class B static data (msg 24 Part B)'}
+        
+        """Handle AIS extended messages (PGN 129810) to update vessel beam and length"""
+        if "fields" not in nmea_message:
+            return
+        
+        if "User ID" not in nmea_message["fields"]:
+            return
+        
+        mmsi = str(nmea_message["fields"]["User ID"])
+        
+        # Only process if vessel already exists in our list
+        if mmsi not in self._vessels:
+            return
+        
+        # Check for required fields
+        if "Beam" not in nmea_message["fields"]:
+            return
+        
+        if "Length" not in nmea_message["fields"]:
+            return
+        
+        # Update vessel with beam and length data
+        vessel = self._vessels[mmsi]
+        vessel['beam'] = nmea_message["fields"]["Beam"]
+        vessel['length'] = nmea_message["fields"]["Length"]
+        
+        logger.debug(f"Updated vessel {mmsi} with beam={vessel['beam']}m, length={vessel['length']}m")
 
 
 

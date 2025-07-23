@@ -245,7 +245,7 @@ class TestAISVesselTracking(unittest.TestCase):
         # Process close vessel (should be accepted)
         close_msg = self.valid_ais_message.copy()
         close_msg["fields"]["User ID"] = 111111111
-        close_msg["fields"]["Latitude"] = 14.0830  # Very close to our position
+        close_msg["fields"]["Latitude"] = 14.0835  # Very close to our position
         close_msg["fields"]["Longitude"] = -60.9596
         
         self.connector._on_ais_message(close_msg)
@@ -265,14 +265,14 @@ class TestAISVesselTracking(unittest.TestCase):
         # Add first vessel (close)
         msg1 = self.valid_ais_message.copy()
         msg1["fields"]["User ID"] = 111111111
-        msg1["fields"]["Latitude"] = 14.0830
+        msg1["fields"]["Latitude"] = 14.0835
         msg1["fields"]["Longitude"] = -60.9596
         self.connector._on_ais_message(msg1)
         
         # Add second vessel (medium distance)
         msg2 = self.valid_ais_message.copy()
         msg2["fields"]["User ID"] = 222222222
-        msg2["fields"]["Latitude"] = 14.0850
+        msg2["fields"]["Latitude"] = 14.0855
         msg2["fields"]["Longitude"] = -60.9600
         self.connector._on_ais_message(msg2)
         
@@ -305,7 +305,7 @@ class TestAISVesselTracking(unittest.TestCase):
         # Try to add closer vessel (should replace)
         msg2 = self.valid_ais_message.copy()
         msg2["fields"]["User ID"] = 222222222
-        msg2["fields"]["Latitude"] = 14.0830  # Close
+        msg2["fields"]["Latitude"] = 14.0835  # Close
         msg2["fields"]["Longitude"] = -60.9596
         self.connector._on_ais_message(msg2)
         
@@ -528,6 +528,115 @@ class TestAISVesselTracking(unittest.TestCase):
         
         # Should not crash
         self.connector._write_vessel_info("999999999")
+
+    def test_ais_extended_message_processing(self):
+        """Test processing of AIS extended messages (PGN 129810) for beam and length"""
+        
+        # Increase distance limit to allow test vessel
+        self.connector._settings['DistanceToVessel'] = 2000
+        
+        # First create a vessel with position message
+        self.connector._on_ais_message(self.valid_ais_message)
+        mmsi = str(self.valid_ais_message["fields"]["User ID"])
+        
+        # Verify vessel exists
+        self.assertIn(mmsi, self.connector._vessels)
+        vessel = self.connector._vessels[mmsi]
+        self.assertEqual(vessel['beam'], "")  # Initially empty
+        self.assertEqual(vessel['length'], "")  # Initially empty
+        
+        # Create extended AIS message with beam and length
+        extended_message = {
+            "canId": 435884587,
+            "prio": 6,
+            "src": 43,
+            "dst": 255,
+            "pgn": 129810,
+            "timestamp": "2025-07-16T13:37:27.799Z",
+            "fields": {
+                "Message ID": "Static data report",
+                "Repeat Indicator": "Initial",
+                "User ID": 368081510,  # Same as valid_ais_message
+                "Type of ship": "Sailing",
+                "Vendor ID": "FECD",
+                "Callsign": "TEST123",
+                "Length": 24,
+                "Beam": 5,
+                "Position reference from Starboard": 1,
+                "Position reference from Bow": 9,
+                "Spare": 0,
+                "Sequence ID": 0
+            },
+            "description": "AIS Class B static data (msg 24 Part B)"
+        }
+        
+        # Process extended message
+        self.connector._on_ais_extended_message(extended_message)
+        
+        # Verify beam and length were updated
+        vessel = self.connector._vessels[mmsi]
+        self.assertEqual(vessel['beam'], 5)
+        self.assertEqual(vessel['length'], 24)
+        
+        # Test update_state to verify DBus paths are updated
+        from anchor_alarm_model import AnchorAlarmState
+        from abstract_gps_provider import GPSPosition
+        mock_state = AnchorAlarmState('IN_RADIUS', 'boat in radius', "short in radius message", 'info', False, {'drop_point': GPSPosition(10, 11), 'radius': 12, 'current_radius':5, 'radius_tolerance': 15, 'alarm_muted_count': 0, 'no_gps_count': 0, 'out_of_radius_count': 0})
+        self.connector.update_state(mock_state)
+        
+        # Verify DBus paths include beam and length
+        service = self.connector.mock_service()
+        self.assertEqual(service[f'/Vessels/{mmsi}/Beam'], 5)
+        self.assertEqual(service[f'/Vessels/{mmsi}/Length'], 24)
+
+    def test_ais_extended_message_invalid_cases(self):
+        """Test handling of invalid AIS extended messages"""
+        
+        # Test message without fields
+        invalid_msg1 = {"canId": 123}
+        self.connector._on_ais_extended_message(invalid_msg1)  # Should not crash
+        
+        # Test message without User ID
+        invalid_msg2 = {"fields": {"Beam": 5, "Length": 24}}
+        self.connector._on_ais_extended_message(invalid_msg2)  # Should not crash
+        
+        # Test message for non-existent vessel
+        unknown_vessel_msg = {
+            "fields": {
+                "User ID": 999999999,  # Unknown vessel
+                "Beam": 5,
+                "Length": 24
+            }
+        }
+        self.connector._on_ais_extended_message(unknown_vessel_msg)  # Should not crash
+        
+        # Create a vessel first
+        self.connector._settings['DistanceToVessel'] = 2000
+        self.connector._on_ais_message(self.valid_ais_message)
+        mmsi = str(self.valid_ais_message["fields"]["User ID"])
+        
+        # Test message without beam
+        no_beam_msg = {
+            "fields": {
+                "User ID": 368081510,
+                "Length": 24
+            }
+        }
+        self.connector._on_ais_extended_message(no_beam_msg)
+        # Beam should still be empty
+        self.assertEqual(self.connector._vessels[mmsi]['beam'], "")
+        
+        # Test message without length
+        no_length_msg = {
+            "fields": {
+                "User ID": 368081510,
+                "Beam": 5
+            }
+        }
+        self.connector._on_ais_extended_message(no_length_msg)
+        # Length should still be empty, beam should still be empty
+        self.assertEqual(self.connector._vessels[mmsi]['beam'], "")
+        self.assertEqual(self.connector._vessels[mmsi]['length'], "")
 
     def test_settings_configuration(self):
         """Test vessel tracking settings"""
