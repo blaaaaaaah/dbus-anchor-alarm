@@ -110,6 +110,7 @@ class NMEASOGRPMConnector(AbstractConnector):
             self._remove_timer('conditions_met')
 
     def _are_conditions_met(self):
+        logger.debug(f"Checking conditions: SOG={self._last_sog}, RPM Port={self._last_rpm_port}, RPM Stb={self._last_rpm_stb}")
 
         if self._last_sog is None or self._last_sog is not None and self._last_sog > self._settings['SOG']:
             return False
@@ -172,6 +173,10 @@ if __name__ == '__main__':
     from unittest.mock import MagicMock
     from dbus.mainloop.glib import DBusGMainLoop
     
+#    logging.basicConfig(level=logging.DEBUG)
+    logging.getLogger(__name__).setLevel(logging.DEBUG)
+
+
     DBusGMainLoop(set_as_default=True)
 
     bus = dbus.SessionBus() if 'DBUS_SESSION_BUS_ADDRESS' in os.environ else dbus.SystemBus()
@@ -180,15 +185,48 @@ if __name__ == '__main__':
 
     nmea_alert_connector = NMEASOGRPMConnector(lambda: GLib, lambda settings, cb: SettingsDevice(bus, settings, cb), bridge)
 
+    def _on_trigger_chain_out():
+        nmea_alert_connector.on_state_changed(state_disabled)
+        print("\n\n\n\n\n\n\ntrigger chain out\n\n\n\n\n\n\n")
+
+
     controller = MagicMock()
-    controller.trigger_chain_out   = MagicMock(side_effect=lambda: print("\n\n\n\n\n\n\ntrigger chain out\n\n\n\n\n\n\n"))
+    controller.trigger_chain_out   = MagicMock(side_effect=_on_trigger_chain_out)
     nmea_alert_connector.set_controller(controller)
 
 
     print("NMEA SOG RPM test program. Type : exit to exit\nWhen the SOG is < 0.3 and RPM of both engines is > 1700 for 3 seconds, will print 'trigger chain out'. You can change these settings with dbus-spy")
+    print("Commands:\n  drop - set state to DROP_POINT_SET to start listening\n  disabled - set state to DISABLED to stop listening\n  sog - add throttled SOG handler to test throttling\n  exit - exit program")
+
+    from anchor_alarm_model import AnchorAlarmState
+    from abstract_gps_provider import GPSPosition
+    state_drop_point_set = AnchorAlarmState('DROP_POINT_SET', 'Drop point set', "short message", 'info', False, {'drop_point': GPSPosition(10, 11)})
+    state_disabled = AnchorAlarmState('DISABLED', 'Disabled', "short message", 'info', False, {'drop_point': GPSPosition(10, 11)})
+    
+    def throttled_sog_handler(nmea_message):
+        """Throttled SOG handler for testing"""
+        if "fields" in nmea_message and "SOG" in nmea_message["fields"]:
+            print(f"SOG: {nmea_message['fields']['SOG']}")
 
     def handle_command(command, text):
-        print("Unknown command "+ command)
+        
+        if command == "drop":
+            # Simulate DROP_POINT_SET state
+            nmea_alert_connector.on_state_changed(state_drop_point_set)
+            print("State changed to DROP_POINT_SET - SOG/RPM connector should now be listening")
+
+        elif command == "disabled":
+            # Simulate DROP_POINT_SET state
+            nmea_alert_connector.on_state_changed(state_disabled)
+            print("State changed to DISABLED - SOG/RPM connector should stop listening")
+            
+        elif command == "sog":
+            # Add throttled SOG handler
+            bridge.add_pgn_handler(129026, throttled_sog_handler, throttle=True)
+
+                
+        else:
+            print("Unknown command "+ command)
 
 
     handle_stdin(handle_command)
