@@ -402,7 +402,7 @@ class TestNMEASOGRPMConnector(unittest.TestCase):
         sog_handler = None
         rpm_handler = None
 
-        def _set_handler(pgn, the_handler):
+        def _set_handler(pgn, the_handler, throttle=False):
             nonlocal sog_handler
             nonlocal rpm_handler
             if pgn == 129026:
@@ -412,6 +412,7 @@ class TestNMEASOGRPMConnector(unittest.TestCase):
 
         mock_bridge = MagicMock()
         mock_bridge.add_pgn_handler = MagicMock(side_effect=_set_handler)        
+        mock_bridge.remove_pgn_handler = MagicMock()
 
 
         connector = NMEASOGRPMConnector(lambda: timer_provider, MockSettingsDevice,  mock_bridge)
@@ -420,6 +421,9 @@ class TestNMEASOGRPMConnector(unittest.TestCase):
         controller.trigger_chain_out   = MagicMock()
         connector.set_controller(controller)
 
+        # Change to DROP_POINT_SET state to start listening
+        state_drop_point_set = AnchorAlarmState('DROP_POINT_SET', 'Drop point set',"short message", 'info', False, {'drop_point': GPSPosition(10, 11)})
+        connector.on_state_changed(state_drop_point_set)
 
         sog_0_07 = {'canId': 167248387, 'prio': 2, 'src': 3, 'dst': 255, 'pgn': 129026, 'timestamp': '2025-05-16T13:51:59.279Z', 
                    'fields': {'SID': 208, 'COG Reference': 'True', 'COG': 0.2787, 'SOG': 0.07}, 'description': 'COG & SOG, Rapid Update'}
@@ -443,7 +447,7 @@ class TestNMEASOGRPMConnector(unittest.TestCase):
                            'fields': {'Instance': 'Dual Engine Starboard', 'Speed': 1800, 'Boost Pressure': 0}, 'description': 'Engine Parameters, Rapid Update'}
 
 
-        # make sure that connector's _conditions_met are correctly handling None values
+        # make sure that connector's _are_conditions_met are correctly handling None values
 
         rpm_handler(port_speed_1800)
         sog_handler(sog_0_07)
@@ -455,7 +459,7 @@ class TestNMEASOGRPMConnector(unittest.TestCase):
         sog_handler = None
         rpm_handler = None
 
-        def _set_handler(pgn, the_handler):
+        def _set_handler(pgn, the_handler, throttle=False):
             nonlocal sog_handler
             nonlocal rpm_handler
             if pgn == 129026:
@@ -463,8 +467,17 @@ class TestNMEASOGRPMConnector(unittest.TestCase):
             else:
                 rpm_handler = the_handler
 
+        def _remove_handler(pgn, the_handler):
+            nonlocal sog_handler
+            nonlocal rpm_handler
+            if pgn == 129026:
+                sog_handler = None
+            else:
+                rpm_handler = None
+
         mock_bridge = MagicMock()
-        mock_bridge.add_pgn_handler = MagicMock(side_effect=_set_handler)        
+        mock_bridge.add_pgn_handler = MagicMock(side_effect=_set_handler)
+        mock_bridge.remove_pgn_handler = MagicMock(side_effect=_remove_handler)        
 
 
         connector = NMEASOGRPMConnector(lambda: timer_provider, MockSettingsDevice,  mock_bridge)
@@ -496,18 +509,19 @@ class TestNMEASOGRPMConnector(unittest.TestCase):
                            'fields': {'Instance': 'Dual Engine Starboard', 'Speed': 1800, 'Boost Pressure': 0}, 'description': 'Engine Parameters, Rapid Update'}
 
 
-        # make sure that connector is only listening 
-
-        rpm_handler(port_speed_1800)
-        rpm_handler(stb_speed_1800)
-        sog_handler(sog_0_07)
-
-        controller.trigger_chain_out.assert_not_called()
+        # Initially handlers should be None (not listening)
+        self.assertIsNone(sog_handler)
+        self.assertIsNone(rpm_handler)
 
         state_disabled = AnchorAlarmState('DISABLED', 'Anchor alarm disabled',"short message", 'info', False, {})
         state_drop_point_set = AnchorAlarmState('DROP_POINT_SET', 'Drop point set, please do blablala',"short message", 'info', False, {'drop_point': GPSPosition(10, 11)})
 
+        # Change to DROP_POINT_SET state - this should start listening
         connector.on_state_changed(state_drop_point_set)
+        
+        # Now handlers should be set
+        self.assertIsNotNone(sog_handler)
+        self.assertIsNotNone(rpm_handler)
         rpm_handler(port_speed_1800)
         rpm_handler(stb_speed_1800)
         sog_handler(sog_0_07)
@@ -526,20 +540,20 @@ class TestNMEASOGRPMConnector(unittest.TestCase):
         controller.trigger_chain_out.assert_not_called()
 
         connector.on_state_changed(state_disabled)
-        timer_provider.tick()
-        rpm_handler(port_speed_1800)
-        rpm_handler(stb_speed_1800)
-        sog_handler(sog_0_07)
+        
+        # After changing to DISABLED, handlers should be None (stopped listening)
+        self.assertIsNone(sog_handler)
+        self.assertIsNone(rpm_handler)
+        
         controller.trigger_chain_out.assert_not_called()
 
-        timer_provider.tick()
-        rpm_handler(port_speed_1800)
-        rpm_handler(stb_speed_1800)
-        sog_handler(sog_0_07)
-        controller.trigger_chain_out.assert_not_called()
-
-
+        # Re-enable by going back to DROP_POINT_SET
         connector.on_state_changed(state_drop_point_set)
+        
+        # Now handlers should be set again
+        self.assertIsNotNone(sog_handler)
+        self.assertIsNotNone(rpm_handler)
+        
         rpm_handler(port_speed_1800)
         rpm_handler(stb_speed_1800)
         sog_handler(sog_0_07)

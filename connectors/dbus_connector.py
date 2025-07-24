@@ -85,7 +85,7 @@ class DBusConnector(AbstractConnector):
         self._create_vessel('self')
         self._set_self_beam_length()
 
-        self._bridge.add_pgn_handler(129026, self._on_sog)  # SOG rapid update - NOT throttled (used by SOG/RPM connector)
+        self._bridge.add_pgn_handler(129026, self._on_sog, throttle=True)  # SOG rapid update - throttled for display
         self._bridge.add_pgn_handler(128267, self._on_depth, throttle=True)  # Depth
         self._bridge.add_pgn_handler(130306, self._on_wind, throttle=True)  # Wind
         self._bridge.add_pgn_handler(127250, self._on_heading, throttle=True)  # Heading

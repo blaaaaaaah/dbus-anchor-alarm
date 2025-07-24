@@ -74,15 +74,22 @@ class NMEABridge:
     def add_pgn_handler(self, pgn, handler, throttle=False):
         """Sets NMEA filters."""
         if pgn not in self._handlers:
-            self._handlers[pgn] = {'handlers': [], 'throttle': throttle}
+            self._handlers[pgn] = []
 
-        # make sure not to add the same handler multiple times
-        if handler not in self._handlers[pgn]['handlers']:
-            self._handlers[pgn]['handlers'].append(handler)
-
-        # Update throttle setting if specified
-        if throttle:
-            self._handlers[pgn]['throttle'] = True
+        # Check if handler already exists
+        existing_handler = None
+        for h in self._handlers[pgn]:
+            if h['handler'] == handler:
+                existing_handler = h
+                break
+        
+        if existing_handler:
+            # Update throttle setting for existing handler
+            existing_handler['throttle'] = throttle
+        else:
+            # Add new handler
+            self._handlers[pgn].append({'handler': handler, 'throttle': throttle})
+        
         self._send_filters()
 
     def remove_pgn_handler(self, pgn, handler):
@@ -90,11 +97,11 @@ class NMEABridge:
         if pgn not in self._handlers:
             return
         
-        if handler in self._handlers[pgn]['handlers']:
-            self._handlers[pgn]['handlers'].remove(handler)
+        # Find and remove the handler
+        self._handlers[pgn] = [h for h in self._handlers[pgn] if h['handler'] != handler]
         
         # If no handlers left, remove the PGN entirely
-        if not self._handlers[pgn]['handlers']:
+        if not self._handlers[pgn]:
             del self._handlers[pgn]
         
         self._send_filters()
@@ -102,10 +109,13 @@ class NMEABridge:
 
     def _send_filters(self):
         filters = []
-        for pgn, config in self._handlers.items():
+        for pgn, handlers in self._handlers.items():
+            # If ANY handler for this PGN has throttle=False, don't throttle the PGN
+            should_throttle = all(h['throttle'] for h in handlers)
+            
             filters.append({
                 'pgn': pgn,
-                'throttle': config['throttle']
+                'throttle': should_throttle
             })
         
         if len(filters):
@@ -301,8 +311,8 @@ class NMEABridge:
     def _on_nmea_message(self, message):
         pgn = message['pgn']
         if pgn in self._handlers:
-            for handler in self._handlers[pgn]['handlers']:
-                handler(message)
+            for handler_info in self._handlers[pgn]:
+                handler_info['handler'](message)
 
     def _on_bridge_ready(self):
         logger.info("NMEA Bridge ready, flushing queued commands")

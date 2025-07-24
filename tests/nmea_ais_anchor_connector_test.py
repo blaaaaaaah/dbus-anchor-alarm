@@ -292,7 +292,7 @@ class TestNMEAAISAnchorConnector(unittest.TestCase):
 
     def test_heading(self):
         handler = None
-        def _set_handler(pgn, the_handler):
+        def _set_handler(pgn, the_handler, throttle=False):
             nonlocal handler
             handler = the_handler
 
