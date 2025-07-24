@@ -76,10 +76,27 @@ class NMEABridge:
         if pgn not in self._handlers:
             self._handlers[pgn] = {'handlers': [], 'throttle': throttle}
 
-        self._handlers[pgn]['handlers'].append(handler)
+        # make sure not to add the same handler multiple times
+        if handler not in self._handlers[pgn]['handlers']:
+            self._handlers[pgn]['handlers'].append(handler)
+
         # Update throttle setting if specified
         if throttle:
             self._handlers[pgn]['throttle'] = True
+        self._send_filters()
+
+    def remove_pgn_handler(self, pgn, handler):
+        """Removes NMEA handler."""
+        if pgn not in self._handlers:
+            return
+        
+        if handler in self._handlers[pgn]['handlers']:
+            self._handlers[pgn]['handlers'].remove(handler)
+        
+        # If no handlers left, remove the PGN entirely
+        if not self._handlers[pgn]['handlers']:
+            del self._handlers[pgn]
+        
         self._send_filters()
         
 

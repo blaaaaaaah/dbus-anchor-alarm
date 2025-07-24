@@ -38,15 +38,12 @@ class NMEASOGRPMConnector(AbstractConnector):
             'conditions_met': None,
         }
 
-        self._should_watch  = False
-
         self._last_sog      = None
         self._last_rpm_port = None
         self._last_rpm_stb  = None
 
         self._bridge = nmea_bridge
-        self._bridge.add_pgn_handler(129026, self._on_sog)
-        self._bridge.add_pgn_handler(127488, self._on_rpm)
+        # Don't start watching initially - will be enabled when state changes to DROP_POINT_SET
 
 
     def _init_settings(self):
@@ -68,8 +65,6 @@ class NMEASOGRPMConnector(AbstractConnector):
 
         # we don't care about getting notified if settings are updated
         self._settings = self._settings_provider(settingsList, None)
-
-        # TODO XXX add some code to only watch if in DROP_POINT_SET state
 
         
 
@@ -105,7 +100,7 @@ class NMEASOGRPMConnector(AbstractConnector):
         self._check_conditions_met()
 
     def _check_conditions_met(self):
-        if self._conditions_met():
+        if self._are_conditions_met():
             if self._timer_ids['conditions_met'] is None:
                 logger.info("Conditions are met, arming timer")
                 self._add_timer('conditions_met', self._on_conditions_met, self._settings['Duration']*1000)
@@ -114,10 +109,8 @@ class NMEASOGRPMConnector(AbstractConnector):
                 logger.info("Conditions are not met anymore, removing timer")
             self._remove_timer('conditions_met')
 
-    def _conditions_met(self):
-        if not self._should_watch:
-            return False
-        
+    def _are_conditions_met(self):
+
         if self._last_sog is None or self._last_sog is not None and self._last_sog > self._settings['SOG']:
             return False
         
@@ -138,8 +131,24 @@ class NMEASOGRPMConnector(AbstractConnector):
 
     # called when a state changes
     def on_state_changed(self, current_state:AnchorAlarmState):
-        self._should_watch = current_state.state == "DROP_POINT_SET"
-        self._check_conditions_met()
+        # Start watching if we should and we're not already
+        if current_state.state == "DROP_POINT_SET":
+            # nmea_bridge will make sure we don't add the same handler multiple times
+            self._bridge.add_pgn_handler(129026, self._on_sog)
+            self._bridge.add_pgn_handler(127488, self._on_rpm)
+            logger.info("Started watching SOG/RPM for anchor alarm activation")
+        
+        # Stop watching if we shouldn't
+        else:
+            self._bridge.remove_pgn_handler(129026, self._on_sog)
+            self._bridge.remove_pgn_handler(127488, self._on_rpm)
+
+            # Reset values and timers
+            self._last_sog = None
+            self._last_rpm_port = None
+            self._last_rpm_stb = None
+            self._remove_timer('conditions_met')
+            logger.info("Stopped watching SOG/RPM")
 
 
     # called every second to update state
