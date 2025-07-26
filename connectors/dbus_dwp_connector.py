@@ -63,6 +63,15 @@ class DBusDWPConnector(AbstractConnector):
         if not WEBPUSH_AVAILABLE:
             logger.error("Web push dependencies not available. Push notifications will not work.")
             return
+        
+        # Log versions for debugging
+        try:
+            import pywebpush
+            import cryptography
+            logger.info(f"pywebpush version: {pywebpush.__version__ if hasattr(pywebpush, '__version__') else 'unknown'}")
+            logger.info(f"cryptography version: {cryptography.__version__}")
+        except Exception as e:
+            logger.warning(f"Could not get library versions: {e}")
             
         self._init_settings()
         self._load_or_generate_vapid_keys()
@@ -233,6 +242,7 @@ class DBusDWPConnector(AbstractConnector):
         }
         
         payload_json = json.dumps(notification_payload)
+        logger.info(f"Notification payload: {payload_json}")
         
         # Send to all subscriptions
         failed_subscriptions = []
@@ -240,19 +250,41 @@ class DBusDWPConnector(AbstractConnector):
         for subscription_id, subscription_info in self._subscriptions.items():
             try:
                 # Prepare VAPID claims
-                vapid_claims = {
-                    "sub": f"mailto:{self._settings['VapidContactEmail'] or 'admin@localhost'}"
-                }
+                endpoint = subscription_info.get('endpoint', '')
+                
+                if 'web.push.apple.com' in endpoint:
+                    # Apple Push specific claims
+                    vapid_claims = {
+                        "sub": f"mailto:{self._settings['VapidContactEmail'] or 'admin@localhost'}",
+                        "aud": "https://web.push.apple.com",
+                        "exp": int(time.time()) + 12 * 3600  # 12 hours from now
+                    }
+                    logger.debug(f"Apple VAPID claims: {vapid_claims}")
+                else:
+                    # Standard VAPID claims for other services
+                    vapid_claims = {
+                        "sub": f"mailto:{self._settings['VapidContactEmail'] or 'admin@localhost'}"
+                    }
+                    logger.debug(f"Standard VAPID claims: {vapid_claims}")
+                
+                logger.debug(f"Sending to {subscription_id}: endpoint={subscription_info.get('endpoint', '')[:50]}...")
+                logger.debug(f"Private key type: {type(self._vapid_keys['private_key'])}, length: {len(self._vapid_keys['private_key']) if self._vapid_keys['private_key'] else 0}")
+                
+                # Convert PEM to DER format for pywebpush
+                pem_key = self._vapid_keys['private_key']
+                # Remove PEM headers and decode to DER
+                key_lines = pem_key.strip().split('\n')
+                key_data = ''.join(line for line in key_lines if not line.startswith('-----'))
                 
                 # Send push notification
                 webpush(
                     subscription_info=subscription_info,
                     data=payload_json,
-                    vapid_private_key=self._vapid_keys['private_key'],
+                    vapid_private_key=key_data,
                     vapid_claims=vapid_claims
                 )
                 
-                logger.debug(f"Sent push notification to {subscription_id}")
+                logger.info(f"Successfully sent push notification to {subscription_id}")
                 
             except WebPushException as e:
                 logger.warning(f"Failed to send push to {subscription_id}: {e}")
@@ -270,7 +302,7 @@ class DBusDWPConnector(AbstractConnector):
             
         logger.info(f"Sent push notification '{title}' to {len(self._subscriptions) - len(failed_subscriptions)} devices")
         
-    def on_state_changed(self, old_state, new_state, muted):
+    def on_state_changed(self, current_state):
         """Handle anchor alarm state changes and send push notifications"""
         if not WEBPUSH_AVAILABLE:
             return
@@ -278,9 +310,9 @@ class DBusDWPConnector(AbstractConnector):
         # Only send notifications for dangerous states that are not muted
         dangerous_states = [AnchorAlarmState.ALARM_DRAGGING, AnchorAlarmState.ALARM_NO_GPS]
         
-        # Send notification on transition to dangerous state (if not muted)
-        if new_state in dangerous_states and old_state not in dangerous_states and not muted:
-            if new_state == AnchorAlarmState.ALARM_DRAGGING:
+        # Send notification for dangerous states (if not muted)
+        if current_state.state in dangerous_states and not current_state.alarm_muted:
+            if current_state.state == "ALARM_DRAGGING":
                 self.send_push_notification(
                     title="Anchor Alarm - DRAGGING",
                     body="Your anchor is dragging! Check your position immediately.",
@@ -290,7 +322,7 @@ class DBusDWPConnector(AbstractConnector):
                         "timestamp": int(time.time())
                     }
                 )
-            elif new_state == AnchorAlarmState.ALARM_NO_GPS:
+            elif current_state.state == "ALARM_NO_GPS":
                 self.send_push_notification(
                     title="Anchor Alarm - NO GPS",
                     body="GPS signal lost. Cannot monitor anchor position.",
