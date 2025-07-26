@@ -90,13 +90,19 @@ class DbusAnchorAlarmService(object):
         self._alarm_controller.register_gps_provider(dbus_gps_provider)
         self._alarm_controller.register_gps_provider(nmea_gps_provider)
 
-        dbus_connector = DBusConnector(lambda: GLib, lambda settings, cb: SettingsDevice(bus, settings, cb), self._nmea_bridge)
+        # Create shared D-Bus service
+        self._dbus_service = self._create_dbus_service()
+
+        dbus_connector = DBusConnector(lambda: GLib, lambda settings, cb: SettingsDevice(bus, settings, cb), self._nmea_bridge, self._dbus_service)
         nmea_alert_connector = NMEAAlertConnector(lambda: GLib, lambda settings, cb: SettingsDevice(bus, settings, cb), self._nmea_bridge)
         nmea_ais_anchor_connector = NMEAAISAnchorConnector(lambda: GLib, lambda settings, cb: SettingsDevice(bus, settings, cb), self._nmea_bridge)
         nmea_ydab_connector = NMEAYDABConnector(lambda: GLib, lambda settings, cb: SettingsDevice(bus, settings, cb), self._nmea_bridge)
         nmea_sog_rpm_connector = NMEASOGRPMConnector(lambda: GLib, lambda settings, cb: SettingsDevice(bus, settings, cb), self._nmea_bridge)
         nmea_ds_connector = NMEADSConnector(lambda: GLib, lambda settings, cb: SettingsDevice(bus, settings, cb), self._nmea_bridge)
         dbus_relay_connector = DBusRelayConnector(lambda: GLib, lambda settings, cb: SettingsDevice(bus, settings, cb))
+
+        # Register D-Bus service after all connectors have added their paths
+        self._dbus_service.register()
 
 
         self._alarm_controller.register_connector(dbus_connector)
@@ -107,8 +113,20 @@ class DbusAnchorAlarmService(object):
         self._alarm_controller.register_connector(nmea_ds_connector)
         self._alarm_controller.register_connector(dbus_relay_connector)
 
+    def _create_dbus_service(self):
+        from vedbus import VeDbusService
+        dbus_service = VeDbusService("com.victronenergy.anchoralarm", register=False)
+        dbus_service.add_mandatory_paths(sys.argv[0], self._get_version(), None, 0, 0, 'Anchor Alarm', 0, 0, 1)
 
-
+        return dbus_service        
+        
+    def _get_version(self):
+        version_file_path = os.path.join(os.path.dirname(__file__), 'VERSION')
+        try:
+            with open(version_file_path, 'r') as version_file:
+                return version_file.read().strip()
+        except Exception:
+            return "Unknown"
 
 
 def main():

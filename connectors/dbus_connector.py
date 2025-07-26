@@ -46,7 +46,7 @@ sys.path.insert(1, os.path.join(os.path.dirname(__file__), '../ext/velib_python'
 
 
 class DBusConnector(AbstractConnector):
-    def __init__(self, timer_provider, settings_provider, nmea_bridge, service_name="com.victronenergy.anchoralarm"):
+    def __init__(self, timer_provider, settings_provider, nmea_bridge, dbus_service):
         super().__init__(timer_provider, settings_provider)
 
         self._timer_ids = {
@@ -74,13 +74,14 @@ class DBusConnector(AbstractConnector):
         self._last_aws = None
 
         self._bridge = nmea_bridge
+        self._dbus_service = dbus_service
 
         self._init_settings()
         
         self._update_digital_input_names()
 
         self._init_dbus_monitor()
-        self._init_dbus_service(service_name)
+        self._init_dbus_paths()
         
         self._create_vessel('self')
         self._set_self_beam_length()
@@ -225,10 +226,8 @@ class DBusConnector(AbstractConnector):
 
 
 
-    def _init_dbus_service(self, service_name):
-        self._dbus_service = self._create_dbus_service(service_name, register=False)
-
-        self._dbus_service.add_mandatory_paths(sys.argv[0], self._get_version(), None, 0, 0, 'Anchor Alarm', 0, 0, 1)
+    def _init_dbus_paths(self):
+        """Initialize D-Bus paths for anchor alarm functionality"""
 
             # Alarm Information
         self._dbus_service.add_path('/Alarm/State', 'DISABLED', "Current alarm state")
@@ -262,13 +261,6 @@ class DBusConnector(AbstractConnector):
         self._dbus_service.add_path('/Triggers/MooringMode',0, "Set 1 to enable mooring mode"                      , writeable=True, onchangecallback=self._on_service_changed)
         self._dbus_service.add_path('/Triggers/DecreaseTolerance',  0, "Set 1 to decrease tolerance by 5m"         , writeable=True, onchangecallback=self._on_service_changed)
         self._dbus_service.add_path('/Triggers/IncreaseTolerance',  0, "Set 1 to increase tolerance by 5m"         , writeable=True, onchangecallback=self._on_service_changed)
-
-        self._dbus_service.register()
-
-
-    def _create_dbus_service(self, *args, **kwargs):
-        from vedbus import VeDbusService
-        return VeDbusService(*args, **kwargs)
 
 
 
@@ -895,8 +887,16 @@ if __name__ == "__main__":
 
     can_id = find_n2k_can(bus)
     bridge = NMEABridge(can_id)
+    
+    # Create D-Bus service
+    from vedbus import VeDbusService
+    dbus_service = VeDbusService("com.victronenergy.anchoralarm-test", register=False)
+    dbus_service.add_mandatory_paths(sys.argv[0], "test-version", None, 0, 0, 'Anchor Alarm Test', 0, 0, 1)
    
-    dbus_connector = DBusConnector(lambda: GLib, lambda settings, cb: SettingsDevice(bus, settings, cb), bridge, "com.victronenergy.anchoralarm-test")
+    dbus_connector = DBusConnector(lambda: GLib, lambda settings, cb: SettingsDevice(bus, settings, cb), bridge, dbus_service)
+    
+    # Register D-Bus service after connector has added its paths
+    dbus_service.register()
 
     controller = MagicMock()
     controller.trigger_anchor_down  = MagicMock(side_effect=lambda: logger.info("Trigger anchor down"))
