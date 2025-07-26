@@ -53,9 +53,6 @@ from abstract_gps_provider import GPSPosition
 class MockDBusConnector(DBusConnector):
     def _create_dbus_monitor(self, *args, **kwargs):
         return MockDbusMonitor(*args, **kwargs)
-    
-    def _create_dbus_service(self, *args, **kwargs):
-        return MockDbusService(args[0])
 
     def mock_monitor(self):
         return self._alarm_monitor
@@ -66,6 +63,10 @@ class MockDBusConnector(DBusConnector):
 
 
 timer_provider = GLibTimerMock()
+
+def create_mock_dbus_service():
+    """Create a mock D-Bus service for testing"""
+    return MockDbusService("com.victronenergy.anchoralarm.test")
 
 class TestDBusConnector(unittest.TestCase):
 
@@ -81,7 +82,7 @@ class TestDBusConnector(unittest.TestCase):
         mock_bridge.add_pgn_handler = MagicMock()
         mock_bridge.send_nmea = MagicMock()
 
-        connector = MockDBusConnector(lambda: timer_provider, lambda settings, cb: MockSettingsDevice(settings, cb), mock_bridge)
+        connector = MockDBusConnector(lambda: timer_provider, lambda settings, cb: MockSettingsDevice(settings, cb), mock_bridge, create_mock_dbus_service())
 
         self.assertEqual(connector._anchor_up_digital_input, 'com.victronenergy.digitalinput.input01')
 
@@ -102,7 +103,7 @@ class TestDBusConnector(unittest.TestCase):
         mock_bridge.send_nmea = MagicMock()
 
 
-        connector = MockDBusConnector(lambda: timer_provider, lambda settings, cb: MockSettingsDevice(settings, cb), mock_bridge)
+        connector = MockDBusConnector(lambda: timer_provider, lambda settings, cb: MockSettingsDevice(settings, cb), mock_bridge, create_mock_dbus_service())
         connector.set_controller(controller)
         monitor = connector.mock_monitor()
         monitor.add_service('com.victronenergy.digitalinput.input01',
@@ -274,7 +275,7 @@ class TestDBusConnector(unittest.TestCase):
         mock_bridge.send_nmea = MagicMock()
 
 
-        connector = MockDBusConnector(lambda: timer_provider, lambda settings, cb: MockSettingsDevice(settings, cb), mock_bridge)
+        connector = MockDBusConnector(lambda: timer_provider, lambda settings, cb: MockSettingsDevice(settings, cb), mock_bridge, create_mock_dbus_service())
         connector.set_controller(controller)
         connector._settings['MuteAlarmDigitalInputNumber']=4
         connector._settings['MuteAlarmDigitalInputDuration']=3
@@ -514,7 +515,7 @@ class TestDBusConnector(unittest.TestCase):
         mock_bridge.send_nmea = MagicMock()
 
 
-        connector = MockDBusConnector(lambda: timer_provider, lambda settings, cb: MockSettingsDevice(settings, cb), mock_bridge)
+        connector = MockDBusConnector(lambda: timer_provider, lambda settings, cb: MockSettingsDevice(settings, cb), mock_bridge, create_mock_dbus_service())
         connector.set_controller(controller)
 
         monitor = connector.mock_monitor()
@@ -596,7 +597,7 @@ class TestDBusConnector(unittest.TestCase):
         mock_bridge.add_pgn_handler = MagicMock()
         mock_bridge.send_nmea = MagicMock()
 
-        connector = MockDBusConnector(lambda: timer_provider, lambda settings, cb: MockSettingsDevice(settings, cb), mock_bridge)
+        connector = MockDBusConnector(lambda: timer_provider, lambda settings, cb: MockSettingsDevice(settings, cb), mock_bridge, create_mock_dbus_service())
         connector.set_controller(controller)
         connector._system_name_error_duration = 5000
 
@@ -651,7 +652,7 @@ class TestDBusConnector(unittest.TestCase):
         mock_bridge.add_pgn_handler = MagicMock()
         mock_bridge.send_nmea = MagicMock()
 
-        connector = MockDBusConnector(lambda: timer_provider, lambda settings, cb: MockSettingsDevice(settings, cb), mock_bridge)
+        connector = MockDBusConnector(lambda: timer_provider, lambda settings, cb: MockSettingsDevice(settings, cb), mock_bridge, create_mock_dbus_service())
         connector.set_controller(controller)
         connector._system_name_error_duration = 5000
 
@@ -713,7 +714,7 @@ class TestDBusConnector(unittest.TestCase):
         mock_bridge.add_pgn_handler = MagicMock()
         mock_bridge.send_nmea = MagicMock()
 
-        connector = MockDBusConnector(lambda: timer_provider, lambda settings, cb: MockSettingsDevice(settings, cb), mock_bridge)
+        connector = MockDBusConnector(lambda: timer_provider, lambda settings, cb: MockSettingsDevice(settings, cb), mock_bridge, create_mock_dbus_service())
         connector.set_controller(controller)
         connector._system_name_error_duration = 5000
 
@@ -798,7 +799,7 @@ class TestDBusConnector(unittest.TestCase):
         mock_bridge.add_pgn_handler = MagicMock()
         mock_bridge.send_nmea = MagicMock()
 
-        connector = MockDBusConnector(lambda: timer_provider, lambda settings, cb: MockSettingsDevice(settings, cb), mock_bridge)
+        connector = MockDBusConnector(lambda: timer_provider, lambda settings, cb: MockSettingsDevice(settings, cb), mock_bridge, create_mock_dbus_service())
         connector.set_controller(controller)
         
         # Increase distance limit to allow test vessel (distance ~1369m)
@@ -848,7 +849,7 @@ class TestDBusConnector(unittest.TestCase):
         mock_bridge.add_pgn_handler = MagicMock()
         mock_bridge.send_nmea = MagicMock()
 
-        connector = MockDBusConnector(lambda: timer_provider, lambda settings, cb: MockSettingsDevice(settings, cb), mock_bridge)
+        connector = MockDBusConnector(lambda: timer_provider, lambda settings, cb: MockSettingsDevice(settings, cb), mock_bridge, create_mock_dbus_service())
         connector.set_controller(controller)
 
         service = connector.mock_service()
@@ -887,7 +888,7 @@ class TestDBusConnector(unittest.TestCase):
         mock_bridge.add_pgn_handler = MagicMock()
         mock_bridge.send_nmea = MagicMock()
 
-        connector = MockDBusConnector(lambda: timer_provider, lambda settings, cb: MockSettingsDevice(settings, cb), mock_bridge)
+        connector = MockDBusConnector(lambda: timer_provider, lambda settings, cb: MockSettingsDevice(settings, cb), mock_bridge, create_mock_dbus_service())
         connector.set_controller(controller)
 
         # Set short prune interval for testing

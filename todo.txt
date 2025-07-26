@@ -1,89 +1,59 @@
+   /usr/lib/node_modules/signalk-server/node_modules/@canboat/canboatjs/bin/candumpjs can0 | grep 
+   
+   
+   
+      nmea_message = nmea_message.__dict__
+        nmea_message['data'] = bytearray([39, 153, 6, 0, 0, 51, 241, 0])
+
+
+
+# fields":{"Manufacturer Code":275},"data":{"type":"Buffer","data":[19,153,4,5,0,0,1,0]}}}                                                                           │·································
+#NFO:__main__:{'canId': 150929433, 'prio': 2, 'src': 25, 'dst': 255, 'pgn': 65280, 'timestamp': '2025-06-14T00:44:50.723Z', 'fields': {'Manufacturer Code': 275}, '│·································
+#data': {'type': 'Buffer', 'data': [19, 153, 4, 5, 0, 0, 1, 0]}}                                                                                                    │·································
+#DEBUG:__main__:Received 65280 : 13 99 04 05 00 00 01 00)                                                                                                           │·································
+#DEBUG:nmea_bridge:received {"event":"on_NMEA_message","message":{"canId":150929433,"prio":2,"src":25,"dst":255,"pgn":65280,"timestamp":"2025-06-14T00:44:50.951Z","│·································
+#fields":{"Manufacturer Code":275},"data":{"type":"Buffer","data":[19,153,4,5,0,0,1,0]}}}                                                                           │·································
+#INFO:__main__:{'canId': 150929433, 'prio': 2, 'src': 25, 'dst': 255, 'pgn': 65280, 'timestamp': '2025-06-14T00:44:50.951Z', 'fields': {'Manufacturer Code': 275}, '│·································
+#data': {'type': 'Buffer', 'data': [19, 153, 4, 5, 0, 0, 1, 0]}}                                                                                                    │·································
+#DEBUG:__main__:Received 65280 : 13 99 04 05 00 00 01 00) 
+        '''
+{'canId': 486473750,
+ 'data': {'data': [39, 153, 6, 0, 0, 51, 241, 0], 'type': 'Buffer'},
+ 'dst': 255,
+ 'fields': {'Manufacturer Code': 295},
+ 'pgn': 65280,
+ 'prio': 7,
+ 'src': 22,
+ 'timestamp': '2025-06-14T01:08:40.234Z'}
+
+ON :
+
+DEBUG:_main_:We have a CZone message
+{'canId': 486473750,
+ 'data': {'data': [39, 153, 6, 0, 0, 51, 244, 0], 'type': 'Buffer'},
+ 'dst': 255,
+ 'fields': {'Manufacturer Code': 295},
+ 'pgn': 65280,
+ 'prio': 7,
+ 'src': 22,
+ 'timestamp': '2025-06-14T01:08:37.059Z'}
+ '''
+
+
+
+
+https://github.com/ttlappalainen/NMEA2000/issues/128#issuecomment-797234082
+
+That is normal operation for MFD and other devices, which will have any cross communication on N2k bus. Also my library handles tha automatically. If you tell library which PGNs your device support with ExtendTransmitMessages / ExtendReceiveMessages, it will automatically tell others on request for either 059904 or 126208 all supported PGNs. Library user does not need to care of that functionality - just tell library supported PGNs. Instead if you e.g. support 127501, you should add handler for ISO request (PGN 59904) with SetISORqstHandler and send requested PGN and return true or false, if you do not transmit requested PGN. And if you go futher, you should inherit tN2kGroupFunctionHandler for your PGNs and register those handlers.
+
+I can understand that MFD will enable control buttons, if your deveice informs that you support 127501 as tx and 127502 as rx. But as far as I know 127502 has been marked deprecated, so I do not know what would be the replacement for that.
+
+https://github.com/ttlappalainen/NMEA2000/issues/128#issuecomment-799150901
+
+
+
 // TODO
 
-showError on system name
-dont die when can lost
-change nmeajs path
-find can
-
-
-
-Show anchor in chart plotter :
-0x1F810: PGN 129040 - AIS Class B Extended Position Report
-
-{'canId': 301469618, 'prio': 4, 'src': 178, 'dst': 255, 'pgn': 129039, 'timestamp': '2025-06-09T22:25:25.174Z', 'input': [], 'fields': {'Message ID': 'Standard Class B position report', 'Repeat Indicator': 'Initial', 'User ID': 368081510, 'Longitude': -60.9494, 'Latitude': 14.0756, 'Position Accuracy': 'Low', 'RAIM': 'not in use', 'Time Stamp': '30', 'COG': 1.7698, 'SOG': 0, 'AIS Transceiver information': 'Channel B VDL reception', 'Heading': 1.4312, 'Regional Application B': 0, 'Unit type': 'SOTDMA', 'Integrated Display': 'No', 'DSC': 'No', 'Band': 'Top 525 kHz of marine band', 'Can handle Msg 22': 'No', 'AIS mode': 'Autonomous', 'AIS communication state': 'SOTDMA'}, 'description': 'AIS Class B Position Report'}
-
-
-{ "pgn": 129039, "fields": {"Message ID": "Standard Class B position report", "Repeat Indicator": "Initial", "User ID": 368299999, "Longitude": -60.9595577, "Latitude": 14.0829979, "Position Accuracy": "Low", "RAIM": "not in use", "Time Stamp": "45", "COG": 0, "SOG": 0, "AIS Transceiver information": "Channel B VDL reception", "Heading": 0, "Regional Application B": 0, "Unit type": "SOTDMA", "Integrated Display": "No", "DSC": "No", "Band": "Top 525 kHz of marine band", "Can handle Msg 22": "No", "AIS mode": "Autonomous", "AIS communication state": "SOTDMA"}, "description": "AIS Class B Position Report"}
-{ 'pgn': 129809, 'fields': {'Message ID': 'Static data report', 'Repeat Indicator': 'Initial', 'User ID': 244024607, 'Name': 'COSI', 'AIS Transceiver information': 'Channel B VDL reception'}, 'description': 'AIS Class B static data (msg 24 Part A)'}
-
-
-{ "pgn": 129810, "fields": {"Message ID": "Static data report", "Repeat Indicator": "Initial", "User ID": 368299999, "Type of ship": "Unavailable", "Vendor ID": "RDS", "Callsign": "ANCHOR", "Length": 0, "Beam": 0, "Position reference from Starboard": 0, "Position reference from Bow": 0, "Mothership User ID": 0, "Spare": 0, "AIS Transceiver information": "Channel B VDL reception"}, "description": "AIS Class B static data (msg 24 Part B)"}
-
-
-{ "pgn": 129039, "fields": {"Message ID": "Standard Class B position report", "Repeat Indicator": "Initial", "User ID": 0, "Longitude": -60.9595577, "Latitude": 14.0829979, "Position Accuracy": "Low", "RAIM": "not in use", "Time Stamp": "45", "COG": 0, "SOG": 0, "AIS Transceiver information": "Channel B VDL reception", "Heading": 0, "Regional Application B": 0, "Unit type": "SOTDMA", "Integrated Display": "No", "DSC": "No", "Band": "Top 525 kHz of marine band", "Can handle Msg 22": "No", "AIS mode": "Autonomous", "AIS communication state": "SOTDMA"}, "description": "AIS Class B Position Report"}
-{ "pgn": 129794, "fields": {"Message ID": "Static and voyage related data", "Repeat Indicator": "Initial", "User ID": 0,  "Callsign": "Anchor", "Name": "Anchor", "Type of ship": "Other", "Length": 0.01, "Beam": 0.01, "Position reference from Starboard": 0, "Position reference from Bow": 0,  "GNSS type": "Default: undefined", "DTE": "Available", "Reserved1": 0, "AIS Transceiver information": "Channel A VDL reception"}, "description": "AIS Class A Static and Voyage Related Data"}
-
-
-
-Not supported by any chart plotter
-{ "pgn": 129285, "fields": {"Start RPS#": 0, "nItems": 1, "Route ID": 999, "Navigation direction in route": "Forward", "Supplementary Route/WP data available": "Off", "list": [{"WP ID": 0, "WP Name": "Anchor", "WP Latitude": 14.0829979, "WP Longitude": -60.9595577}]}, "description": "Navigation - Route/WP Information"}
-{ "pgn": 129285,  "fields": {"Start RPS#": 0, "nItems": 2, "Route ID": 101, "Navigation direction in route": "Forward", "Supplementary Route/WP data available": "Off", "list": [{"WP ID": 0, "WP Name": "Begin", "WP Latitude": 14.0829979, "WP Longitude": -60.9595577}, {"WP ID": 1, "WP Name": "End", "WP Latitude": 14.0830639, "WP Longitude": -60.9588107}]}, "description": "Navigation - Route/WP Information"}
-{'canId': 234423316, 'prio': 3, 'src': 20, 'dst': 255, 'pgn': 129284, 'timestamp': '2025-06-09T21:45:01.156Z', 'input': [], 'fields': {'Distance to Waypoint': 80.74, 'Course/Bearing reference': 'True', 'Perpendicular Crossed': 'No', 'Arrival Circle Entered': 'No', 'Calculation Type': 'Great Circle', 'ETA Time': '21:57:13.00480', 'ETA Date': '2025.06.09', 'Bearing, Origin to Destination Waypoint': 1.4797, 'Bearing, Position to Destination Waypoint': 1.4886, 'Origin Waypoint Number': 0, 'Destination Waypoint Number': 1, 'Destination Latitude': 14.0830639, 'Destination Longitude': -60.9588107, 'Waypoint Closing Velocity': -0.08}, 'description': 'Navigation Data'}
-
-
-
-
-data/dbus-anchor-alarm/ext/geopy/point.py:472: UserWarning: Latitude normalization has been prohibited in the newer versions of geopy, because the normalized value happened to be on a different pole, which is probably not what was meant. If you pass coordinates as positional args, please make sure that the order is (latitude, longitude) or (y, x) in Cartesian terms.
-  return cls(*args)
-exit_on_error: there was an exception. Printing stacktrace will be tried and then exit
-Traceback (most recent call last):
-  File "/data/dbus-anchor-alarm/utils.py", line 33, in exit_on_error
-    return func(*args, **kwargs)
-  File "/data/dbus-anchor-alarm/anchor_alarm_controller.py", line 225, in _on_timer_tick
-    self._anchor_alarm.on_timer_tick(self.get_gps_position())
-  File "/data/dbus-anchor-alarm/anchor_alarm_model.py", line 213, in on_timer_tick
-    self._current_radius = round(self._calculate_distance(self._drop_point, gps_position))
-  File "/data/dbus-anchor-alarm/anchor_alarm_model.py", line 379, in _calculate_distance
-    distance = geodesic((drop_point.latitude, drop_point.longitude),
-  File "/data/dbus-anchor-alarm/ext/geopy/distance.py", line 540, in __init__
-    super().__init__(*args, **kwargs)
-  File "/data/dbus-anchor-alarm/ext/geopy/distance.py", line 276, in __init__
-    kilometers += self.measure(a, b)
-  File "/data/dbus-anchor-alarm/ext/geopy/distance.py", line 556, in measure
-    a, b = Point(a), Point(b)
-  File "/data/dbus-anchor-alarm/ext/geopy/point.py", line 175, in __new__
-    return cls.from_sequence(seq)
-  File "/data/dbus-anchor-alarm/ext/geopy/point.py", line 472, in from_sequence
-    return cls(*args)
-  File "/data/dbus-anchor-alarm/ext/geopy/point.py", line 188, in __new__
-    _normalize_coordinates(latitude, longitude, altitude)
-  File "/data/dbus-anchor-alarm/ext/geopy/point.py", line 74, in _normalize_coordinates
-    raise ValueError('Latitude must be in the [-90; 90] range.')
-ValueError: Latitude must be in the [-90; 90] range.
-
-
-
-add error when no GPS and anchor down and other events
-0x1F801: PGN 129025 - Position, Rapid Update
-
-0x1F80E: PGN 129038 - AIS Class A Position Report
-0x1F80F: PGN 129039 - AIS Class B Position Report
-0x1F811: PGN 129041 - AIS Aids to Navigation (AtoN) Report
-
-
-129029 GNSS Position Data
-{'canId': 234358019, 'prio': 3, 'src': 3,  'dst': 255, 'pgn': 129029, 'timestamp': '2025-06-06T17:35:03.931Z', 'input': [], 'fields': {'SID': 167, 'Date': '2025.06.06', 'Time': '17:27:06', 'Latitude': 14.084799002033536, 'Longitude': -60.960235248733056, 'Altitude': -29.651882, 'GNSS type': 'GPS+SBAS/WAAS+GLONASS', 'Method': 'no GNSS', 'Integrity': 'No integrity checking', 'Number of SVs': 0, 'HDOP': 0.51, 'PDOP': 1.08, 'Reference Stations': 0, 'list': []}, 'description': 'GNSS Position Data'}
-{'canId': 234358059, 'prio': 3, 'src': 43, 'dst': 255, 'pgn': 129029, 'timestamp': '2025-06-06T17:35:03.991Z', 'input': [], 'fields': {'Date': '2025.06.06', 'Time': '17:35:04', 'Latitude': 14.084805799339621, 'Longitude': -60.96023005073244, 'GNSS type': 'GPS', 'Method': 'GNSS fix', 'Integrity': 'No integrity checking', 'Geoidal Separation': 0, 'Reference Stations': 0, 'list': []}, 'description': 'GNSS Position Data'}
-
-
-
-
-Waypoint name 
-129284:Nav data
-
-or
-
-129285: Route
 
 html5 app :
 
@@ -91,23 +61,7 @@ html5 app :
 
 https://vrm-api-docs.victronenergy.com/#/operations/installations/idSite/settings
 
-waypoint :
-129284
-129285
-
-
-
-
-Make release and one-liner installation
-
-wget -qO- https://github.com/blaaaaaaah/dbus-anchor-alarm/archive/refs/heads/master.zip | tar -xf- && cd dbus-anchor-alarm-main && wget -qO- https://api.github.com/repos/blaaaaaaah/dbus-anchor-alarm/commits/main | grep '"sha"' | head -1 | cut -d'"' -f4 | cut -c1-7 > VERSION && chmod +x setup.sh && ./setup.sh
-
-
-
-
-wget -qO - https://github.com/kwindrem/SetupHelper/archive/latest.tar.gz | tar -xzf - -C /data
-mv -f /data/SetupHelper-latest /data/SetupHelper
-/data/SetupHelper/setup
+http://victron.matsu//garmin/config.json
 
 
 trigger_XXX should return True/False if they did something
@@ -127,15 +81,8 @@ navigation.anchor.maxRadius / null for off
 navigation.anchor.fudgeFactor = tolerance
 
 
-add switching button for reset_state with last. How to give feedback ?
 
 https://github.com/victronenergy/venus/wiki/howto-add-a-driver-to-Venus
-
-scp -r * root@victron.matsu:~/dbus-anchor-alarm
-
-Check NotificationCenter / Alarms
-=> change input 1 to alarm and input 2 to general current feedback
-
 
 Create settings UI
 Create MainScreen UI

@@ -1,0 +1,26 @@
+Metadata-Version: 2.1
+Name: http-ece
+Version: 1.2.1
+Summary: Encrypted Content Encoding for HTTP
+Home-page: https://github.com/martinthomson/encrypted-content-encoding
+Author: Martin Thomson
+Author-email: martin.thomson@gmail.com
+License: MIT
+Keywords: crypto http
+Platform: UNKNOWN
+Classifier: Development Status :: 4 - Beta
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python :: 2.7
+Classifier: Programming Language :: Python :: 3.4
+Classifier: Programming Language :: Python :: 3.5
+Classifier: Programming Language :: Python :: 3.6
+Classifier: Programming Language :: Python :: 3.7
+Classifier: Programming Language :: Python :: 3.8
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Requires-Dist: cryptography (>=2.5)
+
+Encipher HTTP Messages
+
