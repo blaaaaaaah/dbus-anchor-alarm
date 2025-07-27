@@ -310,7 +310,7 @@ class DBusDWPConnector(AbstractConnector):
             return
             
         # Only send notifications for dangerous states that are not muted
-        dangerous_states = [AnchorAlarmState.ALARM_DRAGGING, AnchorAlarmState.ALARM_NO_GPS]
+        dangerous_states = ["ALARM_DRAGGING", "ALARM_NO_GPS"]
         
         # Send notification for dangerous states (if not muted)
         if current_state.state in dangerous_states and not current_state.alarm_muted:
