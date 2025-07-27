@@ -316,8 +316,8 @@ class DBusDWPConnector(AbstractConnector):
         if current_state.state in dangerous_states and not current_state.alarm_muted:
             if current_state.state == "ALARM_DRAGGING":
                 self.send_push_notification(
-                    title="Anchor Alarm - DRAGGING",
-                    body="Your anchor is dragging! Check your position immediately.",
+                    title="Anchor Dragging",
+                    body=current_state.short_message,
                     data={
                         "state": "ALARM_DRAGGING",
                         "url": "/",
@@ -326,8 +326,8 @@ class DBusDWPConnector(AbstractConnector):
                 )
             elif current_state.state == "ALARM_NO_GPS":
                 self.send_push_notification(
-                    title="Anchor Alarm - NO GPS",
-                    body="GPS signal lost. Cannot monitor anchor position.",
+                    title="No GPS",
+                    body=current_state.short_message,
                     data={
                         "state": "ALARM_NO_GPS", 
                         "url": "/",
@@ -375,6 +375,25 @@ class DBusDWPConnector(AbstractConnector):
             logger.error(f"Failed to unregister DWP device: {e}")
             return False
             
+    def trigger_send_test_dwp(self):
+        """Send a test DWP notification to all subscribed devices"""
+        try:
+            import time
+            self.send_push_notification(
+                title="Test Notification",
+                body="Test push notification from your anchor alarm system.",
+                data={
+                    "type": "test",
+                    "timestamp": int(time.time())
+                }
+            )
+            logger.info("Test DWP notification triggered successfully")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to send test DWP notification: {e}")
+            return False
+            
     def _init_dbus_paths(self):
         """Initialize D-Bus paths for DWP triggers"""
         if not self._dbus_service:
@@ -383,6 +402,7 @@ class DBusDWPConnector(AbstractConnector):
         # Add DWP trigger paths
         self._dbus_service.add_path('/Triggers/RegisterDWPDevice', "", "JSON data to register DWP push notification device", writeable=True, onchangecallback=self._on_dbus_changed)
         self._dbus_service.add_path('/Triggers/UnregisterDWPDevice', "", "Subscription ID to unregister DWP device", writeable=True, onchangecallback=self._on_dbus_changed)
+        self._dbus_service.add_path('/Triggers/SendTestDWP', "", "Send test DWP notification (any value to trigger)", writeable=True, onchangecallback=self._on_dbus_changed)
         
     def _on_dbus_changed(self, path, newvalue):
         """Handle D-Bus trigger changes for DWP"""
@@ -394,6 +414,11 @@ class DBusDWPConnector(AbstractConnector):
         if path == '/Triggers/UnregisterDWPDevice':
             if newvalue:
                 self.trigger_unregister_dwp_device(newvalue)
+            return False  # Reset trigger
+            
+        if path == '/Triggers/SendTestDWP':
+            if newvalue:
+                self.trigger_send_test_dwp()
             return False  # Reset trigger
 
 
