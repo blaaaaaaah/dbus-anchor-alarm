@@ -255,7 +255,7 @@ class DBusDWPConnector(AbstractConnector):
                 if 'web.push.apple.com' in endpoint:
                     # Apple Push specific claims
                     vapid_claims = {
-                        "sub": f"mailto:{self._settings['VapidContactEmail'] or 'admin@localhost'}",
+                        "sub": f"mailto:{self._settings['VapidContactEmail'] or 'blaaaaaaah@github.com'}",
                         "aud": "https://web.push.apple.com",
                         "exp": int(time.time()) + 12 * 3600  # 12 hours from now
                     }
@@ -263,7 +263,7 @@ class DBusDWPConnector(AbstractConnector):
                 else:
                     # Standard VAPID claims for other services
                     vapid_claims = {
-                        "sub": f"mailto:{self._settings['VapidContactEmail'] or 'admin@localhost'}"
+                        "sub": f"mailto:{self._settings['VapidContactEmail'] or 'blaaaaaaah@github.com'}"
                     }
                     logger.debug(f"Standard VAPID claims: {vapid_claims}")
                 
@@ -288,8 +288,10 @@ class DBusDWPConnector(AbstractConnector):
                 
             except WebPushException as e:
                 logger.warning(f"Failed to send push to {subscription_id}: {e}")
-                if e.response and e.response.status_code in [410, 413]:
+                # Check if this is a 410 Gone or 413 error
+                if e.response.status_code in [410, 413]:
                     # Subscription expired or invalid
+                    logger.info(f"Marking subscription {subscription_id} for removal (status: {e.response.status_code})")
                     failed_subscriptions.append(subscription_id)
                     
             except Exception as e:
@@ -412,6 +414,9 @@ if __name__ == "__main__":
     import logging
     logging.basicConfig(level=logging.INFO)
     logger = logging.getLogger(__name__)
+
+    #logging.getLogger(__name__).setLevel(logging.DEBUG)
+
     
     if not WEBPUSH_AVAILABLE:
         print("❌ Web push dependencies not available. Install with: pip install pywebpush cryptography")
@@ -447,6 +452,7 @@ if __name__ == "__main__":
     print("  add:{json subscription data}")
     print("  remove:{subscription id}")
     print("  send:{notification text}")
+    print("  clear")
     print("  list")
     print("  key")
     print("  exit")
@@ -454,6 +460,7 @@ if __name__ == "__main__":
     print('  add:{"subscriptionId":"test123","subscription":{"endpoint":"https://example.com","keys":{"p256dh":"key1","auth":"key2"}}}')
     print("  remove:test123")
     print("  send:Test notification message")
+    print("  clear")
     print()
     
     def handle_command(command, text):
@@ -492,9 +499,9 @@ if __name__ == "__main__":
                 print("❌ No subscriptions available. Add a subscription first.")
                 return
             dwp_connector.send_push_notification(
-                title="Test Notification",
+                title="Anchor Alarm", 
                 body=text,
-                data={"test": True, "timestamp": int(time.time())}
+                data={"timestamp": int(time.time())}
             )
             print(f"✅ Notification sent: '{text}'")
             
@@ -507,6 +514,15 @@ if __name__ == "__main__":
                     print(f"  - {sub_id}: {endpoint}")
             else:
                 print("📋 No subscriptions found")
+                
+        elif command == "clear":
+            subscription_count = len(dwp_connector._subscriptions)
+            if subscription_count == 0:
+                print("📋 No subscriptions to clear")
+            else:
+                dwp_connector._subscriptions.clear()
+                dwp_connector._save_subscriptions()
+                print(f"✅ Cleared {subscription_count} subscriptions")
                 
         elif command == "key":
             public_key = dwp_connector.get_vapid_public_key()
