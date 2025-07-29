@@ -289,7 +289,7 @@ class DBusDWPConnector(AbstractConnector):
             except WebPushException as e:
                 logger.warning(f"Failed to send push to {subscription_id}: {e}")
                 # Check if this is a 410 Gone or 413 error
-                if e.response.status_code in [410, 413]:
+                if e.response.status_code in [410, 413, 400]:
                     # Subscription expired or invalid
                     logger.info(f"Marking subscription {subscription_id} for removal (status: {e.response.status_code})")
                     failed_subscriptions.append(subscription_id)
@@ -309,31 +309,27 @@ class DBusDWPConnector(AbstractConnector):
         if not WEBPUSH_AVAILABLE:
             return
             
-        # Only send notifications for dangerous states that are not muted
-        dangerous_states = ["ALARM_DRAGGING", "ALARM_NO_GPS"]
-        
         # Send notification for dangerous states (if not muted)
-        if current_state.state in dangerous_states and not current_state.alarm_muted:
-            if current_state.state == "ALARM_DRAGGING":
-                self.send_push_notification(
-                    title="Anchor Dragging",
-                    body=current_state.short_message,
-                    data={
-                        "state": "ALARM_DRAGGING",
-                        "url": "/",
-                        "timestamp": int(time.time())
-                    }
-                )
-            elif current_state.state == "ALARM_NO_GPS":
-                self.send_push_notification(
-                    title="No GPS",
-                    body=current_state.short_message,
-                    data={
-                        "state": "ALARM_NO_GPS", 
-                        "url": "/",
-                        "timestamp": int(time.time())
-                    }
-                )
+        if current_state.state == "ALARM_DRAGGING":
+            self.send_push_notification(
+                title="Anchor Dragging",
+                body=current_state.short_message,
+                data={
+                    "state": "ALARM_DRAGGING",
+                    "url": "/",
+                    "timestamp": int(time.time())
+                }
+            )
+        elif current_state.state == "ALARM_NO_GPS":
+            self.send_push_notification(
+                title="No GPS",
+                body=current_state.short_message,
+                data={
+                    "state": "ALARM_NO_GPS", 
+                    "url": "/",
+                    "timestamp": int(time.time())
+                }
+            )
                 
     def get_vapid_public_key(self):
         """Get the VAPID public key for frontend use"""
